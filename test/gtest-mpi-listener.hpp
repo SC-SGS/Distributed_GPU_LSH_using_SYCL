@@ -225,7 +225,7 @@ namespace GTestMPIListener {
         public:
             MPIWrapperPrinter(::testing::TestEventListener* l, MPI_Comm comm)
                     : ::testing::TestEventListener(), listener_(l), result_vector_() {
-                int is_mpi_initialized;
+                int is_mpi_initialized = 0;
                 assert(MPI_Initialized(&is_mpi_initialized) == MPI_SUCCESS);
                 if (!is_mpi_initialized) {
                     std::cout << "MPI must be initialized before RUN_ALL_TESTS!\n"
