@@ -1,0 +1,53 @@
+/**
+ * @dir include
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief This directory contains all header files.
+ */
+
+/**
+ * @dir include/dummy
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief Dummy header directory.
+ */
+
+
+
+ 
+/**
+ * @dir src
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief This directory contains all source files.
+ */
+
+/**
+ * @dir src/dummy
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief Dummy source directory.
+ */
+
+
+
+
+/**
+ * @dir test
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief This directory contains all test cases.
+ */
+
+/**
+ * @dir test/dummy
+ * @author Marcel Breyer
+ * @date 2020-04-17
+ *
+ * @brief Dummy test directory.
+ */
