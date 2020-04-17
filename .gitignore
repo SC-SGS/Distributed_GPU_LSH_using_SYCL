@@ -138,6 +138,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+build
 
 ### CMake Patch ###
 # External projects
@@ -167,3 +168,11 @@ _deps
 .nfs*
 
 # End of https://www.gitignore.io/api/c++,cuda,linux,cmake,clion
+
+### GTest ###
+googletest-build/
+googletest-download/
+googletest-src/
+
+### Documentation ###
+html/
