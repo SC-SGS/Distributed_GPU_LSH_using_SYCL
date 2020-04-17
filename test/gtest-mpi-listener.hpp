@@ -46,16 +46,14 @@
 #define GTEST_MPI_MINIMAL_LISTENER_H
 
 #include <cassert>
-#include <vector>
-#include <string>
-#include <sstream>
+#include <cstdio>
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 #include <mpi.h>
-
-//#include <fmt/format.h>
-// TODO 2020-02-27 19:09 marcel: change from fmt::format to std::format
 
 
 namespace GTestMPIListener {
@@ -129,7 +127,7 @@ namespace GTestMPIListener {
             virtual void OnTestStart(const ::testing::TestInfo& test_info) override {
                 // Only need to report test start info on rank 0
                 if (rank_ == 0) {
-//                    std::cout << fmt::format("*** Test {}.{} starting.", test_info.test_case_name(), test_info.name()) << std::endl;
+                    std::printf("*** Test %s.%s starting.\n", test_info.test_case_name(), test_info.name());
                 }
             }
 
@@ -169,12 +167,12 @@ namespace GTestMPIListener {
                 } else {
                     // Rank 0 first prints its local result data
                     for (const ::testing::TestPartResult test_part_result : result_vector_) {
-//                        std::cout << fmt::format("      {} on rank {}, {}:{}\n{}",
-//                                                 test_part_result.failed() ? "*** Failure" : "Success",
-//                                                 rank_,
-//                                                 test_part_result.file_name(),
-//                                                 test_part_result.line_number(),
-//                                                 test_part_result.summary()) << std::endl;
+                        std::printf("      %s on rank %i, %s:%i\n%s\n",
+                                    test_part_result.failed() ? "*** Failure" : "Success",
+                                    rank_,
+                                    test_part_result.file_name(),
+                                    test_part_result.line_number(),
+                                    test_part_result.summary());
                     }
 
                     for (int r = 1; r < size_; ++r) {
@@ -185,21 +183,21 @@ namespace GTestMPIListener {
                             MPI_Recv(&resultLineNumber, 1, MPI_INT, r, r, comm_, MPI_STATUS_IGNORE);
                             MPI_Recv(&resultSummarySize, 1, MPI_INT, r, r, comm_, MPI_STATUS_IGNORE);
 
-//                            std::string resultFileName(resultFileNameSize, ' ');
-//                            std::string resultSummary(resultSummarySize, ' ');
-//                            MPI_Recv(resultFileName.data(), resultFileNameSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
-//                            MPI_Recv(resultSummary.data(), resultSummarySize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
+                            std::string resultFileName(resultFileNameSize, ' ');
+                            std::string resultSummary(resultSummarySize, ' ');
+                            MPI_Recv(resultFileName.data(), resultFileNameSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
+                            MPI_Recv(resultSummary.data(), resultSummarySize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
 
-//                            std::cout << fmt::format("      {} on rank {}, {}:{}\n{}",
-//                                                     resultStatus ? "*** Failure" : "Success",
-//                                                     r,
-//                                                     resultFileName,
-//                                                     resultLineNumber,
-//                                                     resultSummary) << std::endl;
+                            std::printf("      %s on rank %i, %s:%i\n%s\n",
+                                    resultStatus ? "*** Failure" : "Success",
+                                    r,
+                                    resultFileName.c_str(),
+                                    resultLineNumber,
+                                    resultSummary.c_str());
                         }
                     }
 
-//                    std::cout << fmt::format("*** Test {}.{} ending.", test_info.test_case_name(), test_info.name()) << std::endl;
+                    std::printf("*** Test %s.%s ending.\n", test_info.test_case_name(), test_info.name());
                 }
 
                 result_vector_.clear();
@@ -337,23 +335,23 @@ namespace GTestMPIListener {
                             MPI_Recv(&resultLineNumber, 1, MPI_INT, r, r, comm_, MPI_STATUS_IGNORE);
                             MPI_Recv(&resultMessageSize, 1, MPI_INT, r, r, comm_, MPI_STATUS_IGNORE);
 
-//                            std::string resultFileName(resultFileNameSize, ' ');
-//                            std::string resultMessage(resultMessageSize, ' ');
-//                            MPI_Recv(resultFileName.data(), resultFileNameSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
-//                            MPI_Recv(resultMessage.data(), resultMessageSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
+                            std::string resultFileName(resultFileNameSize, ' ');
+                            std::string resultMessage(resultMessageSize, ' ');
+                            MPI_Recv(resultFileName.data(), resultFileNameSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
+                            MPI_Recv(resultMessage.data(), resultMessageSize, MPI_CHAR, r, r, comm_, MPI_STATUS_IGNORE);
 
-//                            if (resultStatus == 1) {
-//                                std::string message(resultMessage);
-//                                std::istringstream input_stream(message);
-//                                std::stringstream to_stream_into_failure;
-//                                std::string line_as_string;
-//
-//                                while (std::getline(input_stream, line_as_string)) {
-//                                    to_stream_into_failure << "[Rank " << r << " / "  << size_ << "] " << line_as_string << std::endl;
-//                                }
-//
-//                                ADD_FAILURE_AT(resultFileName.c_str(), resultLineNumber) << to_stream_into_failure.str();
-//                            }
+                            if (resultStatus == 1) {
+                                std::string message(resultMessage);
+                                std::istringstream input_stream(message);
+                                std::stringstream to_stream_into_failure;
+                                std::string line_as_string;
+
+                                while (std::getline(input_stream, line_as_string)) {
+                                    to_stream_into_failure << "[Rank " << r << " / "  << size_ << "] " << line_as_string << std::endl;
+                                }
+
+                                ADD_FAILURE_AT(resultFileName.c_str(), resultLineNumber) << to_stream_into_failure.str();
+                            }
                         }
                     }
                 }
