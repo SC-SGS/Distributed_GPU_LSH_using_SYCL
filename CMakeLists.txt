@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 project("Distributed GPU LSH implementation using SYCL"
         VERSION 0.0.0
         DESCRIPTION "master theses Marcel Breyer"
-        LANGUAGES CXX
+        LANGUAGES C CXX
         HOMEPAGE_URL "https://gitlab-sim.informatik.uni-stuttgart.de/breyerml/distributed_gpu_lsh_using_sycl")
 
 # cmake configuration options
@@ -27,30 +27,17 @@ add_library(${LIBRARY_NAME})
 # set needed compiler dependencies
 target_compile_features(${LIBRARY_NAME} PUBLIC cxx_std_17)
 
-# set general compiler flags
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # clang and GCC specific flags
-    set(WARNING_FLAGS -Wall -Wextra -Wpedantic -Wextra-semi -Wnull-dereference -Wswitch-enum)
-
-    # clang specific flags
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        list(APPEND WARNING_FLAGS -Wno-gnu-zero-variadic-macro-arguments)
-    endif ()
-
-    # GCC specific flags
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        list(APPEND WARNING_FLAGS -Wduplicated-cond -Wduplicated-branches -Wsuggest-override)
-    endif ()
-
-    message(STATUS "Enabled '${WARNING_FLAGS}' compiler flags to catch more potential errors")
-    target_compile_options(${LIBRARY_NAME} PUBLIC ${WARNING_FLAGS})
-endif ()
-
 
 # find MPI and add it to the library target
-find_package(MPI REQUIRED)
-target_include_directories(${LIBRARY_NAME} INTERFACE ${MPI_CXX_INCLUDE_DIRS})
-target_link_libraries(${LIBRARY_NAME} INTERFACE MPI::MPI_CXX)
+find_package(MPI COMPONENTS C QUIET)
+target_include_directories(${LIBRARY_NAME} PUBLIC ${MPI_C_INCLUDE_DIRS})
+target_link_libraries(${LIBRARY_NAME} PUBLIC MPI::MPI_C)
+
+
+# add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
+# TODO: better
+include_directories(/home/marcel/Programs/mpi/include)
+include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-0.8.0-zh3xxc5qkcrliknrratsbccxnlykpzqe/include)
 
 
 # set header include directory
