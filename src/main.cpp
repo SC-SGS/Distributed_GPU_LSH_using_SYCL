@@ -1,59 +1,58 @@
-/**
- * @file src/main.cpp
- * @author Marcel Breyer
- * @date 2020-04-18
- */
-
-#include <cassert>
 #include <iostream>
-#include <vector>
 
 #include <CL/sycl.hpp>
-#include <mpi.h>
+#include <numeric>
+#include <random>
 
-using data_type = float;
+namespace sycl = cl::sycl;
 
-std::vector<data_type> add(cl::sycl::queue& q, const std::vector<data_type>& a, const std::vector<data_type>& b) {
-    std::vector<data_type> c(a.size());
 
-    assert(a.size() == b.size());
-    cl::sycl::range<1> work_items{a.size()};
-
-    {
-        cl::sycl::buffer<data_type> buff_a(a.data(), a.size());
-        cl::sycl::buffer<data_type> buff_b(b.data(), b.size());
-        cl::sycl::buffer<data_type> buff_c(c.data(), c.size());
-
-        q.submit([&](cl::sycl::handler& cgh){
-            auto access_a = buff_a.get_access<cl::sycl::access::mode::read>(cgh);
-            auto access_b = buff_b.get_access<cl::sycl::access::mode::read>(cgh);
-            auto access_c = buff_c.get_access<cl::sycl::access::mode::write>(cgh);
-
-            cgh.parallel_for<class vector_add>(work_items,
-                                               [=] (cl::sycl::id<1> tid) {
-                                                   access_c[tid] = access_a[tid] + access_b[tid];
-                                               });
-        });
-    }
-    return c;
-}
 
 int main() {
-    MPI_Init(nullptr, nullptr);
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    std::cout << "Rank: " << rank << std::endl;
+    constexpr std::size_t size = 16;
 
-    cl::sycl::queue q;
-    std::vector<data_type> a = { 1.f, 2.f, 3.f, 4.f, 5.f };
-    std::vector<data_type> b = { -1.f, 2.f, -3.f, 4.f, -5.f };
-    auto result = add(q, a, b);
+    std::random_device rnd_device{};
+    std::mt19937 rnd_engine(rnd_device());
+    std::uniform_int_distribution<int> dist(1, 10);
 
-    std::cout << "Result: " << std::endl;
-    for (const auto x: result) {
-        std::cout << x << std::endl;
+    std::vector<int> arr(size);
+    std::generate(arr.begin(), arr.end(), [&] () { return dist(rnd_engine); });
+
+    std::for_each(arr.begin(), arr.end(), [] (const auto val) { std::cout << val << " "; });
+    std::cout << std::endl;
+
+    sycl::buffer buf(arr.data(), sycl::range<>{ size });
+
+    sycl::device device = sycl::default_selector{}.select_device();
+    sycl::async_handler exception_handler = [] (sycl::exception_list el) {
+        for (auto ex : el) {
+            std::rethrow_exception(ex);
+        }
+    };
+    sycl::queue queue(device, exception_handler);
+
+    auto wgroup_size = device.get_info<sycl::info::device::max_work_group_size>();
+    std::cout << "wgroup_size: " << wgroup_size << std::endl;
+    if (wgroup_size % 2 != 0) {
+        throw "Work-group size has to be even!";
+    }
+    auto part_size = wgroup_size * 2;
+    std::cout << "part_size: " << part_size << std::endl;
+
+    auto has_local_mem = device.is_host() || (device.get_info<sycl::info::device::local_mem_type>() != sycl::info::local_mem_type::none);
+    auto local_mem_size = device.get_info<sycl::info::device::local_mem_size>();
+    std::cout << "local_mem_size: " << local_mem_size << " Byte" << std::endl;
+    if (!has_local_mem || local_mem_size < (wgroup_size * sizeof(int))) {
+        throw "Device doesn't have enough local memory!";
     }
 
-    MPI_Finalize();
+
+
+
+
+
+    auto acc = buf.get_access<sycl::access::mode::read>();
+    std::cout << "Sum: " << acc[0] << std::endl;
+
     return 0;
 }
