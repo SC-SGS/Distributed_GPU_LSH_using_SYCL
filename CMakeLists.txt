@@ -39,21 +39,20 @@ endif ()
 
 # set source include files
 set(SOURCES
-        src/main.cpp)
-#        src/dummy/dummy.cpp)
-
+#        src/dummy/dummy.cpp
+        )
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if (NOT $ENV{CLION_IDE})
-    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cuda")
+if (NOT DEFINED ENV{CLION_IDE})
+    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
 endif ()
 
 include_directories(include)
 
 
 # create executable
-add_executable(prog ${SOURCES})
+add_executable(prog src/main.cpp ${SOURCES})
 
 
 # generate documentation if requested
