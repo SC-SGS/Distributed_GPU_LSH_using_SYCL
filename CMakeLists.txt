@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(CMAKE_CXX_COMPILER syclcc-clang)
+
 project("Distributed GPU LSH implementation using SYCL"
         VERSION 0.0.0
+        LANGUAGES CXX
         DESCRIPTION "master theses Marcel Breyer"
-        LANGUAGES C CXX
         HOMEPAGE_URL "https://gitlab-sim.informatik.uni-stuttgart.de/breyerml/distributed_gpu_lsh_using_sycl")
 
 # cmake configuration options
@@ -19,39 +21,39 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type (Debug/Release)" FORCE)
 endif ()
 
-# create library
-set(LIBRARY_NAME "lsh")
-add_library(${LIBRARY_NAME})
-
-
-# set needed compiler dependencies
-target_compile_features(${LIBRARY_NAME} PUBLIC cxx_std_17)
-
 
 # find MPI and add it to the library target
-find_package(MPI COMPONENTS C QUIET)
-target_include_directories(${LIBRARY_NAME} PUBLIC ${MPI_C_INCLUDE_DIRS})
-target_link_libraries(${LIBRARY_NAME} PUBLIC MPI::MPI_C)
+#find_package(MPI COMPONENTS C QUIET)
+#target_include_directories(${LIBRARY_NAME} PUBLIC ${MPI_C_INCLUDE_DIRS})
+#target_link_libraries(${LIBRARY_NAME} PUBLIC MPI::MPI_C)
+
+#find_package(hipSYCL)
 
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
-# TODO: better
-include_directories(/home/marcel/Programs/mpi/include)
-include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-0.8.0-zh3xxc5qkcrliknrratsbccxnlykpzqe/include)
+if ($ENV{CLION_IDE})
+    include_directories(/home/marcel/Programs/mpi/include)
+    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-0.8.0-zh3xxc5qkcrliknrratsbccxnlykpzqe/include)
+endif ()
 
-
-# set header include directory
-target_include_directories(${LIBRARY_NAME} PUBLIC include)
 
 # set source include files
-target_sources(${LIBRARY_NAME} PUBLIC
-        src/dummy/dummy.cpp)
+set(SOURCES
+        src/main.cpp)
+#        src/dummy/dummy.cpp)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if (NOT $ENV{CLION_IDE})
+    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cuda")
+endif ()
+
+include_directories(include)
+
 
 # create executable
-add_executable(prog src/main.cpp)
-
-# link against library
-target_link_libraries(prog ${LIBRARY_NAME})
+add_executable(prog ${SOURCES})
 
 
 # generate documentation if requested
