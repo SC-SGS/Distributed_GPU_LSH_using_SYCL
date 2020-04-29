@@ -15,7 +15,7 @@ class hash_tables {
 public:
 
     template <typename Data, typename Options>
-    hash_tables(sycl::queue& queue, const Data& data, const Options& opt)
+    hash_tables(sycl::queue& queue, Data& data, const Options& opt)
         : hash_functions_(sycl::range<1>{ opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1) }),
           hash_tables_(sycl::range<1>{ opt.num_hash_tables * data.size })
     {
@@ -25,7 +25,6 @@ public:
         sycl::buffer buf_hash_values_count(hash_values_count.data(), sycl::range<1>{ hash_values_count.size() });
 
         // TODO 2020-04-29 16:31 marcel:
-        sycl::buffer buf_data(data.data_.data(), sycl::range<1>{ data.data_.size() });
         const auto previous_power_of_two = [&] (const auto local_mem_size) -> std::size_t {
             return std::pow(2, std::floor(std::log2(local_mem_size / (data.dims * sizeof(real_type)))));
         };
@@ -39,7 +38,7 @@ public:
         queue.submit([&](sycl::handler& cgh) {
             auto acc_count = buf_hash_values_count.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_func = hash_functions_.template get_access<sycl::access::mode::read, sycl::access::target::constant_buffer>(cgh);
-            auto acc_data = buf_data.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data = data.data_.template get_access<sycl::access::mode::read>(cgh);
 
             sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
                     local_mem(sycl::range<1>{ local_size * data.dims }, cgh);
