@@ -176,3 +176,6 @@ googletest-src/
 
 ### Documentation ###
 html/
+
+### Data ###
+data/
