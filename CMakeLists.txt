@@ -33,27 +33,27 @@ endif ()
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
 if ($ENV{CLION_IDE})
     include_directories(/home/marcel/Programs/mpi/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-0.8.0-zh3xxc5qkcrliknrratsbccxnlykpzqe/include)
+    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
 endif ()
 
 
 # set source include files
 set(SOURCES
-#        src/dummy/dummy.cpp
+        src/hash_table.cpp
         )
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-if (NOT DEFINED ENV{CLION_IDE})
-    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
-endif ()
+#if (NOT DEFINED ENV{CLION_IDE})
+#    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
+#endif ()
 
 include_directories(include)
 
-
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
-
+target_compile_options(prog PRIVATE -Wno-format)
 
 # generate documentation if requested
 if (ENABLE_DOCUMENTATION)
