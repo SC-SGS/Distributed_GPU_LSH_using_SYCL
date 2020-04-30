@@ -9,7 +9,7 @@
 #include <string>
 
 #include <detail/convert.hpp>
-
+#include <detail/assert.hpp>
 
 template <typename real_t = float, typename size_t = uint32_t, typename hash_value_t = uint32_t>
 struct options {
@@ -19,7 +19,7 @@ struct options {
 
 
     class factory {
-        template <typename T, typename U, typename V>
+        template <typename, typename, typename>
         friend class options;
     public:
         factory() = default;
@@ -33,15 +33,15 @@ struct options {
 
             while(in >> key >> value) {
                 if (key == "k") {
-                    k_ = detail::convert_to<size_type>(value);
+                    this->set_k(detail::convert_to<size_type>(value));
                 } else if (key == "num_hash_tables") {
-                    num_hash_tables_ = detail::convert_to<size_type>(value);
+                    this->set_num_hash_tables(detail::convert_to<size_type>(value));
                 } else if (key == "hash_table_size") {
-                    hash_table_size_ = detail::convert_to<hash_value_type>(value);
+                    this->set_hash_table_size(detail::convert_to<hash_value_type>(value));
                 } else if (key == "num_hash_functions") {
-                    num_hash_functions_ = detail::convert_to<size_type>(value);
+                    this->set_num_hash_functions(detail::convert_to<size_type>(value));
                 } else if (key == "w") {
-                    w_ = detail::convert_to<real_type>(value);
+                    this->set_w(detail::convert_to<real_type>(value));
                 } else {
                     throw std::invalid_argument("Invalid options file!: " + key);
                 }
@@ -49,26 +49,32 @@ struct options {
         }
 
         factory& set_k(const size_type k) {
+            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
             k_ = k;
             return *this;
         }
         factory& set_num_hash_tables(const size_type num_hash_tables) {
+            DEBUG_ASSERT(0 < num_hash_tables, "Illegal number of hash tables!: 0 < {}", num_hash_tables);
             num_hash_tables_ = num_hash_tables;
             return *this;
         }
         factory& set_hash_table_size(const hash_value_type hash_table_size) {
+            DEBUG_ASSERT(0 < hash_table_size, "Illegal hash_table_size!: 0 < {}", hash_table_size);
             hash_table_size_ = hash_table_size;
             return *this;
         }
         factory& set_num_hash_functions(const size_type num_hash_functions) {
+            DEBUG_ASSERT(0 < num_hash_functions, "Illegal number of hash functions!: 0 < {}", num_hash_functions);
             num_hash_functions_ = num_hash_functions;
             return *this;
         }
         factory& set_w(const real_type w) {
+            DEBUG_ASSERT(0.0 < w, "Illegal 'w' value!: 0 < {}", w);
             w_ = w;
             return *this;
         }
     private:
+        // TODO 2020-04-30 15:31 marcel: set meaningful defaults
         size_type k_ = 6;
         size_type num_hash_tables_ = 2;
         hash_value_type hash_table_size_ = 105613;
@@ -94,7 +100,7 @@ struct options {
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size  " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
-        out << "w " << opt.w << '\n';
+        out << "w " << opt.w;
 
         return out;
     }
