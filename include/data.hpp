@@ -44,8 +44,8 @@ public:
 
 
 
-    const size_type size = 4;
-    const size_type dims = 3;
+    const size_type size;
+    const size_type dims;
 
 //private:
     sycl::buffer<data_type, 1> data_;
