@@ -65,6 +65,58 @@ public:
                 }
             });
         });
+
+        std::vector<size_type> offsets(opt.num_hash_tables * (opt.hash_table_size + 1), 0.0);
+        sycl::buffer buf_offsets(offsets.data(), sycl::range<1>{ offsets.size() });
+
+        queue.submit([&](sycl::handler& cgh) {
+            auto acc_hfc = buf_hash_values_count.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_off = buf_offsets.template get_access<sycl::access::mode::discard_write>(cgh);
+
+            cgh.parallel_for<class calculate_offsets>(sycl::range<1>{ opt.num_hash_tables }, [=](sycl::item<1> item) {
+                const size_type idx = item.get_linear_id();
+
+                size_type offset_value = data.size;
+                acc_off[idx * (opt.hash_table_size + 1)] = 0;
+
+                for (size_type hash_value = opt.hash_table_size; hash_value > 0; --hash_value) {
+                    offset_value -= acc_hfc[idx * opt.hash_table_size + hash_value - 1];
+                    acc_off[idx * (opt.hash_table_size + 1) + hash_value] = offset_value;
+                }
+            });
+        });
+
+        queue.submit([&](sycl::handler& cgh) {
+            auto acc_data = data.data_.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_func = hash_functions_.template get_access<sycl::access::mode::read, sycl::access::target::constant_buffer>(cgh);
+            auto acc_offset = buf_offsets.template get_access<sycl::access::mode::atomic>(cgh);
+            auto acc_hash_tables = hash_tables_.template get_access<sycl::access::mode::discard_write>(cgh);
+
+            sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
+                    local_mem(sycl::range<1>{ local_size * data.dims }, cgh);
+
+            auto execution_range = sycl::nd_range<1>{ sycl::range<1>{ global_size }, sycl::range<1>{ local_size } };
+
+            cgh.parallel_for<class fill_hash_table>(execution_range, [=](sycl::nd_item<1> item) {
+                const size_type idx = item.get_global_linear_id();
+                const size_type local_idx = item.get_local_linear_id();
+
+                if (idx >= data.size) { return; }
+
+                // copy to local memory
+                for (size_type i = 0; i < data.dims; ++i) {
+//                    local_mem[local_idx + i * local_size] = acc_data[i + idx * data.dims]; // SoA
+                    local_mem[i + local_idx * data.dims] = acc_data[i + idx * data.dims]; // AoS
+                }
+                item.barrier(sycl::access::fence_space::local_space);
+
+                for (size_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+//                    hash += local_mem[d + local_idx * opt.dims] * acc_hash_func[d + j * (opt.dims + 1)]; // AoS
+                    const size_type hash_value = this->hash(local_idx, acc_data, acc_hash_func, data, opt);
+                    acc_hash_tables[hash_table * data.size + acc_offset[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
+                }
+            });
+        });
     }
 
     template <memory_type layout, typename Data, typename Options>
