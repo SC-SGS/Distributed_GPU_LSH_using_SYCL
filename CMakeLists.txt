@@ -17,8 +17,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 # set build type to Release if none was specified
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to 'Release' as none was specified")
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type (Debug/Release)" FORCE)
+    message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified")
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the build type" FORCE)
 endif ()
 
 
