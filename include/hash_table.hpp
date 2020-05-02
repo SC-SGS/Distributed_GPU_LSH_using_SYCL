@@ -4,6 +4,7 @@
 #include <config.hpp>
 #include <options.hpp>
 #include <data.hpp>
+#include <detail/print.hpp>
 
 #include <CL/sycl.hpp>
 #include <random>
@@ -38,7 +39,7 @@ public:
         queue.submit([&](sycl::handler& cgh) {
             auto acc_count = buf_hash_values_count.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_func = hash_functions_.template get_access<sycl::access::mode::read, sycl::access::target::constant_buffer>(cgh);
-            auto acc_data = data.data_.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data = data.buffer.template get_access<sycl::access::mode::read>(cgh);
 
             sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
                     local_mem(sycl::range<1>{ local_size * data.dims }, cgh);
@@ -87,7 +88,7 @@ public:
         });
 
         queue.submit([&](sycl::handler& cgh) {
-            auto acc_data = data.data_.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data = data.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_func = hash_functions_.template get_access<sycl::access::mode::read, sycl::access::target::constant_buffer>(cgh);
             auto acc_offset = buf_offsets.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_tables = hash_tables_.template get_access<sycl::access::mode::discard_write>(cgh);
@@ -119,10 +120,10 @@ public:
         });
     }
 
-    template <memory_type layout, typename Data, typename Options>
+    template <memory_layout layout, typename Data, typename Options>
     size_type get_linear_idx(const size_type hash_table, const size_type hash_function, const size_type dim,
                     const Data& data, const Options& opt) noexcept {
-        if constexpr (layout == memory_type::aos) {
+        if constexpr (layout == memory_layout::aos) {
             // grouped by hash_tables -> grouped by hash_functions
             return hash_table * (opt.num_hash_functions * (data.dims + 1))
                    + hash_function * (data.dims + 1)
@@ -155,9 +156,9 @@ private:
         for (size_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (size_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 for (size_type dim = 0; dim < data.dims; ++dim) {
-                    acc[this->get_linear_idx<layout>(hash_table, hash_function, dim, data, opt)] = std::abs(rnd_uniform_dist(rnd_normal_gen));
+                    acc[this->get_linear_idx<memory_layout::aos>(hash_table, hash_function, dim, data, opt)] = std::abs(rnd_uniform_dist(rnd_normal_gen));
                 }
-                acc[this->get_linear_idx<layout>(hash_table, hash_function, data.dims, data, opt)] = rnd_uniform_dist(rnd_uniform_gen);
+                acc[this->get_linear_idx<memory_layout::aos>(hash_table, hash_function, data.dims, data, opt)] = rnd_uniform_dist(rnd_uniform_gen);
             }
         }
     }
