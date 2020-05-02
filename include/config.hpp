@@ -8,11 +8,10 @@
 namespace sycl = cl::sycl;
 
 
-enum class memory_type {
+enum class memory_layout {
     aos, // Array of Structs
     soa  // Struct of Arrays
 };
 
-constexpr memory_type layout = memory_type::aos;
 
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
