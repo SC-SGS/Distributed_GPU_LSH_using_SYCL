@@ -7,121 +7,163 @@
 
 namespace detail {
 
+    template <typename T, typename... Types>
+    constexpr bool is_any_type_of_v = (std::is_same_v<std::decay_t<T>, std::decay_t<Types>> || ...);
+
     template <typename T>
     const char* get_format_specifier() {
-        using decayed_type = typename std::decay<T>::type;
-        if (std::is_same<decayed_type, char>::value) {
+        // list of placeholder escapes
+        if constexpr (is_any_type_of_v<T, char>) {
             return "%c";
-        } else if (std::is_same<decayed_type, short>::value) {
+        } else if constexpr (is_any_type_of_v<T, short>) {
             return "%hi";
-        } else if (std::is_same<decayed_type, int>::value) {
+        } else if constexpr (is_any_type_of_v<T, int>) {
             return "%i";
-        } else if (std::is_same<decayed_type, long>::value) {
+        } else if constexpr (is_any_type_of_v<T, long>) {
             return "%li";
-        } else if (std::is_same<decayed_type, long long>::value) {
+        } else if constexpr (is_any_type_of_v<T, long long>) {
             return "%lli";
-        } else if (std::is_same<decayed_type, unsigned short>::value) {
+        } else if constexpr (is_any_type_of_v<T, unsigned short>) {
             return "%hu";
-        } else if (std::is_same<decayed_type, unsigned int>::value) {
+        } else if constexpr (is_any_type_of_v<T, unsigned int>) {
             return "%u";
-        } else if (std::is_same<decayed_type, unsigned long>::value) {
+        } else if constexpr (is_any_type_of_v<T, unsigned long>) {
             return "%lu";
-        } else if (std::is_same<decayed_type, float>::value || std::is_same<decayed_type, double>::value) {
+        } else if constexpr (is_any_type_of_v<T, float, double>) {
             return "%g";
-        } else if (std::is_same<decayed_type, long double>::value) {
+        } else if constexpr (is_any_type_of_v<T, long double>) {
             return "%Lg";
-        } else if (std::is_same<decayed_type, const char*>::value || std::is_same<decayed_type, char*>::value) {
+        } else if constexpr (is_any_type_of_v<T, const char*, char*>) {
             return "%s";
-        } else if (std::is_pointer<typename std::decay<T>::type>::value) {
+        } else if constexpr (std::is_pointer_v<std::decay_t<T>>) {
             return "%p";
         } else {
             return "ILLEGAL_ARGUMENT_TYPE";
         }
     }
 
-    int size(const char* str) {
+    const char* get_escape_sequence(const char c) {
+        // list of escape sequences
+        switch (c) {
+            case '%': return "%%";
+            default:  return "ILLEGAL_ARGUMENT";
+        }
+    }
+
+    int c_str_size(const char* str) {
+        // loop until null terminator has been found
         int size = 0;
-        while(str[size] != '\0') { ++size; }
+        while(str[size] != '\0') ++size;
         return size;
     }
 
-    int find_next_format_placeholder(const char* msg, int pos = 0) {
-        if (msg[pos] == '\0') return -1;
+    int find_next_occurrence(const char* str, const char* seq, int pos = 0) {
+        // calculate sizes
+        const int str_size = c_str_size(str);
+        const int seq_size = c_str_size(seq);
 
-        while (msg[pos + 1] != '\0') {
-            if (msg[pos] == '{' && msg[pos + 1] == '}') {
-                return pos;
+        // return if the remaining str can't contain seq
+        if (pos + seq_size > str_size) return -1;
+
+        // get next occurrence
+        for (int i = pos; i <= str_size - seq_size; ++i) {
+            // check whether seq starts at i
+            bool contains = true;
+            for (int j = 0; j < seq_size; ++j) {
+                if (str[i + j] != seq[j]) contains = false;
             }
-            ++pos;
+            // seq contained -> return start pos
+            if (contains) return i;
         }
+        // end of string -> seq not found
         return -1;
     }
 
-    int count_placeholders(const char* str) {
-        int occurrence = 0;
-        int pos = 0;
-        while((pos = find_next_format_placeholder(str, pos)) != -1) {
-            ++occurrence;
-            pos += 2;
+    int count(const char* str, const char* seq) {
+        // calculate occurrences
+        const int seq_size = c_str_size(seq);
+        int occurrences = 0, pos = 0;
+        // as long as a next occurrence could be found increment variable
+        while ((pos = find_next_occurrence(str, seq, pos)) != -1) {
+            ++occurrences;
+            pos += seq_size;
         }
-        return occurrence;
+        return occurrences;
     }
 
-    template <typename T>
-    void replace_format_placeholder(char*& msg, int pos) {
-        const char* format = get_format_specifier<T>();
-        int format_size = size(format);
-        char* new_msg = new char[size(msg) - 2 + format_size + 1];
-        new_msg[size(new_msg)] = '\0';
-
-        for (int i = 0; i < size(msg) - 2; ++i) {
-            if (i < pos) {
-                new_msg[i] = msg[i];
-            } else {
-                new_msg[i + format_size] = msg[i + 2];
+    void escape_character(char* str, const char esc) {
+        int str_size = c_str_size(str);
+        for (int i = 0; i < str_size; ++i) {
+            // character to escape found
+            if (str[i] == esc) {
+                // copy all characters after i one place to the right
+                for (int j = str_size; j > i; --j) {
+                    str[j + 1] = str[j];
+                }
+                // escape character
+                const char* esc_seq = get_escape_sequence(esc);
+                str[i] = esc_seq[0];
+                str[i + 1] = esc_seq[1];
+                // increase str size and advance current position
+                ++str_size;
+                ++i;
             }
         }
-        for (int i = 0; i < format_size; ++i) {
-            new_msg[pos + i] = format[i];
-        }
-        delete[] msg;
-        msg = new_msg;
     }
-
 
     template <typename T>
-    void substitute_placeholders(char*& msg, T&&) {
-        replace_format_placeholder<T>(msg, find_next_format_placeholder(msg));
-    }
+    int escape_placeholder(char* str, const char* seq, int pos = 0) {
+        // get next format specifier
+        pos = find_next_occurrence(str, seq, pos);
+        const char* format = get_format_specifier<T>();
 
-    template <typename T, typename... Args>
-    void substitute_placeholders(char*& msg, T&&, Args&&... args) {
-        replace_format_placeholder<T>(msg, find_next_format_placeholder(msg));
-        substitute_placeholders(msg, args...);
+        // calculate sizes
+        int str_size = c_str_size(str);
+        const int format_size = c_str_size(format);
+        const int seq_size = c_str_size(seq);
+
+        // only right shift string if the format specifier needs more space than seq
+        if (format_size != seq_size) {
+            for (int i = str_size; i > pos; --i) {
+                str[i + format_size - seq_size] = str[i];
+            }
+        }
+        // replace placeholder with format specifier
+        for (int i = 0; i < format_size; ++i) {
+            str[pos + i] = format[i];
+        }
+
+        return pos;
     }
 
 
     template <typename... Args>
     void print(const char* msg, Args&&... args) {
-        if (count_placeholders(msg) != sizeof...(Args)) {
-            printf("WRONG NUMBER OF ARGUEMNTS!!! %s",
-                   count_placeholders(msg) > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
+        const int num_placeholders = count(msg, "{}");
+        // missmatch of number of plapceholders and given values
+        if (num_placeholders != sizeof...(Args)) {
+            printf("WRONG NUMBER OF ARGUEMNTS!!! %s",  num_placeholders > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
         } else {
-            char* new_msg = new char[size(msg) + 1];
-            for (int i = 0; i < size(msg); ++i) {
-                new_msg[i] = msg[i];
+            // create temporary msg and copy old one
+            int msg_size = c_str_size(msg);
+            char* substituted_msg = new char[msg_size + 1 + num_placeholders * 2 + count(msg, "%")];
+            for (int i = 0; i <= msg_size; ++i) {
+                substituted_msg[i] = msg[i];
             }
-            new_msg[size(new_msg)] = '\0';
 
-            substitute_placeholders(new_msg, args...);
+            // escape normale percentage signs
+            escape_character(substituted_msg, '%');
 
-            printf(new_msg, std::forward<Args>(args)...);
-            delete[] new_msg;
+            // escape placeholders
+            int pos = 0;
+            ((pos = escape_placeholder<Args>(substituted_msg, "{}", pos)), ...);
+
+            // print substituted message
+            std::printf(substituted_msg, std::forward<Args>(args)...);
+
+            // delete temporary msg
+            delete[] substituted_msg;
         }
-    }
-
-    void print(const char* msg) {
-        printf(msg);
     }
 
 }
