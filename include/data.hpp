@@ -24,12 +24,12 @@ public:
 
 
     template <memory_layout new_layout>
-    [[nodiscard]] data<new_layout, Options> get_as()
+    [[nodiscard]] data<new_layout, options_type> get_as()
     __attribute__((diagnose_if(new_layout == layout,
             "get_as called with same memory_layout as *this -> results in a copy of *this -> better use *this in the first place",
             "warning")))
     {
-        data<new_layout, Options> new_data(size, dims);
+        data<new_layout, options_type> new_data(size, dims);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
         for (size_type s = 0; s < size; ++s) {
