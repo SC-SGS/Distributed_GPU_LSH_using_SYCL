@@ -23,17 +23,21 @@ public:
     sycl::buffer<data_type, 1> buffer;
 
 
-    template <memory_layout other_layout>
-    data(data<other_layout, Options>& other)
-        : size(other.size), dims(other.dims), buffer(sycl::range<1>{ other.buffer.get_count() })
+    template <memory_layout new_layout>
+    [[nodiscard]] data<new_layout, Options> get_as()
+    __attribute__((diagnose_if(new_layout == layout,
+            "get_as called with same memory_layout as *this -> results in a copy of *this -> better use *this in the first place",
+            "warning")))
     {
-        auto acc_this = buffer.template get_access<sycl::access::mode::discard_write>();
-        auto acc_other = other.buffer.template get_access<sycl::access::mode::read>();
+        data<new_layout, Options> new_data(size, dims);
+        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
+        auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
         for (size_type s = 0; s < size; ++s) {
             for (size_type d = 0; d < dims; ++d) {
-                acc_this[this->get_linear_id(s, d)] = acc_other[other.get_linear_id(s, d)];
+                acc_new[new_data.get_linear_id(s, d)] = acc_this[this->get_linear_id(s, d)];
             }
         }
+        return new_data;
     }
 
 
@@ -52,6 +56,10 @@ public:
 private:
     template <memory_layout layout_, typename Options_, typename... Args_>
     friend data<layout_, Options_> make_data(const Options_& opt, Args_&&... args);
+    template <memory_layout, typename>
+    friend class data;
+
+    data(const std::size_t size, const std::size_t dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
 
     data(const std::size_t size, const std::size_t dims, const Options&)
             : size(size), dims(dims), buffer(sycl::range<1>{ size * dims })
