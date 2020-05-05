@@ -14,6 +14,7 @@
 #include <options.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 
@@ -116,9 +117,17 @@ private:
             acc[i] = rnd_dist(rnd_gen);
         }
     }
-    data(const std::string& file, const Options& opt)
+    /**
+     * @brief Construct a new data object from the given @p file.
+     * @param file the file containing all data points
+     */
+    data(std::filesystem::path file, const Options&)
             : size(this->parse_size(file)), dims(this->parse_dims(file)), buffer(sycl::range<1>{ size * dims })
     {
+        // check if file exists
+        if (!std::filesystem::exists(file)) {
+            throw std::invalid_argument("File '" + file.string() + "' doesn't exist!");
+        }
         std::ifstream in(file);
         std::string line, elem;
 
@@ -133,12 +142,21 @@ private:
         }
     }
 
-
-    [[nodiscard]] size_type parse_size(const std::string& file) const {
+    /**
+     * @brief Computes the number of data points in the given @p file.
+     * @param file the file containing all data points
+     * @return the number of data points in @p file (`[[nodiscard]]`)
+     */
+    [[nodiscard]] size_type parse_size(const std::filesystem::path& file) const {
         std::ifstream in(file);
         return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
     }
-    [[nodiscard]] size_type parse_dims(const std::string& file) const {
+    /**
+     * @brief Computes the number of dimensions of each data point in the given @p file.
+     * @param file the file containing all data points
+     * @return the number of dimensions (`[[nodiscard]]`)
+     */
+    [[nodiscard]] size_type parse_dims(const std::filesystem::path& file) const {
         if (size == 0) return 0;
 
         std::ifstream in(file);
