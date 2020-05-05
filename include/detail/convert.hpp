@@ -18,8 +18,8 @@ namespace detail {
 
     /**
      * @brief Attempt to convert the value represented by @p str to a value of type `T`.
-     * @tparam T the value type to parse @p str to
-     * @param str the string to parse
+     * @tparam T the value type to parse @p str to (must be arithmetic types)
+     * @param[in] str the string to parse
      * @return the value of type `T` represented by @p str
      *
      * @throw std::invalid_argument if @p str can't get parsed to type `T`.

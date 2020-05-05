@@ -9,8 +9,9 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
 
+#include <cstdlib>
 #include <iostream>
-#include <stdlib.h>
+#include <type_traits>
 
 #include <detail/print.hpp>
 #include <detail/source_location.hpp>
@@ -20,14 +21,14 @@ namespace detail {
 
     /**
      * @brief
-     * @tparam Args parameter pack for the placeholder types
-     * @param cond the assert condition, terminates the program if evaluated to `false`
-     * @param cond_str the assert condition as string for a better error message
-     * @param loc the location where the assertion has been triggered
-     * @param msg the custom assert message printed after the assertion location
-     * @param args the arguments to fill the `printf` like placeholders in the custom error message
+     * @tparam Args parameter pack for the placeholder types (must be arithmetic types)
+     * @param[in] cond the assert condition, terminates the program if evaluated to `false`
+     * @param[in] cond_str the assert condition as string for a better error message
+     * @param[in] loc the location where the assertion has been triggered
+     * @param[in] msg the custom assert message printed after the assertion location
+     * @param[in] args the arguments to fill the `printf` like placeholders in the custom error message
      */
-    template <typename... Args>
+    template <typename... Args, std::enable_if_t<(std::is_arithmetic_v<Args> && ...), int> = 0>
     inline void check(const bool cond, const char* cond_str, const source_location& loc, const char* msg, Args&&... args) {
         // check if the condition holds
         if (!cond) {

@@ -38,10 +38,10 @@ namespace detail {
     public:
         /**
          * @brief Constructs a new source_location with the respective information about the current call side.
-         * @param func the function name (including its signature if supported via the macro `PRETTY_FUNC_NAME__`)
-         * @param file the file name (absolute path)
-         * @param line the line number
-         * @param column the column number
+         * @param[in] func the function name (including its signature if supported via the macro `PRETTY_FUNC_NAME__`)
+         * @param[in] file the file name (absolute path)
+         * @param[in] line the line number
+         * @param[in] column the column number
          * @return the source_location holding the call side location information
          *
          * @attention @p column is always (independent of the call side position) default initialized to 0!
