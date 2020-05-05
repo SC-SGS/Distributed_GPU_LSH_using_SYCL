@@ -30,13 +30,13 @@ class data {
 public:
     /// The type of the underlying data as specified as in the provided @ref options class.
     using data_type = typename Options::real_type;
-    /// The size type as specified as in the provided @ref options class.
-    using size_type = typename Options::size_type;
+    /// The index type as specified as in the provided @ref options class.
+    using index_type = typename Options::index_type;
 
     /// The number of data points.
-    const size_type size;
+    const index_type size;
     /// The dimension of each data point.
-    const size_type dims;
+    const index_type dims;
     /// The SYCL buffer holding all data. `buffer.get_count() == size * dims`
     sycl::buffer<data_type, 1> buffer;
 
@@ -65,8 +65,8 @@ public:
         data<new_layout, Options> new_data(size, dims);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
-        for (size_type s = 0; s < size; ++s) {
-            for (size_type d = 0; d < dims; ++d) {
+        for (index_type s = 0; s < size; ++s) {
+            for (index_type d = 0; d < dims; ++d) {
                 // transform memory layout
                 acc_new[new_data.get_linear_id(s, d)] = acc_this[this->get_linear_id(s, d)];
             }
@@ -80,7 +80,7 @@ public:
      * @param[in] dim the provided dimension
      * @return the flattened index (`[[nodiscard]]`)
      */
-    [[nodiscard]] size_type get_linear_id(const size_type point, const size_type dim) const noexcept {
+    [[nodiscard]] index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
             return dim + point * dims;
@@ -112,14 +112,14 @@ private:
      * @param size the number of data points
      * @param dims the number of dimensions of each data point
      */
-    data(const size_type size, const size_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
+    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
     /**
      * @brief Construct a new data object if size: `size * dims`.
      * @details **Does** initialize the buffer with random values.
      * @param size the number of data points
      * @param dims the number of dimensions of each data point
      */
-    data(const size_type size, const size_type dims, const Options&)
+    data(const index_type size, const index_type dims, const Options&)
             : size(size), dims(dims), buffer(sycl::range<1>{ size * dims })
     {
         // define random facilities
@@ -129,7 +129,7 @@ private:
 
         // memory_layout doesn't matter for random values
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        for (size_type i = 0; i < buffer.get_count(); ++i) {
+        for (index_type i = 0; i < buffer.get_count(); ++i) {
             acc[i] = rnd_dist(rnd_gen);
         }
     }
@@ -151,10 +151,10 @@ private:
 
         // read file line by line, parse value and save it at the correct position (depending on the current memory_layout) in buffer
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        for (size_type point = 0; point < size; ++point) {
+        for (index_type point = 0; point < size; ++point) {
             std::getline(in, line);
             std::stringstream ss(line);
-            for (size_type dim = 0; dim < dims; ++dim) {
+            for (index_type dim = 0; dim < dims; ++dim) {
                 std::getline(ss, elem, ',');
                 acc[this->get_linear_id(point, dim)] = detail::convert_to<data_type>(elem);
             }
@@ -166,7 +166,7 @@ private:
      * @param file the file containing all data points
      * @return the number of data points in @p file (`[[nodiscard]]`)
      */
-    [[nodiscard]] size_type parse_size(const std::filesystem::path& file) const {
+    [[nodiscard]] index_type parse_size(const std::filesystem::path& file) const {
         std::ifstream in(file);
         return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
     }
@@ -175,7 +175,7 @@ private:
      * @param file the file containing all data points
      * @return the number of dimensions (`[[nodiscard]]`)
      */
-    [[nodiscard]] size_type parse_dims(const std::filesystem::path& file) const {
+    [[nodiscard]] index_type parse_dims(const std::filesystem::path& file) const {
         if (size == 0) return 0;
 
         std::ifstream in(file);
