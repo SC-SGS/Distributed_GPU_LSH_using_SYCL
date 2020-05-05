@@ -9,14 +9,14 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
 
-#include <config.hpp>
-#include <detail/convert.hpp>
-#include <options.hpp>
-
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+
+#include <config.hpp>
+#include <detail/convert.hpp>
+#include <options.hpp>
 
 
 /**
