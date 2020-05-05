@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <sstream>
 #include <stdexcept>
 
 #include <config.hpp>
@@ -109,15 +110,15 @@ private:
     /**
      * @brief Default construct a data object of size: `size * dims`.
      * @details **Doesn't** initialize the buffer.
-     * @param size the number of data points
-     * @param dims the number of dimensions of each data point
+     * @param[in] size the number of data points
+     * @param[in] dims the number of dimensions of each data point
      */
     data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
     /**
      * @brief Construct a new data object if size: `size * dims`.
      * @details **Does** initialize the buffer with random values.
-     * @param size the number of data points
-     * @param dims the number of dimensions of each data point
+     * @param[in] size the number of data points
+     * @param[in] dims the number of dimensions of each data point
      */
     data(const index_type size, const index_type dims, const Options&)
             : size(size), dims(dims), buffer(sycl::range<1>{ size * dims })
@@ -135,7 +136,7 @@ private:
     }
     /**
      * @brief Construct a new data object from the given @p file.
-     * @param file the file containing all data points
+     * @param[in] file the file containing all data points
      *
      * @throw std::invalid_argument if @p file doesn't exist.
      */
@@ -163,7 +164,7 @@ private:
 
     /**
      * @brief Computes the number of data points in the given @p file.
-     * @param file the file containing all data points
+     * @param[in] file the file containing all data points
      * @return the number of data points in @p file (`[[nodiscard]]`)
      */
     [[nodiscard]] index_type parse_size(const std::string& file) const {
@@ -172,7 +173,7 @@ private:
     }
     /**
      * @brief Computes the number of dimensions of each data point in the given @p file.
-     * @param file the file containing all data points
+     * @param[in] file the file containing all data points
      * @return the number of dimensions (`[[nodiscard]]`)
      */
     [[nodiscard]] index_type parse_dims(const std::string& file) const {
@@ -191,8 +192,8 @@ private:
  * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
  * @tparam Args the types of the additional constructor parameters
- * @param opt the option class
- * @param args additional constructor parameters
+ * @param[in] opt the option class
+ * @param[in] args additional constructor parameters
  * @return the newly constructed @ref data object
  */
 template <memory_layout layout, typename Options, typename... Args>
