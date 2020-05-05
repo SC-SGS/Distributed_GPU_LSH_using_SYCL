@@ -98,20 +98,35 @@ public:
 
 
 private:
+    /// Befriend factory function.
     template <memory_layout layout_, typename Options_, typename... Args_>
     friend data<layout_, Options_> make_data(const Options_& opt, Args_&&... args);
+    /// Befriend data class (including the one with another @ref memory_layout).
     template <memory_layout, typename>
     friend class data;
 
-    data(const std::size_t size, const std::size_t dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
-
-    data(const std::size_t size, const std::size_t dims, const Options&)
+    /**
+     * @brief Default construct a data object of size: `size * dims`.
+     * @details **Doesn't** initialize the buffer.
+     * @param size the number of data points
+     * @param dims the number of dimensions of each data point
+     */
+    data(const size_type size, const size_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
+    /**
+     * @brief Construct a new data object if size: `size * dims`.
+     * @details **Does** initialize the buffer with random values.
+     * @param size the number of data points
+     * @param dims the number of dimensions of each data point
+     */
+    data(const size_type size, const size_type dims, const Options&)
             : size(size), dims(dims), buffer(sycl::range<1>{ size * dims })
     {
+        // define random facilities
         std::random_device rnd_device;
         std::mt19937 rnd_gen(rnd_device());
         std::normal_distribution<data_type> rnd_dist;
 
+        // memory_layout doesn't matter for random values
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
         for (size_type i = 0; i < buffer.get_count(); ++i) {
             acc[i] = rnd_dist(rnd_gen);
@@ -131,13 +146,14 @@ private:
         std::ifstream in(file);
         std::string line, elem;
 
+        // read file line by line, parse value and save it at the correct position (depending on the current memory_layout) in buffer
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
         for (size_type point = 0; point < size; ++point) {
             std::getline(in, line);
             std::stringstream ss(line);
             for (size_type dim = 0; dim < dims; ++dim) {
                 std::getline(ss, elem, ',');
-                acc[point + dim * size] = detail::convert_to<data_type>(elem);
+                acc[this->get_linear_id(point, dim)] = detail::convert_to<data_type>(elem);
             }
         }
     }
