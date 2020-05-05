@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <stdexcept>
 
 #include <config.hpp>
 #include <detail/convert.hpp>
@@ -135,6 +136,8 @@ private:
     /**
      * @brief Construct a new data object from the given @p file.
      * @param file the file containing all data points
+     *
+     * @throw std::invalid_argument if @p file doesn't exist.
      */
     data(std::filesystem::path file, const Options&)
             : size(this->parse_size(file)), dims(this->parse_dims(file)), buffer(sycl::range<1>{ size * dims })
