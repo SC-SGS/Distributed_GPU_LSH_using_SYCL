@@ -139,12 +139,12 @@ private:
      *
      * @throw std::invalid_argument if @p file doesn't exist.
      */
-    data(std::filesystem::path file, const Options&)
+    data(const std::string& file, const Options&)
             : size(this->parse_size(file)), dims(this->parse_dims(file)), buffer(sycl::range<1>{ size * dims })
     {
         // check if file exists
         if (!std::filesystem::exists(file)) {
-            throw std::invalid_argument("File '" + file.string() + "' doesn't exist!");
+            throw std::invalid_argument("File '" + file + "' doesn't exist!");
         }
         std::ifstream in(file);
         std::string line, elem;
@@ -166,7 +166,7 @@ private:
      * @param file the file containing all data points
      * @return the number of data points in @p file (`[[nodiscard]]`)
      */
-    [[nodiscard]] index_type parse_size(const std::filesystem::path& file) const {
+    [[nodiscard]] index_type parse_size(const std::string& file) const {
         std::ifstream in(file);
         return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
     }
@@ -175,7 +175,7 @@ private:
      * @param file the file containing all data points
      * @return the number of dimensions (`[[nodiscard]]`)
      */
-    [[nodiscard]] index_type parse_dims(const std::filesystem::path& file) const {
+    [[nodiscard]] index_type parse_dims(const std::string& file) const {
         if (size == 0) return 0;
 
         std::ifstream in(file);
