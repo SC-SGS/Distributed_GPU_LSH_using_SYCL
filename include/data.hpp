@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-04
+ * @date 2020-05-05
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -112,7 +112,7 @@ private:
         std::normal_distribution<data_type> rnd_dist;
 
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        for (size_type i = 0; i < size * dims; ++i) {
+        for (size_type i = 0; i < buffer.get_count(); ++i) {
             acc[i] = rnd_dist(rnd_gen);
         }
     }
