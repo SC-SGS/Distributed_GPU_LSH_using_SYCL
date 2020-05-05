@@ -1,3 +1,12 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-05-05
+ *
+ * @brief Implements a custom print function using `{}` as placeholders.
+ * @details Internally converts `{}` to the respective `printf` format specifiers and calls `printf`.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_PRINT_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_PRINT_HPP
 
@@ -5,12 +14,23 @@
 #include <type_traits>
 #include <utility>
 
+
 namespace detail {
 
+    /**
+     * @brief Checks whether `T` is the same type as any of `Types`.
+     * @tparam T the type to check
+     * @tparam Types the types to check against
+     */
     template <typename T, typename... Types>
     constexpr bool is_any_type_of_v = (std::is_same_v<std::decay_t<T>, std::decay_t<Types>> || ...);
 
-    template <typename T>
+    /**
+     * @brief Returns the `printf` format specifier corresponding to the type `T`.
+     * @tparam T the type to get the format specifier for (must be arithmetic types)
+     * @return the `printf` format specifier
+     */
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
     const char* get_format_specifier() {
         // list of placeholder escapes
         if constexpr (is_any_type_of_v<T, char>) {
@@ -42,14 +62,25 @@ namespace detail {
         }
     }
 
+    /**
+     * @brief Returns the escape sequence for the character @p c.
+     * @param[in] c the character to escape
+     * @return the character escape sequence
+     */
     const char* get_escape_sequence(const char c) {
         // list of escape sequences
-        switch (c) {
-            case '%': return "%%";
-            default:  return "ILLEGAL_ARGUMENT";
+        if (c == '%') {
+            return "%%";
+        } else {
+            return "ILLEGAL_ARGUMENT";
         }
     }
 
+    /**
+     * @brief Calculates the size of the null-terminated string @p str.
+     * @param[in] str the null-terminated string
+     * @return the size of @p str (excluding the null-terminator)
+     */
     int c_str_size(const char* str) {
         // loop until null terminator has been found
         int size = 0;
@@ -57,7 +88,14 @@ namespace detail {
         return size;
     }
 
-    int find_next_occurrence(const char* str, const char* seq, int pos = 0) {
+    /**
+     * @brief Find the next occurrence of @p seq in @p str starting at position @p pos.
+     * @param[in] str the string (potentially) containing @p seq
+     * @param[in] seq the sequence to search for
+     * @param[in] pos the starting position
+     * @return the position of the next occurrence of @p seq
+     */
+    int find_next_occurrence(const char* str, const char* seq, const int pos = 0) {
         // calculate sizes
         const int str_size = c_str_size(str);
         const int seq_size = c_str_size(seq);
@@ -79,6 +117,12 @@ namespace detail {
         return -1;
     }
 
+    /**
+     * @brief Count the number of occurrences of @p seq in @p str.
+     * @param[in] str the string (potentially) containing @p seq
+     * @param[in] seq the sequence to count
+     * @return the number of occurrences of @p seq
+     */
     int count(const char* str, const char* seq) {
         // calculate occurrences
         const int seq_size = c_str_size(seq);
@@ -91,6 +135,11 @@ namespace detail {
         return occurrences;
     }
 
+    /**
+     * @brief Escape all occurrences of @p esp in @p str.
+     * @param[inout] str the string (potentially) containing @p esc
+     * @param[in] esc the character to escape
+     */
     void escape_character(char* str, const char esc) {
         int str_size = c_str_size(str);
         for (int i = 0; i < str_size; ++i) {
@@ -111,7 +160,15 @@ namespace detail {
         }
     }
 
-    template <typename T>
+    /**
+     * @brief Replace the next character sequence @p seq starting at position @p pos in the string @p str.
+     * @tparam T the type of the value which will be inserted at the next @p seq position (must be arithmetic types)
+     * @param[inout] str the string (potentially) containing @p seq
+     * @param[in] seq the sequence to replace
+     * @param[in] pos the starting position
+     * @return the position of the escaped sequence @p seq
+     */
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
     int escape_placeholder(char* str, const char* seq, int pos = 0) {
         // get next format specifier
         pos = find_next_occurrence(str, seq, pos);
@@ -136,13 +193,20 @@ namespace detail {
         return pos;
     }
 
-
-    template <typename... Args>
+    /**
+     * @brief Print the given message @p msg after replaceing all occurences of `{}` with the corresponding `printf` format specifiers
+     * based on the types of @p args.
+     * @tparam Args the types to fill the placeholders (must be arithmetic types)
+     * @param[in] msg the message (potentially) containing placeholders
+     * @param[in] args the values to fill the placeholders
+     */
+    template <typename... Args, std::enable_if_t<(std::is_arithmetic_v<Args> && ...), int> = 0>
     void print(const char* msg, Args&&... args) {
         const int num_placeholders = count(msg, "{}");
         // missmatch of number of plapceholders and given values
         if (num_placeholders != sizeof...(Args)) {
-            printf("WRONG NUMBER OF ARGUEMNTS!!! %s",  num_placeholders > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
+            printf("WRONG NUMBER OF ARGUEMNTS!!! %s",
+                    num_placeholders > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
         } else {
             // create temporary msg and copy old one
             int msg_size = c_str_size(msg);
@@ -167,5 +231,6 @@ namespace detail {
     }
 
 }
+
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_PRINT_HPP
