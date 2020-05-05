@@ -20,6 +20,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified")
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the build type" FORCE)
 endif ()
+message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 
 # find MPI and add it to the library target
@@ -40,20 +41,27 @@ endif ()
 # set source include files
 set(SOURCES
         src/hash_table.cpp
-        )
+)
+
+
+# set c++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-#if (NOT DEFINED ENV{CLION_IDE})
-#    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
-#endif ()
+# set CMAKE_CXX_FLAGS based on CMAKE_BUILD_TYPE
+string(APPEND CMAKE_CXX_FLAGS_INIT " ")
+string(APPEND CMAKE_CXX_FLAGS_DEBUG_INIT " -g")
+string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL_INIT " -Os -DNDEBUG")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
+string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
+
+# include directory
 include_directories(include)
 
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
-target_compile_options(prog PRIVATE -Wno-format)
+
 
 # generate documentation if requested
 if (ENABLE_DOCUMENTATION)
