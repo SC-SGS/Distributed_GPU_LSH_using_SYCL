@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-06
  *
  * @brief
  */
@@ -9,8 +9,6 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_SOURCE_LOCATION_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_SOURCE_LOCATION_HPP
 
-#include <string>
-#include <string_view>
 
 /**
  * @def PRETTY_FUNC_NAME__
@@ -47,8 +45,8 @@ namespace detail {
          * @attention @p column is always (independent of the call side position) default initialized to 0!
          */
         static source_location current(
-                const std::string_view func = __builtin_FUNCTION(),
-                const std::string_view file = __builtin_FILE(),
+                const char* func = __builtin_FUNCTION(),
+                const char* file = __builtin_FILE(),
                 const int line = __builtin_LINE(),
                 const int column = 0
         ) noexcept {
@@ -64,12 +62,12 @@ namespace detail {
          * @brief Returns the absolute path name of the file.
          * @return the file name (`[[nodiscard]]`)
          */
-        [[nodiscard]] constexpr const std::string& file_name() const noexcept { return file_; }
+        [[nodiscard]] constexpr const char* file_name() const noexcept { return file_; }
         /**
          * @brief Returns the function name without additional signature information (i.e. return type or parameters).
          * @return the function name (`[[nodiscard]]`)
          */
-        [[nodiscard]] constexpr const std::string& function_name() const noexcept { return func_; }
+        [[nodiscard]] constexpr const char* function_name() const noexcept { return func_; }
         /**
          * @brief Returns the line number.
          * @return the line number (`[[nodiscard]]`)
@@ -84,8 +82,8 @@ namespace detail {
         [[nodiscard]] constexpr int column() const noexcept { return column_; }
 
     private:
-        std::string file_ = "unknown";
-        std::string func_ = "unknown";
+        const char* file_ = "unknown";
+        const char* func_ = "unknown";
         int line_ = 0;
         int column_ = 0;
     };
