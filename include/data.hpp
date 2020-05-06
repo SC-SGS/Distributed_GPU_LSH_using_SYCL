@@ -176,7 +176,7 @@ private:
      */
     [[nodiscard]] index_type parse_size(const std::string& file) const {
         std::ifstream in(file);
-        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
+        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n') + 1;
     }
     /**
      * @brief Computes the number of dimensions of each data point in the given @p file.
