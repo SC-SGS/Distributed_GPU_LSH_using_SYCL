@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-06
  *
  * @brief Implements a custom print function using `{}` as placeholders.
  * @details Internally converts `{}` to the respective `printf` format specifiers and calls `printf`.
@@ -27,10 +27,10 @@ namespace detail {
 
     /**
      * @brief Returns the `printf` format specifier corresponding to the type `T`.
-     * @tparam T the type to get the format specifier for (must be arithmetic types)
+     * @tparam T the type to get the format specifier for
      * @return the `printf` format specifier
      */
-    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    template <typename T>
     const char* get_format_specifier() {
         // list of placeholder escapes
         if constexpr (is_any_type_of_v<T, char>) {
@@ -162,13 +162,13 @@ namespace detail {
 
     /**
      * @brief Replace the next character sequence @p seq starting at position @p pos in the string @p str.
-     * @tparam T the type of the value which will be inserted at the next @p seq position (must be arithmetic types)
+     * @tparam T the type of the value which will be inserted at the next @p seq position
      * @param[inout] str the string (potentially) containing @p seq
      * @param[in] seq the sequence to replace
      * @param[in] pos the starting position
      * @return the position of the escaped sequence @p seq
      */
-    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    template <typename T>
     int escape_placeholder(char* str, const char* seq, int pos = 0) {
         // get next format specifier
         pos = find_next_occurrence(str, seq, pos);
@@ -196,11 +196,11 @@ namespace detail {
     /**
      * @brief Print the given message @p msg after replaceing all occurences of `{}` with the corresponding `printf` format specifiers
      * based on the types of @p args.
-     * @tparam Args the types to fill the placeholders (must be arithmetic types)
+     * @tparam Args the types to fill the placeholders
      * @param[in] msg the message (potentially) containing placeholders
      * @param[in] args the values to fill the placeholders
      */
-    template <typename... Args, std::enable_if_t<(std::is_arithmetic_v<Args> && ...), int> = 0>
+    template <typename... Args>
     void print(const char* msg, Args&&... args) {
         const int num_placeholders = count(msg, "{}");
         // missmatch of number of plapceholders and given values
