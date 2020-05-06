@@ -42,15 +42,6 @@ public:
     /// The SYCL buffer holding all data. `buffer.get_count() == size * dims`
     sycl::buffer<data_type, 1> buffer;
 
-    /// Delete copy-constructor because SYCL only does a shallow-copy.
-    data(const data&) = delete;
-    /// Delete copy-assignment operator because SYCL only does a shallow-copy.
-    data& operator=(const data&) = delete;
-    /// Enable default move-constructor.
-    data(data&&) = default;
-    /// Enable default move-assignment operator.
-    data& operator=(data&&) = default;
-
 
     /**
      * @brief Returns the current data set with `new_layout`.
