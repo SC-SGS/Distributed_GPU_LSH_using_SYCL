@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-06
  *
  * @brief Implements a conversion function from std::string to numeric types.
  */
@@ -24,7 +24,7 @@ namespace detail {
      *
      * @throw std::invalid_argument if @p str can't get parsed to type `T`.
      */
-    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<std::remove_reference_t<T>>, int> = 0>
     T convert_to(const std::string& str) {
         if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
             // try to convert str to a floating point type using the old stof/stod/stold functions
