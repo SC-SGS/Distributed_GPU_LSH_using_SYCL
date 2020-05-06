@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-06
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -17,6 +17,7 @@
 #include <stdexcept>
 
 #include <config.hpp>
+#include <detail/assert.hpp>
 #include <detail/convert.hpp>
 #include <options.hpp>
 
@@ -80,8 +81,14 @@ public:
      * @param[in] point the provided data point
      * @param[in] dim the provided dimension
      * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p point **must** be greater or equal than `0` and less than `size`.
+     * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
      */
     [[nodiscard]] index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
+        DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
+        DEBUG_ASSERT(0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
+
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
             return dim + point * dims;
