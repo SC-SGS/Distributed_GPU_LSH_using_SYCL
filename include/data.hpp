@@ -115,7 +115,7 @@ private:
      * @pre @p size **must** be greater than `0`.
      * @pre @p dims **must** be greater than `0`.
      */
-    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) {
+    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(size * dims) {
         DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
     }
