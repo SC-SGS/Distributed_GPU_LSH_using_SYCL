@@ -110,17 +110,24 @@ private:
      * @details **Doesn't** initialize the buffer.
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
+     *
+     * @pre @p size **must** be greater than `0`.
+     * @pre @p dims **must** be greater than `0`.
      */
-    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) { }
+    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(sycl::range<1>{ size * dims }) {
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+    }
     /**
      * @brief Construct a new data object if size: `size * dims`.
      * @details **Does** initialize the buffer with random values.
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
+     *
+     * @pre @p size **must** be greater than `0`.
+     * @pre @p dims **must** be greater than `0`.
      */
-    data(const index_type size, const index_type dims, const Options&)
-            : size(size), dims(dims), buffer(sycl::range<1>{ size * dims })
-    {
+    data(const index_type size, const index_type dims, const Options&) : data(size, dims) {
         // define random facilities
         std::random_device rnd_device;
         std::mt19937 rnd_gen(rnd_device());
@@ -137,10 +144,11 @@ private:
      * @param[in] file the file containing all data points
      *
      * @throw std::invalid_argument if @p file doesn't exist.
+     *
+     * @pre the number of data points in @p file **must** be greater than `0`.
+     * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const std::string& file, const Options&)
-            : size(this->parse_size(file)), dims(this->parse_dims(file)), buffer(sycl::range<1>{ size * dims })
-    {
+    data(const std::string& file, const Options&) : data(this->parse_size(file), this->parse_dims(file)) {
         // check if file exists
         if (!std::filesystem::exists(file)) {
             throw std::invalid_argument("File '" + file + "' doesn't exist!");
