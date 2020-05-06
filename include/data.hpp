@@ -183,12 +183,14 @@ private:
      * @return the number of dimensions (`[[nodiscard]]`)
      */
     [[nodiscard]] index_type parse_dims(const std::string& file) const {
-        if (size == 0) return 0;
-
         std::ifstream in(file);
         std::string line;
         std::getline(in, line);
-        return std::count(line.cbegin(), line.cend(), ',') + 1;
+        if (line.empty()) {
+            return 0;
+        } else {
+            return std::count(line.cbegin(), line.cend(), ',') + 1;
+        }
     }
 };
 
