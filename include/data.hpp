@@ -206,7 +206,7 @@ private:
  * @return the newly constructed @ref data object
  */
 template <memory_layout layout, typename Options, typename... Args>
-data<layout, Options> make_data(const Options& opt, Args&&... args) {
+inline data<layout, Options> make_data(const Options& opt, Args&&... args) {
     return data<layout, Options>(std::forward<Args>(args)..., opt);
 }
 

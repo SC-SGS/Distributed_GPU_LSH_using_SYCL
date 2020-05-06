@@ -23,7 +23,7 @@ namespace detail {
      * @tparam Types the types to check against
      */
     template <typename T, typename... Types>
-    constexpr bool is_any_type_of_v = (std::is_same_v<std::decay_t<T>, std::decay_t<Types>> || ...);
+    inline constexpr bool is_any_type_of_v = (std::is_same_v<std::decay_t<T>, std::decay_t<Types>> || ...);
 
     /**
      * @brief Returns the `printf` format specifier corresponding to the type `T`.
@@ -31,7 +31,7 @@ namespace detail {
      * @return the `printf` format specifier
      */
     template <typename T>
-    const char* get_format_specifier() {
+    inline const char* get_format_specifier() {
         // list of placeholder escapes
         if constexpr (is_any_type_of_v<T, char>) {
             return "%c";
@@ -67,7 +67,7 @@ namespace detail {
      * @param[in] c the character to escape
      * @return the character escape sequence
      */
-    const char* get_escape_sequence(const char c) {
+    inline const char* get_escape_sequence(const char c) {
         // list of escape sequences
         if (c == '%') {
             return "%%";
@@ -81,7 +81,7 @@ namespace detail {
      * @param[in] str the null-terminated string
      * @return the size of @p str (excluding the null-terminator)
      */
-    int c_str_size(const char* str) {
+    inline int c_str_size(const char* str) {
         // loop until null terminator has been found
         int size = 0;
         while(str[size] != '\0') ++size;
@@ -95,7 +95,7 @@ namespace detail {
      * @param[in] pos the starting position
      * @return the position of the next occurrence of @p seq
      */
-    int find_next_occurrence(const char* str, const char* seq, const int pos = 0) {
+    inline int find_next_occurrence(const char* str, const char* seq, const int pos = 0) {
         // calculate sizes
         const int str_size = c_str_size(str);
         const int seq_size = c_str_size(seq);
@@ -123,7 +123,7 @@ namespace detail {
      * @param[in] seq the sequence to count
      * @return the number of occurrences of @p seq
      */
-    int count(const char* str, const char* seq) {
+    inline int count(const char* str, const char* seq) {
         // calculate occurrences
         const int seq_size = c_str_size(seq);
         int occurrences = 0, pos = 0;
@@ -140,7 +140,7 @@ namespace detail {
      * @param[inout] str the string (potentially) containing @p esc
      * @param[in] esc the character to escape
      */
-    void escape_character(char* str, const char esc) {
+    inline void escape_character(char* str, const char esc) {
         int str_size = c_str_size(str);
         for (int i = 0; i < str_size; ++i) {
             // character to escape found
@@ -169,7 +169,7 @@ namespace detail {
      * @return the position of the escaped sequence @p seq
      */
     template <typename T>
-    int escape_placeholder(char* str, const char* seq, int pos = 0) {
+    inline int escape_placeholder(char* str, const char* seq, int pos = 0) {
         // get next format specifier
         pos = find_next_occurrence(str, seq, pos);
         const char* format = get_format_specifier<T>();
@@ -201,7 +201,7 @@ namespace detail {
      * @param[in] args the values to fill the placeholders
      */
     template <typename... Args>
-    void print(const char* msg, Args&&... args) {
+    inline void print(const char* msg, Args&&... args) {
         const int num_placeholders = count(msg, "{}");
         // missmatch of number of plapceholders and given values
         if (num_placeholders != sizeof...(Args)) {
