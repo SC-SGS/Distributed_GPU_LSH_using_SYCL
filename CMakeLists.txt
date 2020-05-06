@@ -23,14 +23,6 @@ endif ()
 message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 
-# add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
-if ($ENV{CLION_IDE})
-    include_directories(/home/marcel/Programs/mpi/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
-endif ()
-
-
 # set source include files
 set(SOURCES
         src/hash_table.cpp
@@ -71,4 +63,13 @@ if (ENABLE_TESTS)
     include(CTest)
     enable_testing()
     add_subdirectory(test)
+endif ()
+
+
+
+# add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
+if ($ENV{CLION_IDE})
+    include_directories(/home/marcel/Programs/mpi/include)
+    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
+    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
 endif ()
