@@ -53,7 +53,7 @@ public:
     template <memory_layout new_layout>
     [[nodiscard]] data<new_layout, Options> get_as()
     __attribute__((diagnose_if(new_layout == layout,
-            "get_as called with same memory_layout as *this -> results in a copy of *this -> better use *this in the first place",
+            "get_as called with same memory_layout as *this -> results in a copy of *this -> directly use *this",
             "warning")))
     {
         data<new_layout, Options> new_data(size, dims);
