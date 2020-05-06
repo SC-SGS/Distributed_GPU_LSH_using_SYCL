@@ -62,6 +62,7 @@ include_directories(include)
 
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
+target_compile_options(prog PRIVATE -Wno-format-security)
 
 
 # generate documentation if requested
