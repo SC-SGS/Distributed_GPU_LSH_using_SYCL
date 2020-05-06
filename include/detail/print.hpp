@@ -72,7 +72,7 @@ namespace detail {
         if (c == '%') {
             return "%%";
         } else {
-            return "ILLEGAL_ARGUMENT";
+            return "??";
         }
     }
 
@@ -123,7 +123,7 @@ namespace detail {
      * @param[in] seq the sequence to count
      * @return the number of occurrences of @p seq
      */
-    inline int count(const char* str, const char* seq) {
+    inline int count_sequence(const char* str, const char* seq) {
         // calculate occurrences
         const int seq_size = c_str_size(seq);
         int occurrences = 0, pos = 0;
@@ -169,7 +169,7 @@ namespace detail {
      * @return the position of the escaped sequence @p seq
      */
     template <typename T>
-    inline int escape_placeholder(char* str, const char* seq, int pos = 0) {
+    inline int escape_placeholder_sequence(char* str, const char* seq, int pos = 0) {
         // get next format specifier
         pos = find_next_occurrence(str, seq, pos);
         const char* format = get_format_specifier<T>();
@@ -202,15 +202,18 @@ namespace detail {
      */
     template <typename... Args>
     inline void print(const char* msg, Args&&... args) {
-        const int num_placeholders = count(msg, "{}");
+        const int num_placeholders = count_sequence(msg, "{}");
         // missmatch of number of plapceholders and given values
         if (num_placeholders != sizeof...(Args)) {
             printf("WRONG NUMBER OF ARGUEMNTS!!! %s",
                     num_placeholders > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
         } else {
-            // create temporary msg and copy old one
+            // calculate sizes
             int msg_size = c_str_size(msg);
-            char* substituted_msg = new char[msg_size + 1 + num_placeholders * 2 + count(msg, "%")];
+            int format_specifier_size = (c_str_size(get_format_specifier<Args>()) + ... + 0);
+            int substituted_msg_size = msg_size - 2 * num_placeholders + format_specifier_size + count_sequence(msg, "%") + 1;
+            // create temporary msg and copy old one
+            char* substituted_msg = new char[substituted_msg_size];
             for (int i = 0; i <= msg_size; ++i) {
                 substituted_msg[i] = msg[i];
             }
@@ -220,7 +223,7 @@ namespace detail {
 
             // escape placeholders
             int pos = 0;
-            ((pos = escape_placeholder<Args>(substituted_msg, "{}", pos)), ...);
+            ((pos = escape_placeholder_sequence<Args>(substituted_msg, "{}", pos)), ...);
 
             // print substituted message
             std::printf(substituted_msg, std::forward<Args>(args)...);
