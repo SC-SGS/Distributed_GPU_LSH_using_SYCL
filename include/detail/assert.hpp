@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-06
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -21,26 +21,44 @@ namespace detail {
 
     /**
      * @brief
-     * @tparam Args parameter pack for the placeholder types (must be arithmetic types)
+     * @tparam Args parameter pack for the placeholder types
      * @param[in] cond the assert condition, terminates the program if evaluated to `false`
      * @param[in] cond_str the assert condition as string for a better error message
      * @param[in] loc the location where the assertion has been triggered
      * @param[in] msg the custom assert message printed after the assertion location
      * @param[in] args the arguments to fill the `printf` like placeholders in the custom error message
      */
-    template <typename... Args, std::enable_if_t<(std::is_arithmetic_v<Args> && ...), int> = 0>
+    template <typename... Args>
     inline void check(const bool cond, const char* cond_str, const source_location& loc, const char* msg, Args&&... args) {
         // check if the condition holds
         if (!cond) {
-            // print source location options
-            std::cout << "Assertion '" << cond_str << "' failed!\n"
-                      << "  in file '" << loc.file_name() << "'\n"
-                      << "  in function '" << loc.function_name() << "'\n"
-                      << "  @ line " << loc.line() << "\n\n";
+            // calculate sizes of the messages
+            const char* loc_msg = "Assertion '{}' failed!\n  in file '{}'\n  in function '{}'\n  @ line {}\n\n";
+            const int loc_msg_size = detail::c_str_size(loc_msg);
+            const int msg_size = detail::c_str_size(msg);
 
-            // print the additional assertion message
-            print(msg, std::forward<Args>(args)...);
-            std::cout << std::endl;
+            // create new full_msg = source location msg + provided message + 2 newlines + null-terminator
+            char* full_msg = new char[loc_msg_size + msg_size + 2 + 1];
+
+            // copy source_location message to full_msg
+            int idx = 0;
+            for (; idx < loc_msg_size; ++idx) {
+                full_msg[idx] = loc_msg[idx];
+            }
+            // copy provided message to full_msg
+            for (int i = 0; i < msg_size; ++i, ++idx) {
+                full_msg[idx] = msg[i];
+            }
+            // add trailing newlines and null-terminator
+            full_msg[idx++] = '\n';
+            full_msg[idx++] = '\n';
+            full_msg[idx] = '\0';
+
+            // print the full_msg
+            print(full_msg, cond_str, loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+
+            // delete full_msg (previously allocated with new)
+            delete[] full_msg;
 
             // abort the program
             abort();
