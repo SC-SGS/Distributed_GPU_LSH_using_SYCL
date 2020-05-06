@@ -23,14 +23,6 @@ endif ()
 message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 
-# find MPI and add it to the library target
-#find_package(MPI COMPONENTS C QUIET)
-#target_include_directories(${LIBRARY_NAME} PUBLIC ${MPI_C_INCLUDE_DIRS})
-#target_link_libraries(${LIBRARY_NAME} PUBLIC MPI::MPI_C)
-
-#find_package(hipSYCL)
-
-
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
 if ($ENV{CLION_IDE})
     include_directories(/home/marcel/Programs/mpi/include)
