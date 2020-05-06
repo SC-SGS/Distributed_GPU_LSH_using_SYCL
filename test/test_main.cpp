@@ -1,8 +1,5 @@
 #include <gtest/gtest.h>
 
-
-// based on https://github.com/LLNL/gtest-mpi-listener //
-
 int main(int argc, char** argv) {
     // Filter out Google Test arguments
     ::testing::InitGoogleTest(&argc, argv);
