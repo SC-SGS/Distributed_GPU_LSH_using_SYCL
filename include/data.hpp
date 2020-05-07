@@ -77,7 +77,7 @@ public:
      * @pre @p point **must** be greater or equal than `0` and less than `size`.
      * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
      */
-    [[nodiscard]] index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
+    [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
         DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
         DEBUG_ASSERT(0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
 
