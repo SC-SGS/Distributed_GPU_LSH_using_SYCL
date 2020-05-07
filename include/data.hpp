@@ -105,6 +105,7 @@ private:
     template <memory_layout, typename>
     friend class data;
 
+
     /**
      * @brief Default construct a data object of size: `size * dims`.
      * @details **Doesn't** initialize the buffer.
@@ -200,7 +201,7 @@ private:
  * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
  * @tparam Args the types of the additional constructor parameters
- * @param[in] opt the option class
+ * @param[in] opt the used option class
  * @param[in] args additional constructor parameters
  * @return the newly constructed @ref data object
  */
