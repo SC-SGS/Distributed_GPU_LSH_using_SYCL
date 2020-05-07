@@ -2,6 +2,7 @@
  * @file
  * @author Marcel Breyer
  * @date 2020-05-06
+ *
  * @brief Test cases for the construction of a @ref data object.
  * @details Testsuite: *DataTest*
  * | test case name      | test case description                                                         |
