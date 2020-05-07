@@ -5,5 +5,5 @@ set(TEST_SOURCES
         indexing.cpp
 )
 
-# create google test with MPI support
+# create google test
 add_custom_test(data "${TEST_SOURCES}")
