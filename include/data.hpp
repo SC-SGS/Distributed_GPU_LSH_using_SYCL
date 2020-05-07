@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-05-07
  *
  * @brief Implements the @ref data class representing the used data set.
  */
