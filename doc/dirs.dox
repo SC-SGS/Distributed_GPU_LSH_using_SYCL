@@ -14,8 +14,6 @@
  * @brief This directory contains all helper classes and functions header files.
  */
 
-
-
  
 /**
  * @dir src
@@ -24,8 +22,6 @@
  *
  * @brief This directory contains all source files.
  */
-
-
 
 
 /**
@@ -44,11 +40,18 @@
  * @brief This directory contains all test cases related to the @ref data class.
  */
 
-
 /**
  * @dir test/options
  * @author Marcel Breyer
  * @date 2020-05-07
  *
  * @brief This directory contains all test cases related to the @ref options class.
+ */
+
+/**
+ * @dir test/hash_functions
+ * @author Marcel Breyer
+ * @date 2020-05-07
+ *
+ * @brief This directory contains all test cases related to the @ref hash_functions class.
  */
