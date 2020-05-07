@@ -156,6 +156,7 @@ private:
         : opt_(opt), data_(data), buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1))
     {
         if (init) {
+            // TODO 2020-05-07 19:03 marcel: uncomment for truly random numbers
 //        std::random_device rnd_device;
 //        std::mt19937 rnd_normal_gen(rnd_device());
 //        std::mt19937 rnd_uniform_gen(rnd_device());
