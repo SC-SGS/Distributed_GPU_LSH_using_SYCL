@@ -148,6 +148,14 @@ struct options {
             return *this;
         }
 
+        /**
+         * @brief Create a new @ref options object.
+         * @return an @ref options object
+         */
+        options<real_type, index_type, hash_value_type> create() const {
+            return options(*this);
+        }
+
     private:
 #ifndef NDBEUG
         /**
