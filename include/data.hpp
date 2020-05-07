@@ -101,7 +101,7 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_, typename... Args_>
-    friend data<layout_, Options_> make_data(const Options_& opt, Args_&&... args);
+    friend data<layout_, Options_> make_data(const Options_&, Args_&&...);
     /// Befriend data class (including the one with another @ref memory_layout).
     template <memory_layout, typename>
     friend class data;
