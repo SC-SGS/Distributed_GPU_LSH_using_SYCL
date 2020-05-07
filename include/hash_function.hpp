@@ -9,7 +9,9 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 
+#include <cmath>
 #include <random>
+#include <type_traits>
 
 #include <config.hpp>
 #include <options.hpp>
@@ -23,18 +25,40 @@
 template <memory_layout layout, typename Options, typename Data>
 class hash_functions {
 public:
+    /// The used floating point type.
     using real_type = typename Options::real_type;
+    /// The used integer type.
     using index_type = typename Options::index_type;
+    /// The used type of a hash value.
     using hash_value_type = typename Options::hash_value_type;
-    using options_type = Options;
-    using data_type = Data;
 
 
+    /// The SYCL buffer holding all hash functions: `buffer.get_count() == options::num_hash_tables * options::num_hash_functions * (data::dims + 1)`.
     sycl::buffer<real_type, 1> buffer;
 
 
+    /**
+     * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
+     * @tparam AccData the type of data set accessor
+     * @tparam AccHashFunction the type of the hash functions accessor
+     * @param hash_table the provided hash table
+     * @param point the provided data point
+     * @param acc_data the data set accessor
+     * @param acc_hash_function the hash functions accessor
+     * @return the hash value (`[[nodiscard]]`)
+     *
+     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`
+     * @pre @p point **must** be greater or equal than `0` and less than `data::size`
+     */
     template <typename AccData, typename AccHashFunction>
-    [[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point, AccData& acc_data, AccHashFunction& acc_hash_function) const {
+    [[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point,
+            AccData& acc_data, AccHashFunction& acc_hash_function)
+    {
+        DEBUG_ASSERT(0 <= hash_table && hash_table < opt_.num_hash_tables,
+                "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
+        DEBUG_ASSERT(0 <= point && point < data_.size,
+                "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
+
         hash_value_type combined_hash = opt_.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
             real_type hash = acc_hash_function[this->get_linear_id(hash_table, hash_function, data_.dims)];
@@ -54,12 +78,15 @@ public:
         return combined_hash %= opt_.hash_table_size;
     }
 
-
+    /**
+     * @brief Returns the current hash functions with `new_layout`.
+     * @details If `new_layout == layout` a compiler warning is issued.
+     * @tparam new_layout the layout of the hash functions
+     * @return the hash functions with the `new_layout` (`[[nodiscard]]`)
+     */
     template <memory_layout new_layout>
     [[nodiscard]] hash_functions<new_layout, Options, Data> get_as()
-    __attribute__((diagnose_if(new_layout == layout,
-            "get_as called with same memory_layout as *this -> results in a copy of *this -> directly use *this",
-            "warning")))
+            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
         hash_functions<new_layout, Options, Data> new_hash_functions(data_, opt_, false);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
@@ -76,8 +103,20 @@ public:
         return new_hash_functions;
     }
 
-
-    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function, const index_type dim) const noexcept {
+    /**
+     * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+     * @param[in] hash_table the provided hash table
+     * @param[in] hash_function the provided hash function
+     * @param[in] dim the provided dimension
+     * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`.
+     * @pre @p hash_function **must** be greater or equal than `0` and less than `options::num_hash_functions`.
+     * @pre @p dim **must** be greater or equal than `0` and less than `data::dims + 1`.
+     */
+    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function,
+            const index_type dim) const noexcept
+    {
         DEBUG_ASSERT(0 <= hash_table && hash_table < opt_.num_hash_tables,
                 "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
         DEBUG_ASSERT(0 <= hash_function && hash_function < opt_.num_hash_functions,
@@ -93,7 +132,10 @@ public:
             return hash_table * opt_.num_hash_functions * (data_.dims + 1) + dim * opt_.num_hash_functions + hash_function;
         }
     }
-
+    /**
+     * @brief Returns the specified @ref memory_layout (*Array of Structs* or *Struct of Arrays*).
+     * @return the specified @ref memory_layout (`[[nodiscard]]`)
+     */
     [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept {
         return layout;
     }
@@ -104,6 +146,12 @@ private:
     friend hash_functions<layout_, Options_, Data_> make_hash_functions(const Options_&, const Data_&);
 
 
+    /**
+     * @brief Construct new hash functions given the options in @p opt and sizes in @p data.
+     * @param data the @ref data object representing the used data set
+     * @param opt the @ref options object representing the currently set options
+     * @param init `true` if the @ref buffer should be initialized, `false` otherwise
+     */
     hash_functions(const Data& data, const Options& opt, const bool init = true)
         : opt_(opt), data_(data), buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1))
     {
@@ -128,13 +176,23 @@ private:
         }
     }
 
-
-    const options_type& opt_;
-    const data_type& data_;
+    /// Const reference to @ref options object.
+    const Options& opt_;
+    /// Const reference to @ref data object.
+    const Data& data_;
 
 };
 
 
+/**
+ * @brief Factory function for creating a new @ref hash_functions object.
+ * @tparam layout the @ref memory_layout type
+ * @tparam Options the @ref options type
+ * @tparam Data the @ref data type
+ * @param[in] opt the used option class
+ * @param[in] data the used data class
+ * @return the newly constructed @ref hash_functions object
+ */
 template <memory_layout layout, typename Options, typename Data>
 inline hash_functions<layout, Options, Data> make_hash_functions(const Options& opt, const Data& data) {
     return hash_functions<layout, Options, Data>(data, opt);
