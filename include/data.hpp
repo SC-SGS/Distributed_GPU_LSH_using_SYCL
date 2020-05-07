@@ -36,11 +36,12 @@ public:
     /// The index type as specified as in the provided @ref options class.
     using index_type = typename Options::index_type;
 
+
     /// The number of data points.
     const index_type size;
     /// The dimension of each data point.
     const index_type dims;
-    /// The SYCL buffer holding all data. `buffer.get_count() == size * dims`
+    /// The SYCL buffer holding all data: `buffer.get_count() == size * dims`.
     sycl::buffer<data_type, 1> buffer;
 
 
