@@ -1,9 +1,9 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-05-07
  *
- * @brief Test cases for the @ref data::get_linear_id() member function.
+ * @brief Test cases for the data::get_linear_id() member function.
  * @details Testsuite: *DataTest*
  * | test case name | test case description                                                                                 |
  * |:---------------|:------------------------------------------------------------------------------------------------------|
