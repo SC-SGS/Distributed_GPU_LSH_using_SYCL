@@ -1,0 +1,5 @@
+k 10
+num_hash_tables 4
+hash_table_size  7
+num_hash_functions 8
+w 3.1415

@@ -43,3 +43,12 @@
  *
  * @brief This directory contains all test cases related to the @ref data class.
  */
+
+
+/**
+ * @dir test/options
+ * @author Marcel Breyer
+ * @date 2020-05-07
+ *
+ * @brief This directory contains all test cases related to the @ref options class.
+ */
