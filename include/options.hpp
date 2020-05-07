@@ -166,11 +166,11 @@ struct options {
         }
 #endif
         // TODO 2020-04-30 15:31 marcel: set meaningful defaults
-        index_type k_ = 6;
-        index_type num_hash_tables_ = 2;
-        hash_value_type hash_table_size_ = 105613;
-        index_type num_hash_functions_ = 4;
-        real_type w_ = 1.0;
+        index_type k_ = static_cast<index_type>(6);
+        index_type num_hash_tables_ = static_cast<index_type>(2);
+        hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
+        index_type num_hash_functions_ = static_cast<index_type>(4);
+        real_type w_ = static_cast<real_type>(1.0);
     };
 
 
