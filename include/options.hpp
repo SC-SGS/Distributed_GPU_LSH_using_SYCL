@@ -150,9 +150,9 @@ struct options {
 
         /**
          * @brief Create a new @ref options object.
-         * @return an @ref options object
+         * @return an @ref options object (`[[nodiscard]]`)
          */
-        options<real_type, index_type, hash_value_type> create() const {
+        [[nodiscard]] options<real_type, index_type, hash_value_type> create() const {
             return options(*this);
         }
 
