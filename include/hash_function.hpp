@@ -14,6 +14,7 @@
 #include <type_traits>
 
 #include <config.hpp>
+#include <data.hpp>
 #include <options.hpp>
 
 
