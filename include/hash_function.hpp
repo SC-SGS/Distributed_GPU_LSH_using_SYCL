@@ -145,6 +145,9 @@ private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_, typename Data_>
     friend hash_functions<layout_, Options_, Data_> make_hash_functions(const Options_&, const Data_&);
+    /// Befriend hash_functions class (including the one with another @ref memory_layout).
+    template <memory_layout, typename, typename>
+    friend class hash_functions;
 
 
     /**
