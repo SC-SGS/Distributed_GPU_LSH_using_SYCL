@@ -67,7 +67,7 @@ public:
                 hash += acc_data[data_.get_linear_id(point, dim)] * acc_hash_function[this->get_linear_id(hash_table, hash_function, dim)];
             }
             combined_hash ^= static_cast<hash_value_type>(hash / opt_.w)
-                    + 0x9e3779b9
+                    + static_cast<hash_value_type>(0x9e3779b9)
                     + (combined_hash << static_cast<hash_value_type>(6))
                     + (combined_hash >> static_cast<hash_value_type>(2));
         }
