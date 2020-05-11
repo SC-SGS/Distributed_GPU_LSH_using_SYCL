@@ -196,10 +196,10 @@ private:
  * @tparam Data the @ref data type
  * @param[in] opt the used option class
  * @param[in] data the used data class
- * @return the newly constructed @ref hash_functions object
+ * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Options, typename Data>
-inline hash_functions<layout, Options, Data> make_hash_functions(const Options& opt, const Data& data) {
+[[nodiscard]] inline hash_functions<layout, Options, Data> make_hash_functions(const Options& opt, const Data& data) {
     return hash_functions<layout, Options, Data>(data, opt);
 }
 

@@ -203,10 +203,10 @@ private:
  * @tparam Args the types of the additional constructor parameters
  * @param[in] opt the used option class
  * @param[in] args additional constructor parameters
- * @return the newly constructed @ref data object
+ * @return the newly constructed @ref data object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Options, typename... Args>
-inline data<layout, Options> make_data(const Options& opt, Args&&... args) {
+[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, Args&&... args) {
     return data<layout, Options>(std::forward<Args>(args)..., opt);
 }
 
