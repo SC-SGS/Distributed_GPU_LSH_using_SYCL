@@ -40,6 +40,7 @@ private:
             : opt_(opt), data_(data), hash_functions_(make_hash_functions<layout>(opt, data)),
               buffer(opt.num_hash_tables * data.size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1))
     {
+
         std::vector<index_type> vec(opt_.num_hash_tables * opt_.hash_table_size, 0);
         sycl::buffer hash_value_count(vec.data(), sycl::range<>(vec.size()));
 
@@ -56,16 +57,17 @@ private:
             auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
 
-//            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_.size), [=](sycl::item<> item) {
-//                const index_type idx = item.get_linear_id();
-//
-//                if (idx >= data_.size) return;
-//
-//                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-//                    const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
-//                    acc_hash_value_count[hash_table * opt_.hash_table_size + hash_value].fetch_add(1); // TODO 2020-05-11 17:47 marcel: this->get_linear_id()?
-//                }
-//            });
+            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_.size), [=](sycl::item<> item) {
+                const index_type idx = item.get_linear_id();
+                hash_value_type hash_value = 0; // needs to be outside of for-loop or a memory_allocation error is thrown at runtime
+
+                if (idx >= data_.size) return;
+
+                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
+                    hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    acc_hash_value_count[hash_table * opt_.hash_table_size + hash_value].fetch_add(1); // TODO 2020-05-11 17:47 marcel: this->get_linear_id()?
+                }
+            });
         });
     }
     void calculate_offsets(sycl::queue& queue, sycl::buffer<index_type, 1>& hash_value_count) {
@@ -73,17 +75,17 @@ private:
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::discard_write>(cgh);
 
-//            cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt_.num_hash_tables), [=](sycl::item<> item) {
-//                const index_type idx = item.get_linear_id();
-//
-//                index_type offset_value = data_.size;
-//                acc_offsets[idx * (opt_.hash_table_size + 1)] = 0;
-//
-//                for (index_type hash_value = opt_.hash_table_size; hash_value > 0; --hash_value) {
-//                    offset_value -= acc_hash_value_count[idx * opt_.hash_table_size + hash_value - 1];
-//                    acc_offsets[idx * (opt_.hash_table_size + 1) + hash_value] = offset_value;
-//                }
-//            });
+            cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt_.num_hash_tables), [=](sycl::item<> item) {
+                const index_type idx = item.get_linear_id();
+
+                index_type offset_value = data_.size;
+                acc_offsets[idx * (opt_.hash_table_size + 1)] = 0;
+
+                for (index_type hash_value = opt_.hash_table_size; hash_value > 0; --hash_value) {
+                    offset_value -= acc_hash_value_count[idx * opt_.hash_table_size + hash_value - 1];
+                    acc_offsets[idx * (opt_.hash_table_size + 1) + hash_value] = offset_value;
+                }
+            });
         });
     }
     void fill_hash_tables(sycl::queue& queue) {
@@ -95,9 +97,10 @@ private:
 
             cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data_.size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
+                hash_value_type hash_value = 0; // needs to be outside of for-loop or a memory_allocation error is thrown at runtime
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
                     acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
                 }
             });
