@@ -42,10 +42,10 @@ public:
      * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
      * @tparam AccData the type of data set accessor
      * @tparam AccHashFunction the type of the hash functions accessor
-     * @param hash_table the provided hash table
-     * @param point the provided data point
-     * @param acc_data the data set accessor
-     * @param acc_hash_function the hash functions accessor
+     * @param[in] hash_table the provided hash table
+     * @param[in] point the provided data point
+     * @param[in] acc_data the data set accessor
+     * @param[in] acc_hash_function the hash functions accessor
      * @return the hash value (`[[nodiscard]]`)
      *
      * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`
@@ -89,7 +89,7 @@ public:
     [[nodiscard]] hash_functions<new_layout, Options, Data> get_as()
 //            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
-        hash_functions<new_layout, Options, Data> new_hash_functions(data_, opt_, false);
+        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, false);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
@@ -133,6 +133,21 @@ public:
             return hash_table * opt_.num_hash_functions * (data_.dims + 1) + dim * opt_.num_hash_functions + hash_function;
         }
     }
+
+    /**
+     * @brief Returns the @ref options object which has been used to create this @ref hash_functions object.
+     * @return the @ref options object (`[[nodiscard]]`)
+     */
+    [[nodiscard]] const Options& get_options() const noexcept {
+        return opt_;
+    }
+    /**
+     * @brief Returns the @ref data object which has been used to create this @ref hash_functions object.
+     * @return the @ref data object (`[[nodiscard]]`)
+     */
+    [[nodiscard]] Data& get_data() const noexcept {
+        return data_;
+    }
     /**
      * @brief Returns the specified @ref memory_layout (*Array of Structs* or *Struct of Arrays*).
      * @return the specified @ref memory_layout (`[[nodiscard]]`)
@@ -143,8 +158,8 @@ public:
 
 private:
     /// Befriend factory function.
-    template <memory_layout layout_, typename Options_, typename Data_>
-    friend hash_functions<layout_, Options_, Data_> make_hash_functions(const Options_&, const Data_&);
+    template <memory_layout layout_, typename Data_>
+    friend hash_functions<layout_, typename Data_::options_type, Data_> make_hash_functions(Data_&);
     /// Befriend hash_functions class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
     friend class hash_functions;
@@ -152,11 +167,11 @@ private:
 
     /**
      * @brief Construct new hash functions given the options in @p opt and sizes in @p data.
-     * @param data the @ref data object representing the used data set
-     * @param opt the @ref options object representing the currently set options
-     * @param init `true` if the @ref buffer should be initialized, `false` otherwise
+     * @param[in] opt the @ref options object representing the currently set options
+     * @param[in] data the @ref data object representing the used data set
+     * @param[in] init `true` if the @ref buffer should be initialized, `false` otherwise
      */
-    hash_functions(const Data& data, const Options& opt, const bool init = true)
+    hash_functions(const Options& opt, Data& data, const bool init = true)
         : opt_(opt), data_(data), buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1))
     {
         if (init) {
@@ -183,8 +198,8 @@ private:
 
     /// Const reference to @ref options object.
     const Options& opt_;
-    /// Const reference to @ref data object.
-    const Data& data_;
+    /// Reference to @ref data object.
+    Data& data_;
 
 };
 
@@ -192,15 +207,13 @@ private:
 /**
  * @brief Factory function for creating a new @ref hash_functions object.
  * @tparam layout the @ref memory_layout type
- * @tparam Options the @ref options type
  * @tparam Data the @ref data type
- * @param[in] opt the used option class
  * @param[in] data the used data class
  * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] inline hash_functions<layout, Options, Data> make_hash_functions(const Options& opt, const Data& data) {
-    return hash_functions<layout, Options, Data>(data, opt);
+template <memory_layout layout, typename Data>
+[[nodiscard]] inline hash_functions<layout, typename Data::options_type, Data> make_hash_functions(Data& data) {
+    return hash_functions<layout, typename Data::options_type, Data>(data.get_options(), data);
 }
 
 
