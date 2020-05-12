@@ -11,6 +11,7 @@ project("Distributed GPU LSH implementation using SYCL"
 # cmake configuration options
 option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
+option(ENABLE_GPU "Enable the usage of GPUs" ON)
 
 # add custom cmake modules path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
@@ -24,9 +25,7 @@ message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 
 # set source include files
-set(SOURCES
-#        src/hash_table.cpp
-)
+set(SOURCES )
 
 
 # set c++ standard
@@ -41,7 +40,13 @@ string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
 if (NOT DEFINED ENV{CLION_IDE})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu") # this line breaks GTest
+
+    if (ENABLE_GPU)
+        message(STATUS "Enabled the usage of GPUs")
+    else ()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu") # this line breaks GTest
+        message(STATUS "Disabled the usage of GPUs")
+    endif ()
 endif ()
 
 # include directory
