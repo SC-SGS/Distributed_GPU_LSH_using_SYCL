@@ -35,6 +35,8 @@ public:
     using data_type = typename Options::real_type;
     /// The index type as specified as in the provided @ref options class.
     using index_type = typename Options::index_type;
+    /// The type of the provided @ref options class.
+    using options_type = Options;
 
 
     /// The number of data points.
@@ -55,7 +57,7 @@ public:
     [[nodiscard]] data<new_layout, Options> get_as()
 //            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
-        data<new_layout, Options> new_data(size, dims);
+        data<new_layout, Options> new_data(opt_, size, dims);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type s = 0; s < size; ++s) {
@@ -88,6 +90,14 @@ public:
             return point + dim * size;
         }
     }
+
+    /**
+     * @brief Returns the @ref options object which has been used to create this @ref data object.
+     * @return the @ref options object (`[[nodiscard]]`)
+     */
+    [[nodiscard]] const Options& get_options() const noexcept {
+        return opt_;
+    }
     /**
      * @brief Returns the specified @ref memory_layout (*Array of Structs* or *Struct of Arrays*).
      * @return the specified @ref memory_layout (`[[nodiscard]]`)
@@ -99,49 +109,49 @@ public:
 
 private:
     /// Befriend factory function.
-    template <memory_layout layout_, typename Options_, typename... Args_>
-    friend data<layout_, Options_> make_data(const Options_&, Args_&&...);
+    template <memory_layout layout_, typename Options_>
+    friend data<layout_, Options_> make_data(const Options_&, const std::string&);
+    /// Befriend factory function.
+    template <memory_layout layout_, typename Options_>
+    friend data<layout_, Options_> make_data(const Options_&, typename Options_::index_type, typename Options_::index_type);
     /// Befriend data class (including the one with another @ref memory_layout).
     template <memory_layout, typename>
     friend class data;
 
 
     /**
-     * @brief Default construct a data object of size: `size * dims`.
-     * @details **Doesn't** initialize the buffer.
-     * @param[in] size the number of data points
-     * @param[in] dims the number of dimensions of each data point
-     *
-     * @pre @p size **must** be greater than `0`.
-     * @pre @p dims **must** be greater than `0`.
-     */
-    data(const index_type size, const index_type dims) : size(size), dims(dims), buffer(size * dims) {
-        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
-    }
-    /**
      * @brief Construct a new data object if size: `size * dims`.
      * @details **Does** initialize the buffer with random values.
+     * @param[in] opt the provided @ref options object
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
+     * @param[in] init `true` if the @ref buffer should be initialized, `false` otherwise
      *
      * @pre @p size **must** be greater than `0`.
      * @pre @p dims **must** be greater than `0`.
      */
-    data(const index_type size, const index_type dims, const Options&) : data(size, dims) {
-        // define random facilities
-        std::random_device rnd_device;
-        std::mt19937 rnd_gen(rnd_device());
-        std::normal_distribution<data_type> rnd_dist;
+    data(const Options& opt, const index_type size, const index_type dims, const bool init = true)
+            : size(size), dims(dims), buffer(size * dims), opt_(opt)
+    {
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
-        // memory_layout doesn't matter for random values
-        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        for (index_type i = 0; i < buffer.get_count(); ++i) {
-            acc[i] = rnd_dist(rnd_gen);
+        if (init) {
+            // define random facilities
+            std::random_device rnd_device;
+            std::mt19937 rnd_gen(rnd_device());
+            std::normal_distribution<data_type> rnd_dist;
+
+            // memory_layout doesn't matter for random values
+            auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
+            for (index_type i = 0; i < buffer.get_count(); ++i) {
+                acc[i] = rnd_dist(rnd_gen);
+            }
         }
     }
     /**
      * @brief Construct a new data object from the given @p file.
+     * @param[in] opt the provided @ref options object
      * @param[in] file the file containing all data points
      *
      * @throw std::invalid_argument if @p file doesn't exist.
@@ -149,7 +159,7 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const std::string& file, const Options&) : data(this->parse_size(file), this->parse_dims(file)) {
+    data(const Options& opt, const std::string& file) : data(opt, this->parse_size(file), this->parse_dims(file), false) {
         // check if file exists
         if (!std::filesystem::exists(file)) {
             throw std::invalid_argument("File '" + file + "' doesn't exist!");
@@ -176,7 +186,7 @@ private:
      */
     [[nodiscard]] index_type parse_size(const std::string& file) const {
         std::ifstream in(file);
-        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n') + 1;
+        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
     }
     /**
      * @brief Computes the number of dimensions of each data point in the given @p file.
@@ -193,21 +203,37 @@ private:
             return std::count(line.cbegin(), line.cend(), ',') + 1;
         }
     }
+
+    /// Const reference to @ref options object.
+    const Options& opt_;
 };
 
 
 /**
- * @brief Factory function for creating a new @ref data object.
+ * @brief Factory function for creating a new @ref data object from a @p size and @p dims.
  * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
- * @tparam Args the types of the additional constructor parameters
- * @param[in] opt the used option class
- * @param[in] args additional constructor parameters
+ * @param[in] opt the used @ref options object
+ * @param[in] size the number of data points
+ * @param[in] dims the number of dimensions per data point
  * @return the newly constructed @ref data object (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Options, typename... Args>
-[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, Args&&... args) {
-    return data<layout, Options>(std::forward<Args>(args)..., opt);
+template <memory_layout layout, typename Options>
+[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims) {
+    return data<layout, Options>(opt, size, dims);
+}
+
+/**
+ * @brief Factory function for creating a new @ref data object from a @p file.
+ * @tparam layout the @ref memory_layout type
+ * @tparam Options the @ref options type
+ * @param[in] opt the used @ref options object
+ * @param[in] file the @p file from which the data should get loaded
+ * @return the newly constructed @ref data object (`[[nodiscard]]`)
+ */
+template <memory_layout layout, typename Options>
+[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const std::string& file) {
+    return data<layout, Options>(opt, file);
 }
 
 
