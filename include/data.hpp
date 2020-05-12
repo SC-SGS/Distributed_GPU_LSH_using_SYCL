@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-07
+ * @date 2020-05-12
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -53,7 +53,7 @@ public:
      */
     template <memory_layout new_layout>
     [[nodiscard]] data<new_layout, Options> get_as()
-            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
+//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
         data<new_layout, Options> new_data(size, dims);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();

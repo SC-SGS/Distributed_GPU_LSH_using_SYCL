@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-07
+ * @date 2020-05-12
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -87,7 +87,7 @@ public:
      */
     template <memory_layout new_layout>
     [[nodiscard]] hash_functions<new_layout, Options, Data> get_as()
-            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
+//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
         hash_functions<new_layout, Options, Data> new_hash_functions(data_, opt_, false);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
