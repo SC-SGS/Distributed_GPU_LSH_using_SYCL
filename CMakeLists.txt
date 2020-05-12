@@ -41,7 +41,7 @@ string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
 if (NOT DEFINED ENV{CLION_IDE})
-    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu") # this line breaks GTest
 endif ()
 
 # include directory
@@ -50,6 +50,7 @@ include_directories(include)
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
 target_compile_options(prog PRIVATE -Wno-format-security)
+target_link_libraries(prog PRIVATE -lstdc++fs) # don't know why this is necessary
 
 
 # generate documentation if requested
