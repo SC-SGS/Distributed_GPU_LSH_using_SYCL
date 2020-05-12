@@ -23,7 +23,7 @@ TEST(HashFunctionsTest, CalculateHashValue) {
             .set_num_hash_functions(3)
             .set_w(2.0);
     auto data_set = make_data<memory_layout::aos>(opt, 1, 3);
-    auto hash_functions = make_hash_functions<memory_layout::aos>(opt, data_set);
+    auto hash_functions = make_hash_functions<memory_layout::aos>(data_set);
 
     {
         // overwrite data_set data

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-08
+ * @date 2020-05-12
  *
  * @brief Test cases for the @ref hash_functions::get_as() member function.
  * @details Testsuite: *HashFunctionsTest*
@@ -33,7 +33,7 @@ TEST(HashFunctionsTest, GetAoSasSoA) {
     using index_type = typename decltype(opt)::index_type;
 
     auto data_set = make_data<memory_layout::aos>(opt, 10, 3);
-    auto hash_functions_aos = make_hash_functions<memory_layout::aos>(opt, data_set);
+    auto hash_functions_aos = make_hash_functions<memory_layout::aos>(data_set);
 
     // get aos as soa
     auto hash_functions_soa = hash_functions_aos.get_as<memory_layout::soa>();
@@ -59,7 +59,7 @@ TEST(HashFunctionsTest, GetSoAasAoS) {
     using index_type = typename decltype(opt)::index_type;
 
     auto data_set = make_data<memory_layout::soa>(opt, 10, 3);
-    auto hash_functions_soa = make_hash_functions<memory_layout::soa>(opt, data_set);
+    auto hash_functions_soa = make_hash_functions<memory_layout::soa>(data_set);
 
     // get soa as aos
     auto hash_functions_aos = hash_functions_soa.get_as<memory_layout::aos>();

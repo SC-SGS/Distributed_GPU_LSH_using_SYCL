@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-08
+ * @date 2020-05-12
  *
  * @brief Test cases for the hash_functions::get_linear_id() member function.
  * @details Testsuite: *HashFunctionsTest*
@@ -29,7 +29,7 @@ TEST(DataTest, GetLinearIdAoS) {
     // create hash_functions object
     options opt = options<>::factory().set_num_hash_tables(2).set_num_hash_functions(4);
     auto data_set = make_data<memory_layout::aos>(opt, 10, 3);
-    auto hash_functions = make_hash_functions<memory_layout::aos>(opt, data_set);
+    auto hash_functions = make_hash_functions<memory_layout::aos>(data_set);
 
     // overwrite hash_functions data
     auto acc = hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
@@ -45,7 +45,7 @@ TEST(HashFunctionsTest, GetLinearIdSoA) {
     // create hash_functions object
     options opt = options<>::factory().set_num_hash_tables(2).set_num_hash_functions(4);
     auto data_set = make_data<memory_layout::aos>(opt, 10, 3);
-    auto hash_functions = make_hash_functions<memory_layout::soa>(opt, data_set);
+    auto hash_functions = make_hash_functions<memory_layout::soa>(data_set);
 
     // overwrite hash_functions data
     auto acc = hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();

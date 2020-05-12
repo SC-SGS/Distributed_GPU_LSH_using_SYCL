@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-08
+ * @date 2020-05-12
  *
  * @brief Test cases for the construction of a @ref hash_functions object.
  * @details Testsuite: *HashFunctionsTest*
@@ -19,8 +19,8 @@ TEST(HashFunctionsTest, DefaultConstruction) {
     // create hash_functions object
     options opt;
     auto data_set = make_data<memory_layout::aos>(opt, 10, 3);
-    auto hash_functions_aos = make_hash_functions<memory_layout::aos>(opt, data_set);
-    auto hash_functions_soa = make_hash_functions<memory_layout::soa>(opt, data_set);
+    auto hash_functions_aos = make_hash_functions<memory_layout::aos>(data_set);
+    auto hash_functions_soa = make_hash_functions<memory_layout::soa>(data_set);
 
     auto acc_aos = hash_functions_aos.buffer.template get_access<sycl::access::mode::read>();
     auto acc_soa = hash_functions_soa.buffer.template get_access<sycl::access::mode::read>();
