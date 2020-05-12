@@ -25,7 +25,7 @@ message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 # set source include files
 set(SOURCES
-        src/hash_table.cpp
+#        src/hash_table.cpp
 )
 
 
