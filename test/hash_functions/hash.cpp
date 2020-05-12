@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-08
+ * @date 2020-05-12
  *
  * @brief Test cases for the @ref hash_functions::hash() member function.
  * @details Testsuite: *HashFunctionsTest*
@@ -31,11 +31,6 @@ TEST(HashFunctionsTest, CalculateHashValue) {
         for (std::size_t i = 0; i < data_set.buffer.get_count(); ++i) {
             acc[i] = i;
         }
-        auto acc2 = data_set.buffer.template get_access<sycl::access::mode::read>();
-        for (std::size_t i = 0; i < data_set.buffer.get_count(); ++i) {
-            std::cout << acc2[i] << " ";
-        }
-        std::cout << std::endl;
     }
     {
         // overwrite hash_functions data
@@ -43,11 +38,6 @@ TEST(HashFunctionsTest, CalculateHashValue) {
         for (std::size_t i = 0; i < hash_functions.buffer.get_count(); ++i) {
             acc[i] = i;
         }
-        auto acc2 = hash_functions.buffer.template get_access<sycl::access::mode::read>();
-        for (std::size_t i = 0; i < hash_functions.buffer.get_count(); ++i) {
-            std::cout << acc2[i] << " ";
-        }
-        std::cout << std::endl << std::endl;
     }
 
     auto acc_data = data_set.buffer.template get_access<sycl::access::mode::read>();
