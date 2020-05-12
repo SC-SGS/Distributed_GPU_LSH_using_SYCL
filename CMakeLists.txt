@@ -40,6 +40,9 @@ string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL_INIT " -Os -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
+if (NOT DEFINED ENV{CLION_IDE})
+    set(CMAKE_CXX_FLAGS "--hipsycl-platform=cpu")
+endif ()
 
 # include directory
 include_directories(include)
