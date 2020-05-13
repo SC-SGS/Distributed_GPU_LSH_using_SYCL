@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -121,7 +122,7 @@ private:
 
     /**
      * @brief Construct a new data object if size: `size * dims`.
-     * @details **Does** initialize the buffer with random values.
+     * @details Initialize the buffer with random values if @p init is set to `true`.
      * @param[in] opt the provided @ref options object
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
@@ -202,6 +203,18 @@ private:
         } else {
             return std::count(line.cbegin(), line.cend(), ',') + 1;
         }
+    }
+
+    /**
+     * @brief Print the size and dims of the data set @p data.
+     * @param[inout] out the output stream to print @p opt
+     * @param[in] data the data set
+     * @return the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& out, const data& data) {
+        out << "size " << data.size << '\n';
+        out << "dims " << data.dims;
+        return out;
     }
 
     /// Const reference to @ref options object.
