@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-05
+ * @date 2020-05-13
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -12,9 +12,12 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <ostream>
 #include <stdexcept>
 #include <string>
+
+#include <boost/type_index.hpp>
 
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
@@ -76,9 +79,11 @@ struct options {
                     this->set_num_hash_functions(detail::convert_to<index_type>(value));
                 } else if (opt == "w") {
                     this->set_w(detail::convert_to<real_type>(value));
+                } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type") {
+                    in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 } else {
                     const std::string msg = std::string("Invalid option '").append(opt).append(" ")
-                            .append(value).append("' in file").append(file);
+                            .append(value).append("' in file '").append(file).append("'.");
                     throw std::invalid_argument(msg);
                 }
             }
@@ -210,7 +215,7 @@ struct options {
      *
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
-    void save(const std::string& file) {
+    void save(const std::string& file) const {
         std::ofstream out(file, std::ofstream::trunc);
         if (out.bad()) {
             // something went wrong while opening/creating the file
@@ -226,6 +231,9 @@ struct options {
      * @return the output stream
      */
     friend std::ostream& operator<<(std::ostream& out, const options& opt) {
+        out << "real_type '" << boost::typeindex::type_id<real_type>().pretty_name() << "'\n";
+        out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
+        out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
         out << "k " << opt.k << '\n';
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size  " << opt.hash_table_size << '\n';
