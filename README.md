@@ -20,7 +20,7 @@ $ spack install hipsycl@master build_type=RelWithDebInfo cuda=True
 
 To be able to build the documentation [doxygen](https://github.com/doxygen/doxygen) is needed.
 
-## Building
+## Building the program and tests
 To build the code use:
 ```bash
 $ git@gitlab-sim.informatik.uni-stuttgart.de:breyerml/distributed_gpu_lsh_using_sycl.git
@@ -36,19 +36,19 @@ Supported configuration options are:
 * `-DENABLE_DOCUMENTATION=On/Off`: enables the target `doc` documentation; requires Doxygen (default: `Off`)
 * `-DENABLE_GPU=On/Off`: enables the usage of GPUs (default: `On`)
 
-## Building documentation
+## Building the documentation
 After the call to `cmake` use:
 ```bash
 $ make doc
 ```
 
-## Running test
+## Running the test
 After a successful `make` (with a previously `cmake` call with option `-DENABLE_TESTS=On`) use:
 ```bash
 $ ctest
 ```
 
-## Running program
+## Running the program
 After a successful `make` an executable file named `.\prog` is available:
 ```bash
 $ ./prog --help
