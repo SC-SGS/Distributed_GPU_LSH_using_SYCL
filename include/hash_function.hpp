@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-12
+ * @date 2020-05-13
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -22,6 +22,7 @@
  * @brief Class representing the LSH hash functions.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
+ * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
 class hash_functions {
@@ -138,23 +139,17 @@ public:
      * @brief Returns the @ref options object which has been used to create this @ref hash_functions object.
      * @return the @ref options object (`[[nodiscard]]`)
      */
-    [[nodiscard]] const Options& get_options() const noexcept {
-        return opt_;
-    }
+    [[nodiscard]] const Options& get_options() const noexcept { return opt_; }
     /**
      * @brief Returns the @ref data object which has been used to create this @ref hash_functions object.
      * @return the @ref data object (`[[nodiscard]]`)
      */
-    [[nodiscard]] Data& get_data() const noexcept {
-        return data_;
-    }
+    [[nodiscard]] Data& get_data() const noexcept { return data_; }
     /**
      * @brief Returns the specified @ref memory_layout (*Array of Structs* or *Struct of Arrays*).
      * @return the specified @ref memory_layout (`[[nodiscard]]`)
      */
-    [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept {
-        return layout;
-    }
+    [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept { return layout; }
 
 private:
     /// Befriend factory function.
@@ -208,7 +203,7 @@ private:
  * @brief Factory function for creating a new @ref hash_functions object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
- * @param[in] data the used data class
+ * @param[in] data the used data object
  * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data>
