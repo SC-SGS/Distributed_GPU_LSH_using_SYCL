@@ -47,3 +47,20 @@ After a successful `make` (with a previously `cmake` call with option `-DENABLE_
 ```bash
 $ ctest
 ```
+
+## Running program
+After a successful `make` an executable file named `.\prog` is available:
+```bash
+$ ./prog --help
+Usage: ./prog --data "path-to-data_set" [options]
+options:
+  -h [ --help ]            help screen
+  --options arg            path to the options file
+  --save_options arg       save the currently used options to path
+  --data arg               path to the data file (required)
+  --k arg                  number of nearest neighbours to search for
+  --num_hash_tables arg    number of hash tables to create
+  --hash_table_size arg    size of each hash table (should be a prime)
+  --num_hash_functions arg number of hash functions per hash table
+  --w arg                  constant used in the hash functions   
+```
