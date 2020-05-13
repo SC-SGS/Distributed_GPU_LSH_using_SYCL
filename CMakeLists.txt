@@ -24,6 +24,10 @@ endif ()
 message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
 
 
+# find boost
+find_package(Boost 1.72 REQUIRED program_options)
+
+
 # set source include files
 set(SOURCES )
 
@@ -55,7 +59,7 @@ include_directories(include)
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
 target_compile_options(prog PRIVATE -Wno-format-security)
-target_link_libraries(prog PRIVATE -lstdc++fs) # don't know why this is necessary
+target_link_libraries(prog PRIVATE -lstdc++fs Boost::program_options) # don't know why this is necessary
 
 
 # generate documentation if requested
