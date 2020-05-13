@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
             ("help,h", "help screen")
             ("options", boost::program_options::value<std::string>(), "path to the options file")
             ("save_options", boost::program_options::value<std::string>(), "save the currently used options to path")
-            ("data", boost::program_options::value<std::string>(), "path to the data file")
+            ("data", boost::program_options::value<std::string>(), "path to the data file (required)")
             ("k", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().k)>>(), "number of nearest neighbours to search for")
             ("num_hash_tables", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>(), "number of hash tables to create")
             ("hash_table_size", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>(), "size of each hash table (should be a prime)")
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
         // display help message
         if (vm.count("help")) {
-            std::cout << "Usage: ./prog [options]\n";
+            std::cout << "Usage: ./prog --data \"path-to-data_set\" [options]\n";
             std::cout << desc;
             return EXIT_SUCCESS;
         }
