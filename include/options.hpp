@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-13
+ * @date 2020-05-14
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -16,9 +16,11 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 #include <boost/type_index.hpp>
 
+#include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
 
@@ -29,7 +31,10 @@
  * @tparam index_t an integer type
  * @tparam hash_value_t an integer type (used as type for the hash value)
  */
-template <typename real_t = float, typename index_t = std::uint32_t, typename hash_value_t = std::uint32_t>
+template <typename real_t = float, typename index_t = std::uint32_t, typename hash_value_t = std::uint32_t,
+        REQUIRES(std::is_floating_point_v<real_t>),
+        REQUIRES(std::is_integral_v<index_t>),
+        REQUIRES(std::is_integral_v<hash_value_t>)>
 struct options {
     /// The used floating point type.
     using real_type = real_t;
@@ -44,7 +49,7 @@ struct options {
      */
     class factory {
         /// Befriend options class.
-        template <typename, typename, typename>
+        template <typename, typename, typename, typename, typename, typename>
         friend class options;
     public:
         /**
