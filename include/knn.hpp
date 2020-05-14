@@ -15,6 +15,7 @@
 #include <options.hpp>
 #include <data.hpp>
 
+
 /**
  * @brief Class representing the result of the k-nearest-neighbour search.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
