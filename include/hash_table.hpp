@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-13
+ * @date 2020-05-14
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -27,13 +27,13 @@
  */
 template <memory_layout layout, typename Options, typename Data>
 class hash_tables {
-public:
     /// The used floating point type.
     using real_type = typename Options::real_type;
     /// The used integer type.
     using index_type = typename Options::index_type;
     /// The used type of a hash value.
     using hash_value_type = typename Options::hash_value_type;
+public:
 
 
     /// The SYCL buffer holding all hash hables: `buffer.get_count() == options::num_hash_tables * data::size`.
