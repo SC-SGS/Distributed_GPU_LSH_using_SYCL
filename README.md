@@ -49,7 +49,7 @@ $ ctest
 ```
 
 ## Running the program
-After a successful `make` an executable file named `.\prog` is available:
+After a successful `make` an executable file named `./prog` is available:
 ```bash
 $ ./prog --help
 Usage: ./prog --data "path-to-data_set" [options]
