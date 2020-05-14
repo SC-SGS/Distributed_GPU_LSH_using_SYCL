@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-13
+ * @date 2020-05-14
  *
  * @brief The main file containing the main logic.
  */
@@ -18,6 +18,7 @@
 #include <data.hpp>
 #include <hash_function.hpp>
 #include <hash_table.hpp>
+#include <knn.hpp>
 
 
 /**
