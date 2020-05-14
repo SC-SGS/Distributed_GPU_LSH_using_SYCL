@@ -23,7 +23,7 @@
 
 /**
  * @brief Asynchronous exception handler for exceptions thrown during SYCL kernel invocations.
- * @param exceptions list of thrown SYCL exceptions
+ * @param[in] exceptions list of thrown SYCL exceptions
  */
 void exception_handler(sycl::exception_list exceptions) {
     for (const std::exception_ptr& ptr : exceptions) {
