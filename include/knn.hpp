@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-15
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbour search.
  */
@@ -33,6 +33,8 @@ public:
 
     /// The SYCL buffer holding all data: `buffer.get_count() == data::size * options::k`.
     sycl::buffer<index_type, 1> buffer;
+    /// The number of nearest neighbours to search for.
+    const index_type k;
 
 
     /**
@@ -46,9 +48,9 @@ public:
     std::vector<index_type> get_knn_ids(const index_type point) const {
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
-        std::vector<index_type> res(opt_.k);
+        std::vector<index_type> res(k);
         auto acc = buffer.template get_access<sycl::access::mode::read>();
-        for (index_type i = 0; i < opt_.k; ++i) {
+        for (index_type i = 0; i < k; ++i) {
             res[i] = acc[this->get_linear_id(point, i)];
         }
         return res;
@@ -66,10 +68,10 @@ public:
     std::vector<real_type> get_knn_points(const index_type point) const {
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
-        std::vector<real_type> res(opt_.k * data_.dims);
+        std::vector<real_type> res(k * data_.dims);
         auto acc_knn = buffer.template get_access<sycl::access::mode::read>();
         auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>();
-        for (index_type i = 0; i < opt_.k; ++i) {
+        for (index_type i = 0; i < k; ++i) {
             // get the knn index
             const index_type knn_id = acc_knn[this->get_linear_id(point, i)];
             for (index_type dim = 0; dim < data_.dims; ++dim) {
@@ -80,7 +82,7 @@ public:
                     res[i * data_.dims + dim] = knn_dim;
                 } else {
                     // Structs of Array
-                    res[dim * opt_.k + i] = knn_dim;
+                    res[dim * k + i] = knn_dim;
                 }
             }
         }
@@ -98,20 +100,15 @@ public:
      */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type i) const noexcept {
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
-        DEBUG_ASSERT(0 <= i && i < opt_.k, "Out-of-bounce access!: 0 <= {} < {}", i, opt_.k);
+        DEBUG_ASSERT(0 <= i && i < k, "Out-of-bounce access!: 0 <= {} < {}", i, k);
 
         if constexpr (layout == memory_layout::aos) {
-            return point * opt_.k + i;
+            return point * k + i;
         } else {
             return i * data_.size + point;
         }
     }
 
-    /**
-     * @brief Returns the @ref options object which has been used to create this @ref knn object.
-     * @return the @ref options object (`[[nodiscard]]`)
-     */
-    [[nodiscard]] const Options& get_options() const noexcept { return opt_; }
     /**
      * @brief Returns the @ref data object which has been used to create this @ref knn object.
      * @return the @ref data object (`[[nodiscard]]`)
@@ -125,22 +122,20 @@ public:
 
 private:
     /// Befriend factory function.
-    template <memory_layout layout_, typename Data_>
-    friend knn<layout_, typename Data_::options_type, Data_> make_knn(Data_&);
+    template <memory_layout layout_, typename Data_, typename Options_>
+    friend knn<layout_, Options_, Data_> make_knn(typename Options_::index_type, Data_&);
     /// Befriend knn class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
     friend class knn;
 
 
     /**
-     * @brief Construct a new @ref knn object given the options in @p opt and sizes in @p data.
-     * @param[in] opt the @ref options object representing the currently set options
+     * @brief Construct a new @ref knn object given the @p k and sizes in @p data.
+     * @param[in] k the number of nearest-neighbours to search for
      * @param[in] data the @ref data object representing the used data set
      */
-    knn(const Options& opt, Data& data) : opt_(opt), data_(data), buffer(data.size * opt.k) { }
+    knn(const index_type k, Data& data) : k(k), data_(data), buffer(data.size * k) { }
 
-    /// Const reference to @ref options object.
-    const Options& opt_;
     /// Reference to @ref data object.
     Data& data_;
 };
@@ -153,9 +148,9 @@ private:
  * @param[in] data the used data object
  * @return the newly constructed @ref knn object (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Data>
-[[nodiscard]] inline knn<layout, typename Data::options_type, Data> make_knn(Data& data) {
-    return knn<layout, typename Data::options_type, Data>(data.get_options(), data);
+template <memory_layout layout, typename Data, typename Options = typename Data::options_type>
+[[nodiscard]] inline knn<layout, Options, Data> make_knn(const typename Options::index_type k, Data& data) {
+    return knn<layout, Options, Data>(k, data);
 }
 
 

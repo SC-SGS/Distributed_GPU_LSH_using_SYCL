@@ -45,7 +45,6 @@ int main(int argc, char** argv) {
             ("options", boost::program_options::value<std::string>(), "path to the options file")
             ("save_options", boost::program_options::value<std::string>(), "save the currently used options to path")
             ("data", boost::program_options::value<std::string>(), "path to the data file (required)")
-            ("k", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().k)>>(), "number of nearest neighbours to search for")
             ("num_hash_tables", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>(), "number of hash tables to create")
             ("hash_table_size", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>(), "size of each hash table (should be a prime)")
             ("num_hash_functions", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>(), "number of hash functions per hash table")
@@ -73,10 +72,6 @@ int main(int argc, char** argv) {
         }
 
         // change options values through factory functions using the provided values
-        if (vm.count("k")) {
-            options_factory.set_k(
-                    vm["k"].as<std::remove_cv_t<decltype(std::declval<options<>>().k)>>());
-        }
         if (vm.count("num_hash_tables")) {
             options_factory.set_num_hash_tables(
                     vm["num_hash_tables"].as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>());
@@ -131,6 +126,7 @@ int main(int argc, char** argv) {
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data);
         auto hash_tables = make_hash_tables(queue, hash_functions);
+        auto knn = make_knn<memory_layout::soa>(6, data);
 
         END_TIMING(creating_hash_tables);
 

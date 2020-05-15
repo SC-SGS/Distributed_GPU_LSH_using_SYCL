@@ -1,4 +1,3 @@
-k 8
 num_hash_tables 10
 hash_table_size 13
 num_hash_functions 9

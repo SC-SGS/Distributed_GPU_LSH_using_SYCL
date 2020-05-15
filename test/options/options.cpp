@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-07
+ * @date 2020-05-15
  * @brief Test cases for the @ref options class.
  * @details Testsuite: *OptionsTest*
  * | test case name                 | test case description                                                 |
@@ -44,7 +44,6 @@ TEST(OptionsTest, DefaultConstructDifferentTypes) {
 TEST(OptionsTest, SaveToFile) {
     // create options object and set values
     options opt = options<>::factory()
-            .set_k(10)
             .set_num_hash_tables(4)
             .set_hash_table_size(7)
             .set_num_hash_functions(8)
@@ -57,7 +56,6 @@ TEST(OptionsTest, SaveToFile) {
     options opt_2 = options<>::factory("../../../test/options/saved_options.txt");
 
     // check whether values are set
-    EXPECT_EQ(opt.k, 10);
     EXPECT_EQ(opt.num_hash_tables, 4);
     EXPECT_EQ(opt.hash_table_size, 7);
     EXPECT_EQ(opt.num_hash_functions, 8);

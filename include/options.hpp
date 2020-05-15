@@ -74,9 +74,7 @@ struct options {
 
             // try to read all options given in file
             while(in >> opt >> value) {
-                if (opt == "k") {
-                    this->set_k(detail::convert_to<index_type>(value));
-                } else if (opt == "num_hash_tables") {
+                if (opt == "num_hash_tables") {
                     this->set_num_hash_tables(detail::convert_to<index_type>(value));
                 } else if (opt == "hash_table_size") {
                     this->set_hash_table_size(detail::convert_to<hash_value_type>(value));
@@ -94,18 +92,6 @@ struct options {
             }
         }
 
-        /**
-         * @brief Set the new number of nearest neighbours to find.
-         * @param[in] factory_k number of nearest neighbours
-         * @return `*this`
-         *
-         * @pre @p factory_k **must** be greater than `0`.
-         */
-        factory& set_k(const index_type factory_k) {
-            DEBUG_ASSERT(0 < factory_k, "Illegal number of nearest neighbors!: 0 < {}", factory_k);
-            k_ = factory_k;
-            return *this;
-        }
         /**
          * @brief Set the new number of hash tables to create.
          * @param[in] factory_num_hash_tables number of hash tables
@@ -184,7 +170,6 @@ struct options {
         }
 #endif
         // TODO 2020-04-30 15:31 marcel: set meaningful defaults
-        index_type k_ = static_cast<index_type>(6);
         index_type num_hash_tables_ = static_cast<index_type>(2);
         hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
         index_type num_hash_functions_ = static_cast<index_type>(4);
@@ -197,12 +182,10 @@ struct options {
      * @param[in] fact a options factory
      */
     options(options::factory fact = options<real_type, index_type, hash_value_type>::factory())
-            : k(fact.k_), num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
+            : num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
               num_hash_functions(fact.num_hash_functions_), w(fact.w_) { }
 
 
-    /// The number of nearest neighbours to search for.
-    const index_type k;
     /// The number of hash tables to create.
     const index_type num_hash_tables;
     /// The size of each hash table (should be a prime).
@@ -239,7 +222,6 @@ struct options {
         out << "real_type '" << boost::typeindex::type_id<real_type>().pretty_name() << "'\n";
         out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
         out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
-        out << "k " << opt.k << '\n';
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size  " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
