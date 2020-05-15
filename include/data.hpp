@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-15
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -165,6 +165,7 @@ private:
         if (!std::filesystem::exists(file)) {
             throw std::invalid_argument("File '" + file + "' doesn't exist!");
         }
+        START_TIMING(reading_data_file);
         std::ifstream in(file);
         std::string line, elem;
 
@@ -178,6 +179,7 @@ private:
                 acc[this->get_linear_id(point, dim)] = detail::convert_to<data_type>(elem);
             }
         }
+        END_TIMING(reading_data_file);
     }
 
     /**

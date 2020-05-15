@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-15
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -169,6 +169,7 @@ private:
     hash_functions(const Options& opt, Data& data, const bool init = true)
         : opt_(opt), data_(data), buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1))
     {
+        START_TIMING(creating_hash_functions);
         if (init) {
             // TODO 2020-05-07 19:03 marcel: uncomment for truly random numbers
 //        std::random_device rnd_device;
@@ -189,6 +190,7 @@ private:
                 }
             }
         }
+        END_TIMING(creating_hash_functions);
     }
 
     /// Const reference to @ref options object.

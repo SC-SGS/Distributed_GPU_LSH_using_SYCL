@@ -12,6 +12,7 @@ project("Distributed GPU LSH implementation using SYCL"
 option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
 option(ENABLE_GPU "Enable the usage of GPUs" ON)
+option(ENABLE_TIMING "Enable the timing of various functions" OFF)
 
 # add custom cmake modules path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
@@ -21,8 +22,14 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified")
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the build type" FORCE)
 endif ()
-message(STATUS "cmake build type is: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CMake build type is: ${CMAKE_BUILD_TYPE}")
 
+if (ENABLE_TIMING)
+    message(STATUS "Enabled timing")
+    add_definitions(-DENABLE_TIMING)
+else ()
+    message(STATUS "Disabled timing")
+endif ()
 
 # find boost
 find_package(Boost 1.72 REQUIRED program_options)

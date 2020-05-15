@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-15
  *
  * @brief The main file containing the main logic.
  */
@@ -127,15 +127,12 @@ int main(int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
         std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
 
-        auto start_time = std::chrono::steady_clock::now();
+        START_TIMING(creating_hash_tables);
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data);
         auto hash_tables = make_hash_tables(queue, hash_functions);
 
-        auto end_time = std::chrono::steady_clock::now();
-        std::cout << "Created hash tables in "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count()
-                  << " ms." << std::endl;
+        END_TIMING(creating_hash_tables);
 
         // wait until all kernels have finished
         queue.wait_and_throw();

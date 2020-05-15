@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-15
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -91,13 +91,19 @@ private:
             sycl::buffer hash_value_count(vec.data(), sycl::range<>(vec.size()));
 
             // TODO 2020-05-11 17:28 marcel: implement optimizations
+            START_TIMING(count_hash_values);
             // count the occurrence of each hash value
             this->count_hash_values(queue, hash_value_count);
+            END_TIMING(count_hash_values);
+            START_TIMING(calculate_offsets);
             // calculate the offset values
             this->calculate_offsets(queue, hash_value_count);
+            END_TIMING(calculate_offsets);
         }
+        START_TIMING(fill_hash_tables);
         // fill the hash tables based on the previously calculated offset values
         this->fill_hash_tables(queue);
+        END_TIMING(fill_hash_tables);
     }
 
     /**
