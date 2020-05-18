@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
             ("options", boost::program_options::value<std::string>(), "path to the options file")
             ("save_options", boost::program_options::value<std::string>(), "save the currently used options to path")
             ("data", boost::program_options::value<std::string>(), "path to the data file (required)")
+            ("k", boost::program_options::value<typename options<>::index_type>(), "the number of nearest-neighbours to search for (required)")
             ("num_hash_tables", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>(), "number of hash tables to create")
             ("hash_table_size", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>(), "size of each hash table (should be a prime)")
             ("num_hash_functions", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>(), "number of hash functions per hash table")
@@ -118,6 +119,16 @@ int main(int argc, char** argv) {
         auto data = make_data<memory_layout::aos>(opt, 10, 3);
         std::cout << "\nUsed data set: \n" << data << '\n' << std::endl;
 
+        // read the number of nearest-neighbours to search for
+        typename decltype(opt)::index_type k = 0;
+        if (vm.count("k")) {
+            k = vm["k"].as<decltype(k)>();
+
+            std::cout << "Number of nearest-neighbours to search for: " << k << '\n' << std::endl;
+        } else {
+            std::cerr << "\nNo number of nearest-neighbours given!" << std::endl;
+            return EXIT_FAILURE;
+        }
 
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
         std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
