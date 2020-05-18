@@ -145,6 +145,7 @@ private:
  * @brief Factory function for creating a new @ref knn object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
+ * @param[in] k the number of nearest-neighbours to search for
  * @param[in] data the used data object
  * @return the newly constructed @ref knn object (`[[nodiscard]]`)
  */

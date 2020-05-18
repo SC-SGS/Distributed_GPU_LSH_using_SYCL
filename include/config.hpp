@@ -50,11 +50,26 @@ enum class memory_layout {
  * @attention Before calling `END_TIMING(x)` a call to `START_TIMING(x)` **must** be made!
  */
 #ifdef ENABLE_TIMING
-#define START_TIMING(name) auto start_##name = std::chrono::steady_clock::now();
-#define END_TIMING(name) std::cout << "Elapsed time (" << #name << "): " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_##name).count() << " ms" << std::endl;
+#define START_TIMING(name) const auto start_##name = std::chrono::steady_clock::now();
+
+#define END_TIMING(name)                                                                                                \
+do {                                                                                                                    \
+const auto end_##name = std::chrono::steady_clock::now();                                                               \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count();  \
+std::cout << "Elapsed time (" << #name << "): " << duration_##name << " ms" << std::endl;                               \
+} while (false)
+
+#define END_TIMING_WITH_BARRIER(name, queue)                                                                            \
+do {                                                                                                                    \
+queue.wait();                                                                                                           \
+const auto end_##name = std::chrono::steady_clock::now();                                                               \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count();  \
+std::cout << "Elapsed time (" << #name << "): " << duration_##name << " ms" << std::endl;                               \
+} while (false)
 #else
 #define START_TIMING(name)
 #define END_TIMING(name)
+#define END_TIMING_WITH_BARRIER(name, queue)
 #endif
 
 

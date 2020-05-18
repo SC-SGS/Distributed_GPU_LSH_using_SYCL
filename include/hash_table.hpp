@@ -16,6 +16,7 @@
 #include <data.hpp>
 #include <detail/print.hpp>
 #include <hash_function.hpp>
+#include <knn.hpp>
 #include <options.hpp>
 
 
@@ -42,6 +43,16 @@ public:
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
     hash_functions<layout, Options, Data> hash_functions_;
+
+
+    template <memory_layout knn_layout>
+    auto calculate_knn(const index_type k) {
+        START_TIMING(calculate_nearest_neighbours);
+        auto knns = make_knn<knn_layout>(k, data_);
+
+        END_TIMING_WITH_BARRIER(calculate_nearest_neighbours, queue_);
+        return knns;
+    }
 
 
     [[nodiscard]] constexpr index_type get_linear_idx(const index_type hash_table, const hash_value_type hash_value) const noexcept {
@@ -82,7 +93,7 @@ private:
      * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
      */
     hash_tables(sycl::queue& queue, const Options& opt, Data& data, hash_functions<layout, Options, Data> hash_functions)
-            : opt_(opt), data_(data), hash_functions_(hash_functions),
+            : queue_(queue), opt_(opt), data_(data), hash_functions_(hash_functions),
               buffer(opt.num_hash_tables * data.size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1))
     {
         {
@@ -91,19 +102,14 @@ private:
             sycl::buffer hash_value_count(vec.data(), sycl::range<>(vec.size()));
 
             // TODO 2020-05-11 17:28 marcel: implement optimizations
-            START_TIMING(count_hash_values);
             // count the occurrence of each hash value
-            this->count_hash_values(queue, hash_value_count);
-            END_TIMING(count_hash_values);
-            START_TIMING(calculate_offsets);
+            this->count_hash_values(hash_value_count);
+
             // calculate the offset values
-            this->calculate_offsets(queue, hash_value_count);
-            END_TIMING(calculate_offsets);
+            this->calculate_offsets(hash_value_count);
         }
-        START_TIMING(fill_hash_tables);
         // fill the hash tables based on the previously calculated offset values
-        this->fill_hash_tables(queue);
-        END_TIMING(fill_hash_tables);
+        this->fill_hash_tables();
     }
 
     /**
@@ -119,11 +125,11 @@ private:
 
     /**
      * @brief Calculates the number of data points assigned to each hash bucket in each hash table.
-     * @param[inout] queue the SYCL command queue
      * @param[inout] hash_value_count the number of data points assigned to each hash bucket in each hash table
      */
-    void count_hash_values(sycl::queue& queue, sycl::buffer<index_type, 1>& hash_value_count) {
-        queue.submit([&](sycl::handler& cgh) {
+    void count_hash_values(sycl::buffer<index_type, 1>& hash_value_count) {
+        START_TIMING(count_hash_values);
+        queue_.submit([&](sycl::handler& cgh) {
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
@@ -139,14 +145,15 @@ private:
                 }
             });
         });
+        END_TIMING_WITH_BARRIER(count_hash_values, queue_);
     }
     /**
      * @brief Calculates the offsets for each hash bucket in each hash table.
-     * @param[inout] queue the SYCL command queue
      * @param[in] hash_value_count the number of data points assigned to each hash bucket in each hash table.
      */
-    void calculate_offsets(sycl::queue& queue, sycl::buffer<index_type, 1>& hash_value_count) {
-        queue.submit([&](sycl::handler& cgh) {
+    void calculate_offsets(sycl::buffer<index_type, 1>& hash_value_count) {
+        START_TIMING(calculate_offsets);
+        queue_.submit([&](sycl::handler& cgh) {
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::discard_write>(cgh);
 
@@ -162,13 +169,14 @@ private:
                 }
             });
         });
+        END_TIMING_WITH_BARRIER(calculate_offsets, queue_);
     }
     /**
      * @brief Fill the hash tables with the data points using the previously calculated offsets.
-     * @param[inout] queue the SYCL command queue
      */
-    void fill_hash_tables(sycl::queue& queue) {
-        queue.submit([&](sycl::handler& cgh) {
+    void fill_hash_tables() {
+        START_TIMING(fill_hash_tables);
+        queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::atomic>(cgh);
@@ -183,9 +191,11 @@ private:
                 }
             });
         });
+        END_TIMING_WITH_BARRIER(fill_hash_tables, queue_);
     }
 
-
+    /// Reference to the SYCL queue object.
+    sycl::queue queue_;
     /// Const reference to @ref options object.
     const Options& opt_;
     /// Reference to @ref data object.

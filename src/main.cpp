@@ -1,12 +1,11 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-18
  *
  * @brief The main file containing the main logic.
  */
 
-#include <chrono>
 #include <iostream>
 #include <utility>
 
@@ -137,9 +136,9 @@ int main(int argc, char** argv) {
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data);
         auto hash_tables = make_hash_tables(queue, hash_functions);
-        auto knn = make_knn<memory_layout::soa>(6, data);
+        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 
-        END_TIMING(creating_hash_tables);
+        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
 
         // wait until all kernels have finished
         queue.wait_and_throw();
