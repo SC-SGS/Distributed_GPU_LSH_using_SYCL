@@ -6,6 +6,7 @@
  * @brief The main file containing the main logic.
  */
 
+#include <cstdio>
 #include <iostream>
 #include <utility>
 
@@ -18,6 +19,7 @@
 #include <hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
+#include <evaluation.hpp>
 
 
 /**
@@ -153,6 +155,18 @@ int main(int argc, char** argv) {
 
             std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
         }
+
+        using index_type = typename decltype(opt)::index_type;
+        std::vector<index_type> vec;
+        vec.reserve(data.size * k);
+        for (index_type i = 0; i < data.size; ++i) {
+            for (index_type j = 0; j < k; ++j) {
+                vec.emplace_back(i);
+            }
+        }
+
+        std::printf("recall: %.2f%%\n", recall(knns, vec) * 100);
+        std::printf("error ratio: %.2f%%\n", error_ratio(knns, vec, data) * 100);
 
     } catch (const boost::program_options::error& e) {
         std::cerr << "Error while using boost::program_options: " <<  e.what() << std::endl;
