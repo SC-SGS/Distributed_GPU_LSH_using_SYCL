@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-19
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -37,7 +37,7 @@ class hash_tables {
 public:
 
 
-    /// The SYCL buffer holding all hash hables: `buffer.get_count() == options::num_hash_tables * data::size`.
+    /// The SYCL buffer holding all hash tables: `buffer.get_count() == options::num_hash_tables * data::size`.
     sycl::buffer<real_type, 1> buffer;
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
@@ -49,6 +49,71 @@ public:
     auto calculate_knn(const index_type k) {
         START_TIMING(calculate_nearest_neighbours);
         auto knns = make_knn<knn_layout>(k, data_);
+
+        queue_.submit([&](sycl::handler& cgh) {
+            auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_knns = knns.buffer.template get_access<sycl::access::mode::discard_write>(cgh);
+
+            cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.size), [&](sycl::item<> item) {
+                const index_type idx = item.get_linear_id();
+
+                if (idx >= data_.size) return;
+
+                index_type nearest_neighbours[k];
+                real_type distances[k];
+                real_type max_distance = std::numeric_limits<real_type>::max();
+                index_type argmax = 0;
+
+                // initialize arrays
+                for (index_type i = 0; i < k; ++i) {
+                    nearest_neighbours[i] = idx;
+                    distances[i] = max_distance;
+                }
+
+                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
+                    const hash_value_type hash_bucket = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+
+                    for (index_type bucket_element = acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket];
+                            bucket_element < acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket + 1];
+                            ++bucket_element)
+                    {
+                        const index_type point = acc_hash_tables[hash_table * data_.size + bucket_element];
+                        real_type dist = 0.0;
+                        for (index_type dim = 0; dim < data_.dims; ++dim) {
+                            dist += (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(bucket_element, dim)])
+                                    * (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(bucket_element, dim)]);
+                        }
+
+                        // updated nearest-neighbours
+                        auto contains = [](const auto point, const index_type* neighbours, const index_type k) {
+                            for (index_type i = 0; i < k; ++i) {
+                                if (neighbours[i] == point) return true;
+                            }
+                            return false;
+                        };
+                        if (dist < max_distance && !contains(point, nearest_neighbours, k)) {
+                            nearest_neighbours[argmax] = bucket_element;
+                            distances[argmax] = dist;
+                            max_distance = dist;
+                            for (index_type i = 0; i < k; ++i) {
+                                if (distances[i] > max_distance) {
+                                    max_distance = distances[i];
+                                    argmax = i;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // write back to result buffer
+                for (index_type i = 0; i < k; ++i) {
+                    acc_knns[knns.get_linear_id(idx, i)] = nearest_neighbours[i];
+                }
+            });
+        });
 
         END_TIMING_WITH_BARRIER(calculate_nearest_neighbours, queue_);
         return knns;

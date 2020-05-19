@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
         typename decltype(opt)::index_type k = 0;
         if (vm.count("k")) {
             k = vm["k"].as<decltype(k)>();
+            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
 
             std::cout << "Number of nearest-neighbours to search for: " << k << '\n' << std::endl;
         } else {
@@ -137,9 +138,10 @@ int main(int argc, char** argv) {
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data);
         auto hash_tables = make_hash_tables(queue, hash_functions);
-        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 
         END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
+
+        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 
         // wait until all kernels have finished
         queue.wait_and_throw();
