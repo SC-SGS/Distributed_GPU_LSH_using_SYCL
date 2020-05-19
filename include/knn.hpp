@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-19
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbour search.
  */
@@ -119,6 +119,29 @@ public:
      * @return the specified @ref memory_layout (`[[nodiscard]]`)
      */
     [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept { return layout; }
+
+    /**
+     * @brief Saves the nearest-neighbours to @p file.
+     * @details The content of @p file is overwritten if it already exists.
+     * @param[in] file the name of the @p file
+     *
+     * @throw std::invalid_argument if @p file can't be opened or created.
+     */
+    void save(const std::string& file) {
+        std::ofstream out(file, std::ofstream::trunc);
+        if (out.bad()) {
+            // something went wrong while opening/creating the file
+            throw std::invalid_argument("Can't write to file '" + file + "'!");
+        }
+        auto acc = buffer.template get_access<sycl::access::mode::read>();
+        for (index_type point = 0; point < data_.size; ++point) {
+            out << acc[this->get_linear_id(point, 0)];
+            for (index_type i = 1; i < k; ++i) {
+                out << ',' << acc[this->get_linear_id(point, i)];
+            }
+            out << '\n';
+        }
+    }
 
 private:
     /// Befriend factory function.

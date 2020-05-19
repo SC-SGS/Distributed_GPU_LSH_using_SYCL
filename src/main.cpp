@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-18
+ * @date 2020-05-19
  *
  * @brief The main file containing the main logic.
  */
@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
             ("options", boost::program_options::value<std::string>(), "path to the options file")
             ("save_options", boost::program_options::value<std::string>(), "save the currently used options to path")
             ("data", boost::program_options::value<std::string>(), "path to the data file (required)")
+            ("save_knn", boost::program_options::value<std::string>(), "save the calculate nearest-neighbours to path")
             ("k", boost::program_options::value<typename options<>::index_type>(), "the number of nearest-neighbours to search for (required)")
             ("num_hash_tables", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>(), "number of hash tables to create")
             ("hash_table_size", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>(), "size of each hash table (should be a prime)")
@@ -142,6 +143,14 @@ int main(int argc, char** argv) {
 
         // wait until all kernels have finished
         queue.wait_and_throw();
+
+        // save the calculated k-nearest-neighbours
+        if (vm.count("save_knn")) {
+            std::string knns_save_file = vm["save_knn"].as<std::string>();
+            knns.save(knns_save_file);
+
+            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
+        }
 
     } catch (const boost::program_options::error& e) {
         std::cerr << "Error while using boost::program_options: " <<  e.what() << std::endl;
