@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-24
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -14,7 +14,6 @@
 #include <fstream>
 #include <iterator>
 #include <ostream>
-#include <random>
 #include <sstream>
 #include <stdexcept>
 
@@ -122,7 +121,7 @@ private:
 
     /**
      * @brief Construct a new data object if size: `size * dims`.
-     * @details Initialize the buffer with random values if @p init is set to `true`.
+     * @details Initialize the buffer with iota values if @p init is set to `true`.
      * @param[in] opt the provided @ref options object
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
@@ -138,15 +137,13 @@ private:
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
         if (init) {
-            // define random facilities
-            std::random_device rnd_device;
-            std::mt19937 rnd_gen(rnd_device());
-            std::normal_distribution<data_type> rnd_dist;
-
-            // memory_layout doesn't matter for random values
+            // fill "iota" like
             auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-            for (index_type i = 0; i < buffer.get_count(); ++i) {
-                acc[i] = rnd_dist(rnd_gen);
+            data_type val = 0.0;
+            for (index_type point = 0; point < size; ++point) {
+                for (index_type dim = 0; dim < dims; ++dim) {
+                    acc[this->get_linear_id(point, dim)] = val++;
+                }
             }
         }
     }
