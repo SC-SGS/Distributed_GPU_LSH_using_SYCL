@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-19
+ * @date 2020-05-24
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -38,7 +38,7 @@ public:
 
 
     /// The SYCL buffer holding all hash tables: `buffer.get_count() == options::num_hash_tables * data::size`.
-    sycl::buffer<real_type, 1> buffer;
+    sycl::buffer<index_type , 1> buffer;
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
@@ -251,8 +251,10 @@ private:
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type  hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
-                    acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
+                    const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    auto offset = acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1];
+                    acc_hash_tables[hash_table * data_.size + offset.load()] = idx;
+                    offset.fetch_add(1);
                 }
             });
         });
