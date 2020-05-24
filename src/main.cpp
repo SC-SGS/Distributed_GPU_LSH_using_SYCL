@@ -10,8 +10,7 @@
 #include <iostream>
 #include <utility>
 
-#include <boost/program_options.hpp>
-
+#include <argv_parser.hpp>
 #include <config.hpp>
 #include <cstdlib>
 #include <options.hpp>
@@ -40,56 +39,39 @@ void exception_handler(sycl::exception_list exceptions) {
 int main(int argc, char** argv) {
     try
     {
-        boost::program_options::options_description desc{"options"};
-        desc.add_options()
-            ("help,h", "help screen")
-            ("options", boost::program_options::value<std::string>(), "path to the options file")
-            ("save_options", boost::program_options::value<std::string>(), "save the currently used options to path")
-            ("data", boost::program_options::value<std::string>(), "path to the data file (required)")
-            ("save_knn", boost::program_options::value<std::string>(), "save the calculate nearest-neighbours to path")
-            ("k", boost::program_options::value<typename options<>::index_type>(), "the number of nearest-neighbours to search for (required)")
-            ("num_hash_tables", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>(), "number of hash tables to create")
-            ("hash_table_size", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>(), "size of each hash table (should be a prime)")
-            ("num_hash_functions", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>(), "number of hash functions per hash table")
-            ("w", boost::program_options::value<std::remove_cv_t<decltype(std::declval<options<>>().w)>>(), "constant used in the hash functions")
-        ;
-
-        boost::program_options::variables_map vm;
-        boost::program_options::store(parse_command_line(argc, argv, desc), vm);
-        boost::program_options::notify(vm);
+        argv_parser parser(argc, argv);
 
         // display help message
-        if (vm.count("help")) {
-            std::cout << "Usage: ./prog --data \"path-to-data_set\" [options]\n";
-            std::cout << desc;
+        if (parser.has_argv("help")) {
+            std::cout << parser.description() << std::endl;
             return EXIT_SUCCESS;
         }
 
         // read options file
         options<>::factory options_factory;
-        if (vm.count("options")) {
-            std::string options_file = vm["options"].as<std::string>();
+        if (parser.has_argv("options")) {
+            auto options_file = parser.argv_as<std::string>("options");
             options_factory = options<>::factory(options_file);
 
             std::cout << "Reading options from file: '" << options_file << "'\n" << std::endl;
         }
 
         // change options values through factory functions using the provided values
-        if (vm.count("num_hash_tables")) {
+        if (parser.has_argv("num_hash_tables")) {
             options_factory.set_num_hash_tables(
-                    vm["num_hash_tables"].as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>());
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>("num_hash_tables"));
         }
-        if (vm.count("hash_table_size")) {
+        if (parser.has_argv("hash_table_size")) {
             options_factory.set_hash_table_size(
-                    vm["hash_table_size"].as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>());
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>("hash_table_size"));
         }
-        if (vm.count("num_hash_functions")) {
+        if (parser.has_argv("num_hash_functions")) {
             options_factory.set_num_hash_functions(
-                    vm["num_hash_functions"].as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>());
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>("num_hash_functions"));
         }
-        if (vm.count("w")) {
+        if (parser.has_argv("w")) {
             options_factory.set_w(
-                    vm["w"].as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>());
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>("w"));
         }
 
         // create options object from factory
@@ -97,8 +79,8 @@ int main(int argc, char** argv) {
         std::cout << "Used options: \n" << opt << '\n' << std::endl;
 
         // save the options file
-        if (vm.count("save_options")) {
-            std::string options_save_file = vm["save_options"].as<std::string>();
+        if (parser.has_argv("save_options")) {
+            auto options_save_file = parser.argv_as<std::string>("save_options");
             opt.save(options_save_file);
 
             std::cout << "Saved options to: '" << options_save_file << "'\n" << std::endl;
@@ -107,8 +89,8 @@ int main(int argc, char** argv) {
 
         // read data file
         std::string data_file;
-        if (vm.count("data")) {
-            data_file = vm["data"].as<std::string>();
+        if (parser.has_argv("data")) {
+            data_file = parser.argv_as<std::string>("data");
 
             std::cout << "Reading data from file: '" << data_file << '\'' << std::endl;
         } else {
@@ -123,8 +105,8 @@ int main(int argc, char** argv) {
 
         // read the number of nearest-neighbours to search for
         typename decltype(opt)::index_type k = 0;
-        if (vm.count("k")) {
-            k = vm["k"].as<decltype(k)>();
+        if (parser.has_argv("k")) {
+            k = parser.argv_as<decltype(k)>("k");
             DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
 
             std::cout << "Number of nearest-neighbours to search for: " << k << '\n' << std::endl;
@@ -149,8 +131,8 @@ int main(int argc, char** argv) {
         queue.wait_and_throw();
 
         // save the calculated k-nearest-neighbours
-        if (vm.count("save_knn")) {
-            std::string knns_save_file = vm["save_knn"].as<std::string>();
+        if (parser.has_argv("save_knn")) {
+            auto knns_save_file = parser.argv_as<std::string>("save_knn");
             knns.save(knns_save_file);
 
             std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
@@ -168,9 +150,6 @@ int main(int argc, char** argv) {
         std::printf("recall: %.2f%%\n", recall(knns, vec) * 100);
         std::printf("error ratio: %.2f%%\n", error_ratio(knns, vec, data) * 100);
 
-    } catch (const boost::program_options::error& e) {
-        std::cerr << "Error while using boost::program_options: " <<  e.what() << std::endl;
-        return EXIT_FAILURE;
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

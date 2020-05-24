@@ -32,8 +32,10 @@ else ()
 endif ()
 
 # find boost
-find_package(Boost 1.72 REQUIRED program_options)
-
+find_package(Boost 1.72 REQUIRED)
+if (Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+endif ()
 
 # set source include files
 set(SOURCES )
@@ -66,7 +68,7 @@ include_directories(include)
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
 target_compile_options(prog PRIVATE -Wno-format-security)
-target_link_libraries(prog PRIVATE -lstdc++fs Boost::program_options) # don't know why this is necessary
+target_link_libraries(prog PRIVATE -lstdc++fs) # don't know why this is necessary
 
 
 # generate documentation if requested
