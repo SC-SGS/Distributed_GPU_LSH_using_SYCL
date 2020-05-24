@@ -72,10 +72,8 @@ public:
                     + (combined_hash << static_cast<hash_value_type>(6))
                     + (combined_hash >> static_cast<hash_value_type>(2));
         }
-        if constexpr (!std::is_signed_v<hash_value_type>) {
-            if (combined_hash < 0) {
-                combined_hash *= -1;
-            }
+        if constexpr (std::is_signed_v<hash_value_type>) {
+            combined_hash = sycl::fabs(combined_hash);
         }
         return combined_hash %= opt_.hash_table_size;
     }
