@@ -62,8 +62,8 @@ public:
 
                 if (idx >= data_.size) return;
 
-                index_type nearest_neighbours[k];
-                real_type distances[k];
+                auto* nearest_neighbours = new index_type[k];
+                auto* distances = new real_type[k];
                 real_type max_distance = std::numeric_limits<real_type>::max();
                 index_type argmax = 0;
 
@@ -112,6 +112,9 @@ public:
                 for (index_type i = 0; i < k; ++i) {
                     acc_knns[knns.get_linear_id(idx, i)] = nearest_neighbours[i];
                 }
+
+                delete[] nearest_neighbours;
+                delete[] distances;
             });
         });
 
