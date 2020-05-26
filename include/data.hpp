@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-24
+ * @date 2020-05-26
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -30,11 +30,11 @@
  */
 template <memory_layout layout, typename Options>
 class data {
+public:
     /// The type of the underlying data as specified as in the provided @ref options class.
     using data_type = typename Options::real_type;
     /// The index type as specified as in the provided @ref options class.
     using index_type = typename Options::index_type;
-public:
     /// The type of the provided @ref options class.
     using options_type = Options;
 
