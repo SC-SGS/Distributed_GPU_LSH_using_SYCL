@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-14
+ * @date 2020-05-26
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -31,11 +31,13 @@
  * @tparam index_t an integer type
  * @tparam hash_value_t an integer type (used as type for the hash value)
  */
-template <typename real_t = float, typename index_t = std::uint32_t, typename hash_value_t = std::uint32_t,
-        REQUIRES(std::is_floating_point_v<real_t>),
-        REQUIRES(std::is_integral_v<index_t>),
-        REQUIRES(std::is_integral_v<hash_value_t>)>
+template <typename real_t = float, typename index_t = std::uint32_t, typename hash_value_t = std::uint32_t>
 struct options {
+    // check template parameter types
+    static_assert(std::is_floating_point_v<real_t>, "The first template parameter must be a floating point type!");
+    static_assert(std::is_integral_v<index_t>, "The second template parameter must be an integral type!");
+    static_assert(std::is_integral_v<hash_value_t>, "The first template parameter must be an integral type!");
+public:
     /// The used floating point type.
     using real_type = real_t;
     /// The used integer type.
@@ -43,13 +45,12 @@ struct options {
     /// The used type of a hash value.
     using hash_value_type = hash_value_t;
 
-
     /**
      * @brief Factory class to create a new @ref options instance.
      */
     class factory {
         /// Befriend options class.
-        template <typename, typename, typename, typename, typename, typename>
+        template <typename, typename, typename>
         friend class options;
     public:
         /**
