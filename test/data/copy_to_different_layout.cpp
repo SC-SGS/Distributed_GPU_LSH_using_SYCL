@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <data.hpp>
-#include "data_tests_utilities.hpp"
+#include "data_test_utilities.hpp"
 
 
 TEST(Datatest, GetAoSasSoA) {
