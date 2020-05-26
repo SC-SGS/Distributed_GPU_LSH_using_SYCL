@@ -31,14 +31,6 @@ enum class memory_layout {
 
 
 /**
- * @def REQUIRES
- * @brief A macro function for a more simple way to write a [`std::enable_if`](https://en.cppreference.com/w/cpp/types/enable_if)
- * to constraint template parameters.
- * @param[in] req a constant expression which evaluates to `true`
- */
-#define REQUIRES(req) typename = std::enable_if_t<req>
-
-/**
  * @def START_TIMING
  * @brief A macro function to start timing.
  * @param[in] name the name of the currently timed functionality
