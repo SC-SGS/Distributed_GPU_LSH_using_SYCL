@@ -5,7 +5,7 @@ function(add_custom_test name test_files)
     # add new test executable with the static main and the provided source test files
     add_executable(${name} ${CMAKE_SOURCE_DIR}/test/test_main.cpp ${test_files})
     # link against gtest
-    target_link_libraries(${name} PRIVATE gtest)
+    target_link_libraries(${name} PRIVATE gtest -lstdc++fs)
     # add test
     add_test(NAME ${name} COMMAND ${name})
 endfunction(add_custom_test)
