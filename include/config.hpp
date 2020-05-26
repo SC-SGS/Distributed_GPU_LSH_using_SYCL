@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-26
  *
  * @brief Contains global constants, usings and enums.
  */
@@ -48,6 +48,13 @@ enum class memory_layout {
  * @param[in] name the name of the currently timed functionality
  *
  * @attention Before calling `END_TIMING(x)` a call to `START_TIMING(x)` **must** be made!
+ *
+ * @def END_TIMING_WITH_BARRIER
+ * @brief A macro function to end timing and print the elapsed time. Calls `sycl::queue::wait()` before timing.
+ * @param[in] name the name of the currently timed functionality
+ * @param[in] queue the SYCL queue to call `wait()` on
+ *
+ * @attention Before calling `END_TIMING(x)` or `END_TIMING_WITH_BARRIER(x, queue)` a call to `START_TIMING(x)` **must** be made!
  */
 #ifdef ENABLE_TIMING
 #define START_TIMING(name) const auto start_##name = std::chrono::steady_clock::now();
