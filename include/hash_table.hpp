@@ -255,12 +255,7 @@ private:
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
-                    // TODO 2020-05-24 19:06 marcel: temporary fix
-#ifdef SYCL_DEVICE_ONLY
                     acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
-#else
-                    acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1) - 1] = idx;
-#endif
                 }
             });
         });
