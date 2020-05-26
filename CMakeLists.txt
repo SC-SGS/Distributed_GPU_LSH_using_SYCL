@@ -8,22 +8,19 @@ project("Distributed GPU LSH implementation using SYCL"
         DESCRIPTION "master theses Marcel Breyer"
         HOMEPAGE_URL "https://gitlab-sim.informatik.uni-stuttgart.de/breyerml/distributed_gpu_lsh_using_sycl")
 
+
 # cmake configuration options
 option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
 option(ENABLE_GPU "Enable the usage of GPUs" ON)
 option(ENABLE_TIMING "Enable the timing of various functions" OFF)
 
+
 # add custom cmake modules path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-# set build type to Release if none was specified
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified")
-    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the build type" FORCE)
-endif ()
-message(STATUS "CMake build type is: ${CMAKE_BUILD_TYPE}")
 
+# generate timing information if requested
 if (ENABLE_TIMING)
     message(STATUS "Enabled timing")
     add_definitions(-DENABLE_TIMING)
@@ -31,11 +28,13 @@ else ()
     message(STATUS "Disabled timing")
 endif ()
 
+
 # find boost
 find_package(Boost 1.72 REQUIRED)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
+
 
 # set source include files
 set(SOURCES )
@@ -52,6 +51,7 @@ string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL_INIT " -Os -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
+
 if (NOT DEFINED ENV{CLION_IDE})
 
     if (ENABLE_GPU)
@@ -61,6 +61,7 @@ if (NOT DEFINED ENV{CLION_IDE})
         message(STATUS "Disabled the usage of GPUs")
     endif ()
 endif ()
+
 
 # include directory
 include_directories(include)
@@ -77,16 +78,30 @@ if (ENABLE_DOCUMENTATION)
     add_subdirectory(doc)
 endif ()
 
+
 # generate tests if requested
 if (ENABLE_TESTS)
+    # check the set CMAKE_BUILD_TYPE
+    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        message(STATUS "Setting build type to 'Debug' as none was specified and tests are enabled!")
+        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the build type" FORCE)
+    elseif(NOT(CMAKE_BUILD_TYPE MATCHES "Debug"))
+        message(FATAL_ERROR "You have to use the build type 'Debug' as long as tests are enabled!")
+    endif ()
+
     message(STATUS "Enabled tests using google's test framework (GTest)")
     # install test framework in third_party directory
     include(GoogleTest)
     include(CTest)
     enable_testing()
     add_subdirectory(test)
+else ()
+    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        message(STATUS "Setting build type to 'Release' as none was specified and tests are disabled!")
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type" FORCE)
+    endif ()
 endif ()
-
+message(STATUS "CMAKE_BUILD_TYPE is: ${CMAKE_BUILD_TYPE}")
 
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
