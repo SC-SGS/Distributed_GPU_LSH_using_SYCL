@@ -32,7 +32,7 @@ template <memory_layout layout, typename Options>
 class data {
 public:
     /// The type of the underlying data as specified as in the provided @ref options class.
-    using data_type = typename Options::real_type;
+    using real_type = typename Options::real_type;
     /// The index type as specified as in the provided @ref options class.
     using index_type = typename Options::index_type;
     /// The type of the provided @ref options class.
@@ -44,12 +44,12 @@ public:
     /// The dimension of each data point.
     const index_type dims;
     /// The SYCL buffer holding all data: `buffer.get_count() == size * dims`.
-    sycl::buffer<data_type, 1> buffer;
+    sycl::buffer<real_type, 1> buffer;
 
 
     /**
      * @brief Returns the current data set with `new_layout`.
-     * @details If `new_layout == layout` a compiler warning is issued.
+     * @details If `new_layout == layout` a compiler warning is issued (currently disabled).
      * @tparam new_layout the layout of the data set
      * @return the data set with the `new_layout` (`[[nodiscard]]`)
      */
@@ -121,7 +121,7 @@ private:
 
     /**
      * @brief Construct a new data object if size: `size * dims`.
-     * @details Initialize the buffer with iota values if @p init is set to `true`.
+     * @details Initialize the buffer with iota values if @p init is set to `true` (default: `true`).
      * @param[in] opt the provided @ref options object
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
@@ -139,7 +139,7 @@ private:
         if (init) {
             // fill "iota" like
             auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-            data_type val = 0.0;
+            real_type val = 0.0;
             for (index_type point = 0; point < size; ++point) {
                 for (index_type dim = 0; dim < dims; ++dim) {
                     acc[this->get_linear_id(point, dim)] = val++;
@@ -173,7 +173,7 @@ private:
             std::stringstream ss(line);
             for (index_type dim = 0; dim < dims; ++dim) {
                 std::getline(ss, elem, ',');
-                acc[this->get_linear_id(point, dim)] = detail::convert_to<data_type>(elem);
+                acc[this->get_linear_id(point, dim)] = detail::convert_to<real_type>(elem);
             }
         }
         END_TIMING(reading_data_file);
