@@ -9,8 +9,11 @@
  * | DefaultConstruct               | Test the default construction of a @ref options object.               |
  * | DefaultConstructDifferentTypes | Test the construction of a @ref options object using different types. |
  * | SaveToFile                     | Test the saving of a @ref options object to a file.                   |
+ * | OutputOperator                 | Test the output-operator overload.                                    |
  */
 
+#include <sstream>
+#include <string>
 #include <type_traits>
 
 #include <gtest/gtest.h>
@@ -59,4 +62,27 @@ TEST(OptionsTest, SaveToFile) {
     EXPECT_EQ(opt.hash_table_size, 7);
     EXPECT_EQ(opt.num_hash_functions, 8);
     EXPECT_FLOAT_EQ(opt.w, 3.1415);
+}
+
+TEST(OptionsTest, OutputOperator) {
+    // create options object and set values
+    options opt = options<double, int, unsigned long>::factory()
+            .set_num_hash_tables(4)
+            .set_hash_table_size(7)
+            .set_num_hash_functions(8)
+            .set_w(3.1415).create();
+
+    std::stringstream ss;
+    ss << opt;
+
+    std::string expected =
+            "real_type 'double'\n"
+            "index_type 'int'\n"
+            "hash_value_type 'unsigned long'\n"
+            "num_hash_tables 4\n"
+            "hash_table_size 7\n"
+            "num_hash_functions 8\n"
+            "w 3.1415";
+
+    EXPECT_EQ(ss.str(), expected);
 }

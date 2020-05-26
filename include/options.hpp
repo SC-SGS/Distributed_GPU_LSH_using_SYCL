@@ -224,7 +224,7 @@ public:
         out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
         out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
-        out << "hash_table_size  " << opt.hash_table_size << '\n';
+        out << "hash_table_size " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
         out << "w " << opt.w;
 
