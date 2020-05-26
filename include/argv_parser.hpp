@@ -68,7 +68,7 @@ public:
         DEBUG_ASSERT(argc >= 1, "Not enough command line arguments given! {} >= 1", argc);
         DEBUG_ASSERT(argv != nullptr, "argv must not be the nullptr!{}", "");
 
-        for(int i = 1; i < argc - 1; ++i) {
+        for(int i = 1; i < argc; ++i) {
             std::string key = argv[i];
 
             // check whether the key starts with two leading "--"
@@ -90,11 +90,15 @@ public:
             argvs_.emplace(std::move(key), argv[++i]);
         }
 
-        if (argvs_.count("data") == 0) {
-            throw std::logic_error("The required command line argument --data is missing!");
-        }
-        if (argvs_.count("k") == 0) {
-            throw std::logic_error("The required command line argument --k is missing!");
+        // if --help isn't provided, check whether the required command line arguments are present
+        // if --help is provided, the program immediately returns, i.e. the required arguments do not have to be present
+        if (argvs_.count("help") == 0) {
+            if (argvs_.count("data") == 0) {
+                throw std::logic_error("The required command line argument --data is missing!");
+            }
+            if (argvs_.count("k") == 0) {
+                throw std::logic_error("The required command line argument --k is missing!");
+            }
         }
     }
 
