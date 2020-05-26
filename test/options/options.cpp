@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-15
+ * @date 2020-05-26
  * @brief Test cases for the @ref options class.
  * @details Testsuite: *OptionsTest*
  * | test case name                 | test case description                                                 |
@@ -24,7 +24,6 @@ TEST(OptionsTest, DefaultConstruct) {
 
     // check whether default values are set
     // TODO 2020-05-07 13:35 marcel: change after meaningful default values are provided
-    EXPECT_EQ(opt.k, 6);
     EXPECT_EQ(opt.num_hash_tables, 2);
     EXPECT_EQ(opt.hash_table_size, 105613);
     EXPECT_EQ(opt.num_hash_functions, 4);
