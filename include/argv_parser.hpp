@@ -143,7 +143,7 @@ public:
      * @return the description (`[[nodiscard]]`)
      */
     [[nodiscard]] std::string description() const {
-        std::string desc("Usage: ./prog --data \"path-to-data_set\" --k \"number-of-knn\" [options]\n");
+        std::string desc("Usage: ./prog --data \"path-to-data_set\" --k \"number-of-knn\" [options]\noptions:\n");
         const auto max_reduction = [](const std::size_t value, const auto& key_value_p) { return std::max(value, key_value_p.first.size()); };
         const std::size_t max_size = std::accumulate(possible_argvs_.begin(), possible_argvs_.end(), 0, max_reduction);
         for (const auto& [key, value] : possible_argvs_) {

@@ -30,7 +30,7 @@ TEST(ArgvParserTest, ArgvDescription) {
     argv_parser parser(argvs.size(), argvs.data());
 
     std::string description =
-            "Usage: ./prog --data \"path-to-data_set\" --k \"number-of-knn\" [options]\n"
+            "Usage: ./prog --data \"path-to-data_set\" --k \"number-of-knn\" [options]\noptions:\n"
             "   --data                path to the data file (required)\n"
             "   --hash_table_size     size of each hash table (must be a prime)\n"
             "   --help                help screen\n"
