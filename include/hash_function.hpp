@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-05-28
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -165,7 +165,7 @@ private:
      * @param[in] init `true` if the @ref buffer should be initialized, `false` otherwise
      */
     hash_functions(const Options& opt, Data& data, const bool init = true)
-        : opt_(opt), data_(data), buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1))
+        : buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1)), opt_(opt), data_(data)
     {
         START_TIMING(creating_hash_functions);
         if (init) {

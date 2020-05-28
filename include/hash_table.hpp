@@ -161,8 +161,8 @@ private:
      * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
      */
     hash_tables(sycl::queue& queue, const Options& opt, Data& data, hash_functions<layout, Options, Data> hash_functions)
-            : queue_(queue), opt_(opt), data_(data), hash_functions_(hash_functions),
-              buffer(opt.num_hash_tables * data.size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1))
+            : buffer(opt.num_hash_tables * data.size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
+              hash_functions_(hash_functions), queue_(queue), opt_(opt), data_(data)
     {
         {
             // create temporary buffer to count the occurrence of each hash value
