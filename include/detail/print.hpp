@@ -202,7 +202,7 @@ namespace detail {
      */
     template <typename... Args>
     inline void print(const char* msg, Args&&... args) {
-        const int num_placeholders = count_sequence(msg, "{}");
+        const unsigned num_placeholders = count_sequence(msg, "{}");
         // missmatch of number of plapceholders and given values
         if (num_placeholders != sizeof...(Args)) {
             printf("WRONG NUMBER OF ARGUEMNTS!!! %s",
