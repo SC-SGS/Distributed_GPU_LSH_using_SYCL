@@ -1,9 +1,9 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-19
+ * @date 2020-05-28
  *
- * @brief Implements the @ref knn class representing the result of the k-nearest-neighbour search.
+ * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
@@ -17,30 +17,30 @@
 
 
 /**
- * @brief Class representing the result of the k-nearest-neighbour search.
+ * @brief Class representing the result of the k-nearest-neighbor search.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
 class knn {
+public:
     /// The used floating point type.
     using real_type = typename Options::real_type;
     /// The used integer type.
     using index_type = typename Options::index_type;
-public:
 
 
-    /// The SYCL buffer holding all data: `buffer.get_count() == data::size * options::k`.
+    /// The SYCL buffer holding all data: `buffer.get_count() == data::size * knn::k`.
     sycl::buffer<index_type, 1> buffer;
-    /// The number of nearest neighbours to search for.
+    /// The number of nearest neighbors to search for.
     const index_type k;
 
 
     /**
      * @brief Returns the ids (index) of the k-nearest-neighbors found for @p point.
      * @param[in] point the data point
-     * @return the indices of the k-nearest-neighbours of @p point
+     * @return the indices of the k-nearest-neighbors of @p point
      *
      * @attention Copies the ids (indices) to the result vector!
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
@@ -57,9 +57,9 @@ public:
     }
     /**
      * @brief Returns the data points of the k-nearest-neighbors found for @p point.
-     * @tparam knn_points_layout the @ref memory_layout used for the k-nearest-neighbours
+     * @tparam knn_points_layout the @ref memory_layout used for the k-nearest-neighbors
      * @param[in] point the data point
-     * @return the data points of the k-nearest-neighbours of @p point
+     * @return the data points of the k-nearest-neighbors of @p point
      *
      * @attention Copies the underlying points to the result vector!
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
@@ -121,7 +121,7 @@ public:
     [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept { return layout; }
 
     /**
-     * @brief Saves the nearest-neighbours to @p file.
+     * @brief Saves the nearest-neighbors to @p file using the current @ref memory_layout.
      * @details The content of @p file is overwritten if it already exists.
      * @param[in] file the name of the @p file
      *
@@ -153,11 +153,15 @@ private:
 
 
     /**
-     * @brief Construct a new @ref knn object given the @p k and sizes in @p data.
-     * @param[in] k the number of nearest-neighbours to search for
+     * @brief Construct a new @ref knn object given @p k and sizes in @p data.
+     * @param[in] k the number of nearest-neighbors to search for
      * @param[in] data the @ref data object representing the used data set
+     *
+     * @pre @p k **must** be greater than `0`.
      */
-    knn(const index_type k, Data& data) : k(k), data_(data), buffer(data.size * k) { }
+    knn(const index_type k, Data& data) : k(k), data_(data), buffer(data.size * k) {
+        DEBUG_ASSERT(0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
+    }
 
     /// Reference to @ref data object.
     Data& data_;
@@ -168,7 +172,7 @@ private:
  * @brief Factory function for creating a new @ref knn object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
- * @param[in] k the number of nearest-neighbours to search for
+ * @param[in] k the number of nearest-neighbors to search for
  * @param[in] data the used data object
  * @return the newly constructed @ref knn object (`[[nodiscard]]`)
  */
