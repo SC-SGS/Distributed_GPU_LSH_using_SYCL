@@ -42,7 +42,7 @@ class argv_parser {
             { "options", "path to options file" },
             { "save_options", "save the currently used options to path" },
             { "data", "path to the data file (required)" },
-            { "k", "the number of nearest-neighbours to search for (required)" },
+            { "k", "the number of nearest-neighbors to search for (required)" },
             { "save_knn", "save the calculate nearest-neighbors to path" },
             { "num_hash_tables", "number of hash tables to create" },
             { "hash_table_size", "size of each hash table (must be a prime)" },

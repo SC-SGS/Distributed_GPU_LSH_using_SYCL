@@ -47,7 +47,7 @@ public:
 
     template <memory_layout knn_layout>
     auto calculate_knn(const index_type k) {
-        START_TIMING(calculate_nearest_neighbours);
+        START_TIMING(calculate_nearest_neighbors);
         auto knns = make_knn<knn_layout>(k, data_);
 
         queue_.submit([&](sycl::handler& cgh) {
@@ -62,14 +62,14 @@ public:
 
                 if (idx >= data_.size) return;
 
-                auto* nearest_neighbours = new index_type[k];
+                auto* nearest_neighbors = new index_type[k];
                 auto* distances = new real_type[k];
                 real_type max_distance = std::numeric_limits<real_type>::max();
                 index_type argmax = 0;
 
                 // initialize arrays
                 for (index_type i = 0; i < k; ++i) {
-                    nearest_neighbours[i] = idx;
+                    nearest_neighbors[i] = idx;
                     distances[i] = max_distance;
                 }
 
@@ -87,15 +87,15 @@ public:
                                     * (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(bucket_element, dim)]);
                         }
 
-                        // updated nearest-neighbours
-                        auto contains = [](const auto point, const index_type* neighbours, const index_type k) {
+                        // updated nearest-neighbors
+                        auto contains = [](const auto point, const index_type* neighbors, const index_type k) {
                             for (index_type i = 0; i < k; ++i) {
-                                if (neighbours[i] == point) return true;
+                                if (neighbors[i] == point) return true;
                             }
                             return false;
                         };
-                        if (dist < max_distance && !contains(point, nearest_neighbours, k)) {
-                            nearest_neighbours[argmax] = bucket_element;
+                        if (dist < max_distance && !contains(point, nearest_neighbors, k)) {
+                            nearest_neighbors[argmax] = bucket_element;
                             distances[argmax] = dist;
                             max_distance = dist;
                             for (index_type i = 0; i < k; ++i) {
@@ -110,15 +110,15 @@ public:
 
                 // write back to result buffer
                 for (index_type i = 0; i < k; ++i) {
-                    acc_knns[knns.get_linear_id(idx, i)] = nearest_neighbours[i];
+                    acc_knns[knns.get_linear_id(idx, i)] = nearest_neighbors[i];
                 }
 
-                delete[] nearest_neighbours;
+                delete[] nearest_neighbors;
                 delete[] distances;
             });
         });
 
-        END_TIMING_WITH_BARRIER(calculate_nearest_neighbours, queue_);
+        END_TIMING_WITH_BARRIER(calculate_nearest_neighbors, queue_);
         return knns;
     }
 
