@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-05-28
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -228,12 +228,17 @@ private:
             cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt_.num_hash_tables), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
-                index_type offset_value = data_.size;
-                acc_offsets[idx * (opt_.hash_table_size + 1)] = 0;
-
-                for (index_type hash_value = opt_.hash_table_size; hash_value > 0; --hash_value) {
-                    offset_value -= acc_hash_value_count[idx * opt_.hash_table_size + hash_value - 1];
-                    acc_offsets[idx * (opt_.hash_table_size + 1) + hash_value] = offset_value;
+                // calculate constant offsets
+                const index_type hash_table_offset = idx * (opt_.hash_table_size + 1);
+                const index_type hash_value_count_offset = idx * opt_.hash_table_size;
+                // zero out first two offsets in each hash table
+                acc_offsets[hash_table_offset] = 0;
+                acc_offsets[hash_table_offset + 1] = 0;
+                for (index_type hash_value = 2; hash_value <= opt_.hash_table_size; ++hash_value) {
+                    // calculate modified prefix sum
+                    acc_offsets[hash_table_offset + hash_value] =
+                            acc_offsets[hash_table_offset + hash_value - 1] +
+                            acc_hash_value_count[hash_value_count_offset + hash_value - 2];
                 }
             });
         });
