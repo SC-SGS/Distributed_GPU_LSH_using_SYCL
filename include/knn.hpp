@@ -16,6 +16,14 @@
 #include <data.hpp>
 
 
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref knn class. Only for static_asserts.
+     */
+    class knn_base {};
+}
+
+
 /**
  * @brief Class representing the result of the k-nearest-neighbor search.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
@@ -23,7 +31,9 @@
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class knn {
+class knn : detail::knn_base {
+    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
+    static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:
     /// The used floating point type.
     using real_type = typename Options::real_type;

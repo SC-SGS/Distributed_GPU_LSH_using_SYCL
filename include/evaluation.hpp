@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-19
+ * @date 2020-05-29
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -22,6 +22,8 @@
 
 template <typename Knn, typename index_type>
 [[nodiscard]] double recall(Knn& knns, std::vector<index_type>& ideal_knns) {
+    static_assert(std::is_base_of_v<detail::knn_base, Knn>, "The first template parameter must by a 'knn' type!");
+
     const index_type size = knns.get_data().size;
     const index_type k = knns.k;
     double average_recall = 0.0;
@@ -46,6 +48,10 @@ template <typename Knn, typename index_type>
 
 template <typename Knn, typename index_type, typename Data>
 [[nodiscard]] double error_ratio(Knn& knns, std::vector<index_type>& ideal_knns, Data& data) {
+    static_assert(std::is_base_of_v<detail::knn_base, Knn>, "The first template parameter must by a 'knn' type!");
+    static_assert(std::is_base_of_v<detail::data_base, Data>, "The second template parameter must by a 'data' type!");
+
+
     const index_type size = knns.get_data().size;
     const index_type dims = knns.get_data().dims;
     const index_type k = knns.k;

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-05-29
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -25,6 +25,14 @@
 #include <detail/convert.hpp>
 
 
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref options class. Only for static_asserts.
+     */
+    class options_base {};
+}
+
+
 /**
  * @brief Class containing all hyperparameters to change the behaviour of the algorithm.
  * @tparam real_t a floating point type
@@ -32,11 +40,11 @@
  * @tparam hash_value_t an integer type (used as type for the hash value)
  */
 template <typename real_t = float, typename index_t = std::uint32_t, typename hash_value_t = std::uint32_t>
-struct options {
+struct options : detail::options_base {
     // check template parameter types
     static_assert(std::is_floating_point_v<real_t>, "The first template parameter must be a floating point type!");
     static_assert(std::is_integral_v<index_t>, "The second template parameter must be an integral type!");
-    static_assert(std::is_integral_v<hash_value_t>, "The first template parameter must be an integral type!");
+    static_assert(std::is_integral_v<hash_value_t>, "The third template parameter must be an integral type!");
 public:
     /// The used floating point type.
     using real_type = real_t;

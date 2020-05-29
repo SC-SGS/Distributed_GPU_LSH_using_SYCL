@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-28
+ * @date 2020-05-29
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -18,6 +18,14 @@
 #include <options.hpp>
 
 
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref hash_functions class. Only for static_asserts.
+     */
+    class hash_functions_base {};
+}
+
+
 /**
  * @brief Class representing the LSH hash functions.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
@@ -25,7 +33,9 @@
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class hash_functions {
+class hash_functions : detail::hash_functions_base {
+    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
+    static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:
     /// The used floating point type.
     using real_type = typename Options::real_type;

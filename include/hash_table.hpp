@@ -20,6 +20,14 @@
 #include <options.hpp>
 
 
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref hash_tables class. Only for static_asserts.
+     */
+    class hash_tables_base {};
+}
+
+
 /**
  * @brief Class representing the hash tables used in the LSH algorithm.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
@@ -27,7 +35,9 @@
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class hash_tables {
+class hash_tables : detail::hash_tables_base {
+    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
+    static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:
     /// The used floating point type.
     using real_type = typename Options::real_type;

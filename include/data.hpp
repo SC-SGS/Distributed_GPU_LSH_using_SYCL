@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-05-29
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -23,13 +23,22 @@
 #include <options.hpp>
 
 
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref data class. Only for static_asserts.
+     */
+    class data_base {};
+}
+
+
 /**
  * @brief Class representing a data set.
  * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
  */
 template <memory_layout layout, typename Options>
-class data {
+class data : detail::data_base {
+    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
 public:
     /// The type of the underlying data as specified as in the provided @ref options class.
     using real_type = typename Options::real_type;
