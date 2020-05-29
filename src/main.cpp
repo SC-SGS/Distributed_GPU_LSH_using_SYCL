@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-19
+ * @date 2020-05-29
  *
  * @brief The main file containing the main logic.
  */
@@ -12,13 +12,13 @@
 
 #include <argv_parser.hpp>
 #include <config.hpp>
-#include <cstdlib>
-#include <options.hpp>
+#include <detail/assert.hpp>
 #include <data.hpp>
+#include <evaluation.hpp>
 #include <hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
-#include <evaluation.hpp>
+#include <options.hpp>
 
 
 /**
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         options<>::factory options_factory;
         if (parser.has_argv("options")) {
             auto options_file = parser.argv_as<std::string>("options");
-            options_factory = options<>::factory(options_file);
+            options_factory = decltype(options_factory)(options_file);
 
             std::cout << "Reading options from file: '" << options_file << "'\n" << std::endl;
         }
