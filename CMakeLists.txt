@@ -68,7 +68,8 @@ include_directories(include)
 
 # create executable
 add_executable(prog src/main.cpp ${SOURCES})
-target_compile_options(prog PRIVATE -Wno-format-security)
+target_compile_options(prog PRIVATE -Wno-format-security)# -Wall -Wextra -pedantic -Werror -Wno-unused-parameter)
+target_compile_definitions(prog PRIVATE ENABLE_GPU)
 target_link_libraries(prog PRIVATE -lstdc++fs) # don't know why this is necessary
 
 
