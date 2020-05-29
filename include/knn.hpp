@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-28
+ * @date 2020-05-29
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
