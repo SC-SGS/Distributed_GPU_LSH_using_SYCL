@@ -45,7 +45,7 @@ public:
      * @attention Copies the ids (indices) to the result vector!
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
      */
-    std::vector<index_type> get_knn_ids(const index_type point) const {
+    std::vector<index_type> get_knn_ids(const index_type point) {
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
         std::vector<index_type> res(k);
@@ -65,7 +65,7 @@ public:
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
      */
     template <memory_layout knn_points_layout>
-    std::vector<real_type> get_knn_points(const index_type point) const {
+    std::vector<real_type> get_knn_points(const index_type point) {
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
         std::vector<real_type> res(k * data_.dims);
@@ -87,6 +87,22 @@ public:
             }
         }
         return res;
+    }
+
+    template <memory_layout new_layout>
+    [[nodiscard]] knn<new_layout, Options, Data> get_as()
+//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
+    {
+        knn<new_layout, Options, Data> new_knn(k, data_);
+        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
+        auto acc_new = new_knn.buffer.template get_access<sycl::access::mode::discard_write>();
+        for (index_type s = 0; s < data_.size(); ++s) {
+            for (index_type nn = 0; nn < k; ++nn) {
+                // transform memory layout
+                acc_new[new_knn.get_linear_id(s, nn)] = acc_this[this->get_linear_id(s, nn)];
+            }
+        }
+        return new_knn;
     }
 
     /**
