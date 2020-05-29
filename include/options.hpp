@@ -59,7 +59,7 @@ public:
     class factory {
         /// Befriend options class.
         template <typename, typename, typename>
-        friend class options;
+        friend struct options;
     public:
         /**
          * @brief Default construct a factory object.
