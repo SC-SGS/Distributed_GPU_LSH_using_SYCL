@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-06-02
  *
  * @brief Test cases for the @ref argv_parser::has_argv(T&&) const member function of the @ref argv_parser object.
  * @details Testsuite: *ArgvParserTest*
@@ -25,7 +25,6 @@
 
 TEST(ArgvParserTest, HasArgv) {
     // create command line arguments
-    using namespace std::string_literals;
     std::vector<char*> argvs = {
             "a.out",
             "--data", "some path",
@@ -38,11 +37,11 @@ TEST(ArgvParserTest, HasArgv) {
     argv_parser parser(argvs.size(), argvs.data());
 
     // check has_argv function
-    EXPECT_FALSE(parser.has_argv("help"s));
-    EXPECT_FALSE(parser.has_argv("options"s));
-    EXPECT_FALSE(parser.has_argv("save_options"s));
-    EXPECT_TRUE(parser.has_argv("data"s));
-    EXPECT_TRUE(parser.has_argv("k"s));
+    EXPECT_FALSE(parser.has_argv("help"));
+    EXPECT_FALSE(parser.has_argv("options"));
+    EXPECT_FALSE(parser.has_argv("save_options"));
+    EXPECT_TRUE(parser.has_argv("data"));
+    EXPECT_TRUE(parser.has_argv("k"));
     EXPECT_TRUE(parser.has_argv("save_knn"));
     EXPECT_TRUE(parser.has_argv("num_hash_tables"));
     EXPECT_FALSE(parser.has_argv("hash_table_size"));
