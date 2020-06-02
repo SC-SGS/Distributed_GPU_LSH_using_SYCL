@@ -50,10 +50,6 @@ public:
     using options_type = Options;
 
 
-    // TODO 2020-06-02 19:03 marcel: doesn't work on GPU...
-    const std::unique_ptr<file_parser<layout, Options>> parser = nullptr;
-
-
     /// The number of data points.
     const index_type size;
     /// The dimension of each data point.
@@ -147,8 +143,8 @@ private:
     data(const Options& opt, const index_type size, const index_type dims)
             : size(size), dims(dims), buffer(size * dims), opt_(opt)
     {
-        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT(0 <= size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 <= dims, "Illegal number of dimensions!: {}", dims);
 
         // fill "iota" like
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
@@ -169,12 +165,11 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, const std::string& file)
-            : parser(file_parser_factory<layout, Options>(file)), size(parser->parse_size()), dims(parser->parse_dims()),
-              buffer(size * dims), opt_(opt)
+    data(const Options& opt, std::unique_ptr<file_parser<layout, Options>> parser)
+            : size(parser->parse_size()), dims(parser->parse_dims()), buffer(size * dims), opt_(opt)
     {
-        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT(0 <= size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 <= dims, "Illegal number of dimensions!: {}", dims);
 
         START_TIMING(reading_data_file);
         parser->parse_content(buffer, size, dims);
@@ -222,7 +217,7 @@ template <memory_layout layout, typename Options>
  */
 template <memory_layout layout, typename Options>
 [[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const std::string& file) {
-    return data<layout, Options>(opt, file);
+    return data<layout, Options>(opt, file_parser_factory<layout, Options>(file));
 }
 
 
