@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
@@ -20,6 +21,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
+#include <file_parser/parser_factory.hpp>
 #include <options.hpp>
 
 
@@ -46,6 +48,10 @@ public:
     using index_type = typename Options::index_type;
     /// The type of the provided @ref options class.
     using options_type = Options;
+
+
+    // TODO 2020-06-02 19:03 marcel: doesn't work on GPU...
+    const std::unique_ptr<file_parser<layout, Options>> parser = nullptr;
 
 
     /// The number of data points.
@@ -134,25 +140,22 @@ private:
      * @param[in] opt the provided @ref options object
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions of each data point
-     * @param[in] init `true` if the @ref buffer should be initialized, `false` otherwise
      *
      * @pre @p size **must** be greater than `0`.
      * @pre @p dims **must** be greater than `0`.
      */
-    data(const Options& opt, const index_type size, const index_type dims, const bool init = true)
+    data(const Options& opt, const index_type size, const index_type dims)
             : size(size), dims(dims), buffer(size * dims), opt_(opt)
     {
         DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
-        if (init) {
-            // fill "iota" like
-            auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-            real_type val = 0.0;
-            for (index_type point = 0; point < size; ++point) {
-                for (index_type dim = 0; dim < dims; ++dim) {
-                    acc[this->get_linear_id(point, dim)] = val++;
-                }
+        // fill "iota" like
+        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
+        real_type val = 0.0;
+        for (index_type point = 0; point < size; ++point) {
+            for (index_type dim = 0; dim < dims; ++dim) {
+                acc[this->get_linear_id(point, dim)] = val++;
             }
         }
     }
@@ -166,51 +169,16 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, const std::string& file) : data(opt, this->parse_size(file), this->parse_dims(file), false) {
-        // check if file exists
-        if (!std::filesystem::exists(file)) {
-            throw std::invalid_argument("File '" + file + "' doesn't exist!");
-        }
+    data(const Options& opt, const std::string& file)
+            : parser(file_parser_factory<layout, Options>(file)), size(parser->parse_size()), dims(parser->parse_dims()),
+              buffer(size * dims), opt_(opt)
+    {
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+
         START_TIMING(reading_data_file);
-        std::ifstream in(file);
-        std::string line, elem;
-
-        // read file line by line, parse value and save it at the correct position (depending on the current memory_layout) in buffer
-        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        for (index_type point = 0; point < size; ++point) {
-            std::getline(in, line);
-            std::stringstream ss(line);
-            for (index_type dim = 0; dim < dims; ++dim) {
-                std::getline(ss, elem, ',');
-                acc[this->get_linear_id(point, dim)] = detail::convert_to<real_type>(elem);
-            }
-        }
+        parser->parse_content(buffer, size, dims);
         END_TIMING(reading_data_file);
-    }
-
-    /**
-     * @brief Computes the number of data points in the given @p file.
-     * @param[in] file the file containing all data points
-     * @return the number of data points in @p file (`[[nodiscard]]`)
-     */
-    [[nodiscard]] index_type parse_size(const std::string& file) const {
-        std::ifstream in(file);
-        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
-    }
-    /**
-     * @brief Computes the number of dimensions of each data point in the given @p file.
-     * @param[in] file the file containing all data points
-     * @return the number of dimensions (`[[nodiscard]]`)
-     */
-    [[nodiscard]] index_type parse_dims(const std::string& file) const {
-        std::ifstream in(file);
-        std::string line;
-        std::getline(in, line);
-        if (line.empty()) {
-            return 0;
-        } else {
-            return std::count(line.cbegin(), line.cend(), ',') + 1;
-        }
     }
 
     /**
