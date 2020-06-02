@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-02
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -61,7 +61,7 @@ namespace detail {
             delete[] full_msg;
 
 #ifndef ENABLE_GPU
-            std::abort();
+            abort();
 #endif
         }
     }
