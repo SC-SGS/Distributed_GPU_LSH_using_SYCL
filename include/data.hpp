@@ -217,7 +217,7 @@ template <memory_layout layout, typename Options>
  */
 template <memory_layout layout, typename Options>
 [[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const std::string& file) {
-    return data<layout, Options>(opt, file_parser_factory<layout, Options>(file));
+    return data<layout, Options>(opt, make_file_parser<layout, Options>(file));
 }
 
 
