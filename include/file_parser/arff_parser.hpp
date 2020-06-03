@@ -71,6 +71,9 @@ public:
         return dims;
     }
     void parse_content(sycl::buffer<real_type, 1>& buffer, const index_type size, const index_type dims) const override {
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+
         std::ifstream in(base::file_);
         // skip until @DATA tag read
         std::string line, elem;
