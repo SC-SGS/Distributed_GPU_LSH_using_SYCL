@@ -158,7 +158,7 @@ private:
     /**
      * @brief Construct a new data object from the given @p file.
      * @param[in] opt the provided @ref options object
-     * @param[in] file the file containing all data points
+     * @param[in] parser the @ref file_parser responsible for loading all data points
      *
      * @throw std::invalid_argument if @p file doesn't exist.
      *
