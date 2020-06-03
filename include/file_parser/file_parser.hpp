@@ -20,7 +20,7 @@
 
 
 template <memory_layout layout, typename Options>
-std::unique_ptr<base_file_parser<layout, Options>> make_file_parser(std::string file) {
+std::unique_ptr<file_parser<layout, Options>> make_file_parser(std::string file) {
     std::filesystem::path path(file);
 
     // check if file exists

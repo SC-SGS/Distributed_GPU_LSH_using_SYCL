@@ -17,14 +17,14 @@
 
 
 template <memory_layout layout, typename Options>
-class base_file_parser {
+class file_parser {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
 public:
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
 
-    explicit base_file_parser(std::string file) : file_(std::move(file)) { }
-    virtual ~base_file_parser() = default;
+    explicit file_parser(std::string file) : file_(std::move(file)) { }
+    virtual ~file_parser() = default;
 
     /**
      * @brief Computes the number of data points in the file.
