@@ -143,8 +143,8 @@ private:
     data(const Options& opt, const index_type size, const index_type dims)
             : size(size), dims(dims), buffer(size * dims), opt_(opt)
     {
-        DEBUG_ASSERT(0 <= size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 <= dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
         // fill "iota" like
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
@@ -168,8 +168,8 @@ private:
     data(const Options& opt, std::unique_ptr<file_parser<layout, Options>> parser)
             : size(parser->parse_size()), dims(parser->parse_dims()), buffer(size * dims), opt_(opt)
     {
-        DEBUG_ASSERT(0 <= size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 <= dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
         START_TIMING(reading_data_file);
         parser->parse_content(buffer, size, dims);
