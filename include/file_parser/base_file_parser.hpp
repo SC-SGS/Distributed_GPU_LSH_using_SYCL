@@ -1,5 +1,10 @@
 /**
- * @brief
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-03
+ *
+ * @brief Base class for all file parsers.
+ * @details Pure virtual.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_BASE_FILE_PARSER_HPP
@@ -9,21 +14,42 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include <vector>
+#include <type_traits>
 
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <options.hpp>
 
 
+/**
+ * @brief Pure virtual base class for all file parser.
+ * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*
+ * @tparam Options represents various constant options to alter the algorithm's behaviour
+ */
 template <memory_layout layout, typename Options>
 class file_parser {
-    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
+    static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by an 'options' type!");
 public:
+    /// The type of the underlying data as specified as in the provided @ref options class.
     using real_type = typename Options::real_type;
+    /// The index type as specified as in the provided @ref options class.
     using index_type = typename Options::index_type;
 
-    explicit file_parser(std::string file) : file_(std::move(file)) { }
+    /**
+     * @brief Constructs a new @ref file_parser object.
+     * @param[in] file the file to parse
+     *
+     * @throw std::invalid_argument if @p file doesn't exist
+     */
+    explicit file_parser(std::string file) : file_(std::move(file)) {
+        // check if the file exists
+        if (!std::filesystem::exists(file_)) {
+            throw std::invalid_argument("File '" + file_ + "' doesn't exist!");
+        }
+    }
+    /**
+     * @brief Virtual destructor to prevent memory leaks.
+     */
     virtual ~file_parser() = default;
 
     /**
@@ -36,9 +62,26 @@ public:
      * @return the number of dimensions (`[[nodiscard]]`)
      */
     [[nodiscard]] virtual index_type parse_dims() const = 0;
+    /**
+     * @brief Parse the content of the file and write it back to @p buffer.
+     * @param[inout] buffer the @p buffer to write the data points to
+     * @param[in] size the number of data points
+     * @param[in] dims the number of dimensions per data points
+     */
     virtual void parse_content(sycl::buffer<real_type, 1>& buffer, const index_type size, const index_type dims) const = 0;
 
 protected:
+    /**
+     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+     * @param[in] point the provided data point
+     * @param[in] dim the provided dimension
+     * @param[in] size the number of data points
+     * @param[in] dims the number of dimensions per data points
+     * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p point **must** be greater or equal than `0` and less than @p size.
+     * @pre @p dim **must** be greater or equal than `0` and less than @p dims.
+     */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim,
             const index_type size, const index_type dims) const noexcept
     {
@@ -54,6 +97,7 @@ protected:
         }
     }
 
+    /// The file to parse.
     const std::string file_;
 };
 

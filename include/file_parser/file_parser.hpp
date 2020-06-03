@@ -1,5 +1,9 @@
 /**
- * @brief
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-03
+ *
+ * @brief Factory function to create a specific file parser based on the file extension of the given file.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_FILE_PARSER_HPP
@@ -11,16 +15,22 @@
 #include <stdexcept>
 #include <string>
 
+#include <file_parser/arff_parser.hpp>
 #include <file_parser/base_file_parser.hpp>
 #include <file_parser/default_parser.hpp>
-#include <file_parser/arff_parser.hpp>
-
 
 #include <config.hpp>
 
 
+/**
+ * @brief Creates a new file parser based on the file extension of @p file.
+ * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*
+ * @tparam Options represents various constant options to alter the algorithm's behaviour
+ * @param file the path to the data file
+ * @return the specific file parser for parsing @p file (`[[nodiscard]]`)
+ */
 template <memory_layout layout, typename Options>
-std::unique_ptr<file_parser<layout, Options>> make_file_parser(std::string file) {
+[[nodiscard]] std::unique_ptr<file_parser<layout, Options>> make_file_parser(std::string file) {
     std::filesystem::path path(file);
 
     // check if file exists
