@@ -178,4 +178,5 @@ googletest-src/
 html/
 
 ### Data sets ###
-data_sets/
+data_sets/*
+!data_sets/generate_data.py
