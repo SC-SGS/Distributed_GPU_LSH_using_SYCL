@@ -21,7 +21,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
-#include <file_parser/parser_factory.hpp>
+#include <file_parser/file_parser.hpp>
 #include <options.hpp>
 
 
@@ -165,7 +165,7 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, std::unique_ptr<file_parser<layout, Options>> parser)
+    data(const Options& opt, std::unique_ptr<base_file_parser<layout, Options>> parser)
             : size(parser->parse_size()), dims(parser->parse_dims()), buffer(size * dims), opt_(opt)
     {
         DEBUG_ASSERT(0 <= size, "Illegal size!: {}", size);

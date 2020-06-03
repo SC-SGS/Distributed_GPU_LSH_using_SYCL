@@ -13,20 +13,20 @@
 
 #include <config.hpp>
 #include <detail/convert.hpp>
-#include <file_parser/file_parser.hpp>
+#include <file_parser/base_file_parser.hpp>
 
 
 template <memory_layout layout, typename Options>
-class default_parser final : public file_parser<layout, Options> {
+class default_parser final : public base_file_parser<layout, Options> {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
 
-    using base = file_parser<layout, Options>;
+    using base = base_file_parser<layout, Options>;
 public:
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
 
     // TODO 2020-06-02 18:18 marcel: private + friend
-    explicit default_parser(std::string file) : file_parser<layout, Options>(std::move(file)) {
+    explicit default_parser(std::string file) : base_file_parser<layout, Options>(std::move(file)) {
         std::cout << "Parsing a file in .txt format using the default_parser!" << std::endl;
     }
 
