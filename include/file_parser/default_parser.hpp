@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-03
+ * @date 2020-06-04
  *
  * @brief File parser for parsing plain data files.
  */
@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include <string>
 
 #include <config.hpp>
@@ -22,6 +23,16 @@
 
 /**
  * @brief Default file parser for parsing plain data files.
+ * @details Expected file format:
+ * @code
+ * 5
+ * 2
+ * 0.2,0.4
+ * 1.3,1.6
+ * 2.4,2.8
+ * 3.6,4.2
+ * 3.8,4.6
+ * @endcode
  * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
  */
@@ -49,22 +60,31 @@ public:
 
     [[nodiscard]] index_type parse_size() const override {
         std::ifstream in(base::file_);
-        return std::count(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(), '\n');
+        // read first line containing the size
+        std::string line;
+        std::getline(in, line);
+        return detail::convert_to<index_type>(line);
     }
     [[nodiscard]] index_type parse_dims() const override {
         std::ifstream in(base::file_);
+        // skip first line (containing the size)
+        in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        // read second line containing the dims
         std::string line;
         std::getline(in, line);
-        return line.empty() ? 0 : std::count(line.cbegin(), line.cend(), ',') + 1;
+        return detail::convert_to<index_type>(line);
     }
     void parse_content(sycl::buffer<real_type, 1>& buffer, const index_type size, const index_type dims) const override {
         DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
 
         std::ifstream in(base::file_);
-        std::string line, elem;
+        // skip first two lines (containing size and dims)
+        in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
         // read file line by line, parse value and save it at the correct position (depending on the current memory_layout) in buffer
+        std::string line, elem;
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type point = 0; point < size; ++point) {
             std::getline(in, line);

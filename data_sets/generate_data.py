@@ -1,5 +1,5 @@
 # @author Marcel Breyer
-# @date 2020-06-03
+# @date 2020-06-04
 # @brief Python3 script for generating data sets.
 
 
@@ -34,6 +34,8 @@ if args.scale:
 # write data points to file
 with open(args.output_file, 'w', newline='\n') as file:
     writer = csv.writer(file, delimiter=',')
+    writer.writerow([args.size])
+    writer.writerow([args.dims])
     writer.writerows(X)
 
 
