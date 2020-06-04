@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-28
+ * @date 2020-06-04
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -57,6 +57,10 @@ public:
 
     template <memory_layout knn_layout>
     auto calculate_knn(const index_type k) {
+        if (k > data_.size) {
+            throw std::invalid_argument("k must not be greater than data.size()!");
+        }
+
         START_TIMING(calculate_nearest_neighbors);
         auto knns = make_knn<knn_layout>(k, data_);
 
@@ -67,13 +71,13 @@ public:
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_knns = knns.buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
-            cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.size), [&](sycl::item<> item) {
+            cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 if (idx >= data_.size) return;
 
-                auto* nearest_neighbors = new index_type[k];
-                auto* distances = new real_type[k];
+                index_type* nearest_neighbors = new index_type[k];
+                real_type* distances = new real_type[k];
                 real_type max_distance = std::numeric_limits<real_type>::max();
                 index_type argmax = 0;
 
@@ -93,8 +97,8 @@ public:
                         const index_type point = acc_hash_tables[hash_table * data_.size + bucket_element];
                         real_type dist = 0.0;
                         for (index_type dim = 0; dim < data_.dims; ++dim) {
-                            dist += (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(bucket_element, dim)])
-                                    * (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(bucket_element, dim)]);
+                            dist += (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(point, dim)])
+                                    * (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(point, dim)]);
                         }
 
                         // updated nearest-neighbors
@@ -105,7 +109,7 @@ public:
                             return false;
                         };
                         if (dist < max_distance && !contains(point, nearest_neighbors, k)) {
-                            nearest_neighbors[argmax] = bucket_element;
+                            nearest_neighbors[argmax] = point;
                             distances[argmax] = dist;
                             max_distance = dist;
                             for (index_type i = 0; i < k; ++i) {
