@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-04
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -185,7 +185,7 @@ private:
      *
      * @pre @p k **must** be greater than `0`.
      */
-    knn(const index_type k, Data& data) : k(k), data_(data), buffer(data.size * k) {
+    knn(const index_type k, Data& data) : buffer(data.size * k), k(k), data_(data) {
         DEBUG_ASSERT(0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
     }
 
