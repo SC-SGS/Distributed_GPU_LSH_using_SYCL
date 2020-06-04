@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-04
  *
  * @brief The main file containing the main logic.
  */
@@ -137,6 +137,7 @@ int main(int argc, char** argv) {
 
             std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
         }
+        std::cout << std::endl;
 
         using index_type = typename decltype(opt)::index_type;
         std::vector<index_type> vec;
@@ -147,8 +148,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        std::printf("recall: %.2f%%\n", recall(knns, vec) * 100);
-        std::printf("error ratio: %.2f%%\n", error_ratio(knns, vec, data) * 100);
+        std::printf("recall: %.2f %%\n", recall(knns, vec));
+        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
 
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
