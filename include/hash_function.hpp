@@ -192,7 +192,7 @@ private:
             for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
                 for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
                     for (index_type dim = 0; dim < data_.dims; ++dim) {
-                        acc[this->get_linear_id(hash_table, hash_function, dim)] = std::abs(rnd_uniform_dist(rnd_normal_gen));
+                        acc[this->get_linear_id(hash_table, hash_function, dim)] = std::abs(rnd_normal_dist(rnd_normal_gen));
                     }
                     acc[this->get_linear_id(hash_table, hash_function, data_.dims)] = rnd_uniform_dist(rnd_uniform_gen);
                 }
