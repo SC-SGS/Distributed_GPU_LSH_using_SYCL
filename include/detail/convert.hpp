@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CONVERT_HPP
 
 #include <charconv>
+#include <sstream>
 #include <string>
 #include <type_traits>
 
@@ -20,12 +21,12 @@ namespace detail {
      * @brief Attempt to convert the value represented by @p str to a value of type `T`.
      * @tparam T the value type to parse @p str to (must be arithmetic types)
      * @param[in] str the string to parse
-     * @return the value of type `T` represented by @p str
+     * @return the value of type `T` represented by @p str (`[[nodiscard]]`)
      *
      * @throw std::invalid_argument if @p str can't get parsed to type `T`.
      */
     template <typename T, std::enable_if_t<std::is_arithmetic_v<std::remove_reference_t<T>>, int> = 0>
-    inline T convert_to(const std::string& str) {
+    [[nodiscard]] inline T convert_to(const std::string& str) {
         if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
             // try to convert str to a floating point type using the old stof/stod/stold functions
             // since std::from_chars doesn't support floating point type syet
@@ -50,6 +51,14 @@ namespace detail {
                 throw std::invalid_argument("Can't parse string '" + str + "'!");
             }
         }
+    }
+
+
+    template <typename T>
+    [[nodiscard]] inline std::string to_string(const T& val) {
+        std::stringstream ss;
+        ss << val;
+        return ss.str();
     }
 
 }
