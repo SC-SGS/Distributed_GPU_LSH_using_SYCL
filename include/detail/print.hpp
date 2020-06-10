@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-06-10
  *
  * @brief Implements a custom print function using `{}` as placeholders.
  * @details Internally converts `{}` to the respective `printf` format specifiers and calls `printf`.
@@ -10,9 +10,12 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_PRINT_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_PRINT_HPP
 
+#include <array>
 #include <cstdio>
 #include <type_traits>
 #include <utility>
+
+#include <mpi.h>
 
 
 namespace detail {
@@ -193,6 +196,7 @@ namespace detail {
         return pos;
     }
 
+
     /**
      * @brief Print the given message @p msg after replaceing all occurences of `{}` with the corresponding `printf` format specifiers
      * based on the types of @p args.
@@ -202,11 +206,11 @@ namespace detail {
      */
     template <typename... Args>
     inline void print(const char* msg, Args&&... args) {
-        const unsigned num_placeholders = count_sequence(msg, "{}");
-        // missmatch of number of plapceholders and given values
-        if (num_placeholders != sizeof...(Args)) {
-            printf("WRONG NUMBER OF ARGUEMNTS!!! %s",
-                    num_placeholders > sizeof...(Args) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
+        const int num_placeholders = count_sequence(msg, "{}");
+        // mismatch of number of placeholders and given values
+        if (num_placeholders != static_cast<int>(sizeof...(Args))) {
+            printf("WRONG NUMBER OF ARGUMENTS!!! %s",
+                    num_placeholders > static_cast<int>(sizeof...(Args)) ? "TOO MANY PLACEHOLDERS" : "TOO MANY ARGUMENTS");
         } else {
             // calculate sizes
             int msg_size = c_str_size(msg);
@@ -218,11 +222,11 @@ namespace detail {
                 substituted_msg[i] = msg[i];
             }
 
-            // escape normale percentage signs
+            // escape normal percentage signs
             escape_character(substituted_msg, '%');
 
             // escape placeholders
-            int pos = 0;
+            [[maybe_unused]] int pos = 0;
             ((pos = escape_placeholder_sequence<Args>(substituted_msg, "{}", pos)), ...);
 
             // print substituted message
@@ -230,6 +234,33 @@ namespace detail {
 
             // delete temporary msg
             delete[] substituted_msg;
+        }
+    }
+
+    template <int... Ranks, typename... Args>
+    inline void mpi_print(const MPI_Comm& communicator, const char* msg, Args&&... args) {
+        int comm_rank;
+        MPI_Comm_rank(communicator, &comm_rank);
+
+        std::array<int, sizeof...(Ranks)> ranks = { { Ranks... }};
+
+        if (ranks.empty() || std::find(ranks.cbegin(), ranks.cend(), comm_rank) != ranks.cend()) {
+            print(msg, std::forward<Args>(args)...);
+        }
+    }
+
+    template <int... Ranks, typename... Args>
+    inline void mpi_print(const int comm_rank, const char* msg, Args&&... args) {
+        if (sizeof...(Ranks) == 0) {
+            print(msg, std::forward<Args>(args)...);
+        } else {
+            int ranks[] = { Ranks... };
+            for (std::size_t i = 0; i < sizeof...(Ranks); ++i) {
+                if (ranks[i] == comm_rank) {
+                    print(msg, std::forward<Args>(args)...);
+                    break;
+                }
+            }
         }
     }
 
