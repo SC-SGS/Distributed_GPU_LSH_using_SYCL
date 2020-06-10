@@ -8,13 +8,13 @@
 
 #define CREATE_MPI_TYPE_CAST(type, mpi_type)                                  \
 template <>                                                                   \
-[[nodiscard]] MPI_Datatype mpi_type_cast<type>() noexcept { return mpi_type; }
+[[nodiscard]] inline MPI_Datatype mpi_type_cast<type>() noexcept { return mpi_type; }
 
 
 namespace detail {
 
     template <typename T>
-    [[nodiscard]] MPI_Datatype mpi_type_cast() noexcept = delete;
+    [[nodiscard]] inline MPI_Datatype mpi_type_cast() noexcept = delete;
 
     // integer types
     CREATE_MPI_TYPE_CAST(int, MPI_INT)
