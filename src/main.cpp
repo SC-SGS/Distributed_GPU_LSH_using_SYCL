@@ -10,12 +10,15 @@
 #include <iostream>
 #include <utility>
 #include <sstream>
+#include <chrono>
+#include <thread>
 
 #include <mpi.h>
 
 #include <argv_parser.hpp>
 #include <config.hpp>
 #include <detail/assert.hpp>
+#include <detail/mpi_type.hpp>
 #include <data.hpp>
 #include <evaluation.hpp>
 #include <hash_function.hpp>
@@ -41,31 +44,36 @@ void exception_handler(sycl::exception_list exceptions) {
 
 template <typename T>
 struct buffers {
-    buffers(const std::size_t size, const std::size_t dims, int comm_size, int comm_rank)
-        : active_(0), comm_size_(comm_size), comm_rank_(comm_rank), buffer_1_(size * dims), buffer_2_(size * dims) { }
+    buffers(const MPI_Comm& communicator, const std::size_t size, const std::size_t dims)
+        : communicator_(communicator), active_buffer_(0), buffer_0_(size * dims), buffer_1_(size * dims)
+    {
+        int comm_size, comm_rank;
+        MPI_Comm_size(communicator_, &comm_size);
+        MPI_Comm_rank(communicator_, &comm_rank);
 
-    std::vector<T>& active() { return active_ == 0 ? buffer_1_ : buffer_2_; }
-    std::vector<T>& inactive() { return active_ == 1 ? buffer_1_ : buffer_2_; }
+        dest_ = (comm_rank + 1) % comm_size;
+        source_ = (comm_size + (comm_rank - 1) % comm_size) % comm_size;
+    }
+
+    std::vector<T>& active() { return active_buffer_ == 0 ? buffer_0_ : buffer_1_; }
+    std::vector<T>& inactive() { return active_buffer_ == 1 ? buffer_0_ : buffer_1_; }
 
     void send_receive() {
-        int dest = (comm_rank_ + 1) % comm_size_;
-        int source = (comm_size_ + (comm_rank_ - 1) % comm_size_) % comm_size_;
-        MPI_Sendrecv(this->active().data(), this->active().size(), MPI_DOUBLE, dest, 0,
-                     this->inactive().data(), this->inactive().size(), MPI_DOUBLE, source, 0,
-                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        active_ = (active_ + 1) % 2;
+        MPI_Sendrecv(this->active().data(), this->active().size(), detail::mpi_type_cast<T>(), dest_, 0,
+                     this->inactive().data(), this->inactive().size(), detail::mpi_type_cast<T>(), source_, 0,
+                     communicator_, MPI_STATUS_IGNORE);
+        active_buffer_ = (active_buffer_ + 1) % 2;
     }
 
     friend std::ostream& operator<<(std::ostream& out, const buffers& buf) {
         std::stringstream ss;
-        ss << "rank " << buf.comm_rank_ << ": buffer_1 ";
-        for (const T val : buf.buffer_1_) {
+        for (const T val : buf.buffer_0_) {
             if (val < 10) ss << 0;
             ss << val << ' ';
         }
         if (buf.active_ == 0) ss << " -> active";
         ss << "\n        buffer_2 ";
-        for (const T val : buf.buffer_2_) {
+        for (const T val : buf.buffer_1_) {
             if (val < 10) ss << 0;
             ss << val << ' ';
         }
@@ -74,29 +82,34 @@ struct buffers {
         return out;
     }
 
-    int active_;
-    int comm_size_;
-    int comm_rank_;
+
+    const MPI_Comm& communicator_;
+    int active_buffer_;
+    int dest_;
+    int source_;
+    std::vector<T> buffer_0_;
     std::vector<T> buffer_1_;
-    std::vector<T> buffer_2_;
 };
 
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
 
-    int comm_size, comm_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
+    MPI_Comm communicator;
+    MPI_Comm_dup(MPI_COMM_WORLD, &communicator);
 
-    std::printf("%i / %i\n", comm_rank + 1, comm_size);
+    int comm_size, comm_rank;
+    MPI_Comm_size(communicator, &comm_size);
+    MPI_Comm_rank(communicator, &comm_rank);
+
+//    std::printf("%i / %i\n", comm_rank + 1, comm_size);
 
     using real_type = double;
     const std::size_t size = 10;
     const std::size_t dims = 3;
 
     // create host buffers
-    buffers<real_type> buff(size, dims, comm_size, comm_rank);
+    buffers<real_type> buff(communicator, size, dims);
 
     // fill first buffer (later: with data from file)
     std::iota(buff.active().begin(), buff.active().end(), comm_rank * size * dims);
@@ -104,22 +117,30 @@ int main(int argc, char** argv) {
     sycl::queue queue(sycl::default_selector{});
     sycl::buffer<real_type, 1> data_device_buffer(buff.active().begin(), buff.active().end());
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(communicator);
     for (int i = 1; i < comm_size; ++i) {
 
         sycl::buffer<real_type> current_device_buffer(buff.active().begin(), buff.active().end());
-        queue.submit([&](sycl::handler& cgh) {
-            cgh.parallel_for<class test_kernel>(sycl::range<>(buff.active().size()), [=](sycl::item<> item) {
-                const std::size_t idx = item.get_linear_id();
-                if (idx == 0) detail::print("Index: {}\n", idx);
+        {
+            queue.submit([&](sycl::handler& cgh) {
+                cgh.parallel_for<class test_kernel>(sycl::range<>(buff.active().size()), [=](sycl::item<> item) {
+                    const std::size_t idx = item.get_linear_id();
+                    if (idx == 0 && comm_rank == 0) detail::print("Index: {}\n", idx);
+                });
             });
-        });
+        }
+//        if (comm_rank == 0) std::cerr << "Round: " <<  i << std::endl;
 
-        if (comm_rank == 0) std::cerr << "Round: " <<  i << std::endl;
+        if (comm_rank == 0) std::cout << "before sending" << std::endl;
         buff.send_receive();
-        std::cout << buff;
-        MPI_Barrier(MPI_COMM_WORLD);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+//        std::this_thread::sleep_for(std::chrono::seconds(2));
+        if (comm_rank == 0) std::cout << "after sending" << std::endl;
+//        std::cout << buff;
+        MPI_Barrier(communicator);
+        if (comm_rank == 0) std::cout << "after MPI barrier" << std::endl;
         queue.wait();
+        if (comm_rank == 0) std::cout << "after SYCL barrier" << std::endl;
 //        if (comm_rank == 0) std::cout << std::endl;
     }
 
@@ -245,6 +266,7 @@ int main(int argc, char** argv) {
 //        return EXIT_FAILURE;
 //    }
 
+    MPI_Comm_free(&communicator);
     MPI_Finalize();
 
     return EXIT_SUCCESS;
