@@ -35,7 +35,7 @@
  * @brief Asynchronous exception handler for exceptions thrown during SYCL kernel invocations.
  * @param[in] exceptions list of thrown SYCL exceptions
  */
-void exception_handler(sycl::exception_list exceptions) {
+void sycl_exception_handler(sycl::exception_list exceptions) {
     for (const std::exception_ptr& ptr : exceptions) {
         try {
             std::rethrow_exception(ptr);
@@ -43,6 +43,16 @@ void exception_handler(sycl::exception_list exceptions) {
             std::cerr << "Asynchronous SYCL exception thrown: " << e.what() << std::endl;
         }
     }
+}
+
+/**
+ * @brief Exception handler for errors occurred due to a call to a MPI function.
+ * @param comm the communicator on which the error occurred
+ * @param err the occurred error
+ * @param ... additional arguments
+ */
+void mpi_exception_handler(MPI_Comm* comm, int* err, ...) {
+    throw mpi_exception(*comm, *err);
 }
 
 
@@ -124,12 +134,10 @@ void exception_handler(sycl::exception_list exceptions) {
 //}
 
 
-void mpi_error_handler_fn(MPI_Comm* comm, int* err, ...) {
-    throw mpi_exception(*comm, *err);
-}
 
 
-// TODO 2020-06-10 18:49 marcel: MPI save opt file?
+
+// TODO 2020-06-10 18:49 marcel: MPI save knn file?
 int main(int argc, char** argv) {
     constexpr int print_rank = 0;
 
@@ -145,7 +153,7 @@ int main(int argc, char** argv) {
 
         // set special MPI error handler
         MPI_Errhandler mpi_error_handler;
-        MPI_Comm_create_errhandler(mpi_error_handler_fn, &mpi_error_handler);
+        MPI_Comm_create_errhandler(mpi_exception_handler, &mpi_error_handler);
         MPI_Comm_set_errhandler(communicator, mpi_error_handler);
 
         // print MPI info
@@ -233,7 +241,7 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-//        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
+//        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
 //        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
 //
 //        START_TIMING(creating_hash_tables);
