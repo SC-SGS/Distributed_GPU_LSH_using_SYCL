@@ -197,7 +197,9 @@ int main(int argc, char** argv) {
         // save the options file
         if (parser.has_argv("save_options")) {
             auto options_save_file = parser.argv_as<std::string>("save_options");
-            opt.save(options_save_file);
+            if (comm_rank == 0) {
+                opt.save(options_save_file);
+            }
 
             detail::mpi_print<print_rank>(comm_rank, "Saved options to: '{}'\n\n", options_save_file.c_str());
         }
