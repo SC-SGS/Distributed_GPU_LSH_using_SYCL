@@ -1,9 +1,10 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-06-12
  *
- * @brief
+ * @brief Custom implementation for the [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location) class.
+ * @details Includes a better function name (if supported).
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_SOURCE_LOCATION_HPP
