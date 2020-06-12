@@ -2,6 +2,7 @@
  * @file
  * @author Marcel Breyer
  * @date 2020-06-12
+ *
  * @brief Implements a custom exception class, which retrieves its what message from the MPI error code.
  */
 

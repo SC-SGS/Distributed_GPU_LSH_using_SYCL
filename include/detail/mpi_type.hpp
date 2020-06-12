@@ -1,3 +1,11 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-12
+ *
+ * @brief Implements conversion functions from builtin types to their respective *MPI_Datatype* equivalents.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_TYPE_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_TYPE_HPP
 
