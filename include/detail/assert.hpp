@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-02
+ * @date 2020-06-12
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -10,8 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
 
 #include <cstdlib>
-#include <iostream>
-#include <type_traits>
+#include <utility>
 
 #include <detail/print.hpp>
 #include <detail/source_location.hpp>
