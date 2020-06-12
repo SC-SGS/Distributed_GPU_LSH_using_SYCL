@@ -234,7 +234,8 @@ int main(int argc, char** argv) {
         typename decltype(opt)::index_type k = 0;
         if (parser.has_argv("k")) {
             k = parser.argv_as<decltype(k)>("k");
-            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
+            if (comm_rank == 1) k = 0;
+            DEBUG_ASSERT_MPI(0 < k, comm_rank, "Illegal number of nearest neighbors!: 0 < {}", k);
 
             detail::mpi_print<print_rank>(comm_rank, "Number of nearest-neighbors to search for: {}\n\n", k);
         } else {
