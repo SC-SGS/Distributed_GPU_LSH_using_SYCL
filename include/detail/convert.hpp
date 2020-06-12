@@ -11,6 +11,7 @@
 
 #include <charconv>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 
