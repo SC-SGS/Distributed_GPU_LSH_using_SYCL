@@ -1,3 +1,11 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-12
+ *
+ * @brief Implements buffers for the MPI communication.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 
@@ -8,11 +16,23 @@
 #include <detail/mpi_type.hpp>
 
 
+/**
+ * @brief Buffers for the MPI communication. Used to hide the communication costs behind the calculation costs.
+ * @tparam T buffer data type
+ */
 template <typename T>
 class mpi_buffers {
 public:
+    /// The type of the stored buffer data.
     using value_type = T;
 
+    /**
+     * @brief Construct two new buffers, each of size `size * dims`.
+     * @details Calculates the destination and source MPI ranks. Sets @ref buffer_0_ to the active buffer.
+     * @param[in] communicator the communicator used in the *MPI_Sendrecv* call.
+     * @param[in] size the number of data points in the buffers
+     * @param[in] dims the number of dimensions per data point in the buffer
+     */
     mpi_buffers(const MPI_Comm& communicator, const std::size_t size, const std::size_t dims)
             : communicator_(communicator), active_buffer_(0), buffer_0_(size * dims), buffer_1_(size * dims)
     {
@@ -24,9 +44,21 @@ public:
         source_ = (comm_size + (comm_rank - 1) % comm_size) % comm_size;
     }
 
-    std::vector<value_type>& active() noexcept { return active_buffer_ == 0 ? buffer_0_ : buffer_1_; }
-    std::vector<value_type>& inactive() noexcept { return active_buffer_ == 1 ? buffer_0_ : buffer_1_; }
+    /**
+     * @brief Returns the currently active buffer, i.e. the buffer which holds the data currently worked on.
+     * @return the active buffer (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::vector<value_type>& active() noexcept { return active_buffer_ == 0 ? buffer_0_ : buffer_1_; }
+    /**
+     * @brief Returns the currently inactive buffer, i.e. the buffer which holds the data that can be savely discarded.
+     * @return the inactive buffer (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::vector<value_type>& inactive() noexcept { return active_buffer_ == 1 ? buffer_0_ : buffer_1_; }
 
+    /**
+     * @brief Send the currently active buffer to the neighboring inactive buffer using a ring like send pattern.
+     * @details Swaps the currently active and inactive buffers.
+     */
     void send_receive() {
         MPI_Sendrecv(this->active().data(), this->active().size(), detail::mpi_type_cast<value_type>(), dest_, 0,
                      this->inactive().data(), this->inactive().size(), detail::mpi_type_cast<value_type>(), source_, 0,
@@ -35,11 +67,17 @@ public:
     }
 
 private:
+    /// The MPI communicator used for the *MPI_Sendrecv* call.
     const MPI_Comm& communicator_;
+    /// The currently active buffer.
     int active_buffer_;
+    /// The destination MPI rank.
     int dest_;
+    /// The source MPI rank.
     int source_;
+    /// The first buffer.
     std::vector<value_type> buffer_0_;
+    /// The second buffer.
     std::vector<value_type> buffer_1_;
 };
 
