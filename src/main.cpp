@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-06-12
  *
  * @brief The main file containing the main logic.
  */
@@ -23,6 +23,7 @@
 #include <detail/mpi_type.hpp>
 #include <data.hpp>
 #include <evaluation.hpp>
+#include <exceptions/mpi_exception.hpp>
 #include <hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
@@ -44,136 +45,44 @@ void exception_handler(sycl::exception_list exceptions) {
     }
 }
 
-// TODO 2020-06-10 18:49 marcel: MPI save opt file?
-template <typename Options, memory_layout layout, typename Data = data<layout, Options>>
-std::optional<std::pair<Options, Data>> parse_command_line_arguments(const int argc, char** argv, const int comm_rank) {
-    try {
-        argv_parser parser(argc, argv);
 
-        // display help message
-        if (parser.has_argv("help")) {
-            detail::mpi_print<0>(comm_rank, parser.description().c_str());
-            return std::nullopt;
-        }
-
-        // read options file
-        typename Options::factory options_factory;
-        if (parser.has_argv("options")) {
-            auto options_file = parser.argv_as<std::string>("options");
-            options_factory = decltype(options_factory)(options_file);
-
-            detail::mpi_print<0>(comm_rank, "Reading options from file: '{}'\n\n", options_file.c_str());
-        }
-
-        // change options values through factory functions using the provided values
-        if (parser.has_argv("num_hash_tables")) {
-            options_factory.set_num_hash_tables(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<Options>().num_hash_tables)>>("num_hash_tables"));
-        }
-        if (parser.has_argv("hash_table_size")) {
-            options_factory.set_hash_table_size(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<Options>().hash_table_size)>>("hash_table_size"));
-        }
-        if (parser.has_argv("num_hash_functions")) {
-            options_factory.set_num_hash_functions(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<Options>().num_hash_functions)>>("num_hash_functions"));
-        }
-        if (parser.has_argv("w")) {
-            options_factory.set_w(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<Options>().w)>>("w"));
-        }
-
-        // create options object from factory
-        options opt = options_factory.create();
-        detail::mpi_print<0>(comm_rank, "used options: \n{}\n\n", detail::to_string(opt).c_str());
-
-        // save the options file
-        if (parser.has_argv("save_options")) {
-            auto options_save_file = parser.argv_as<std::string>("save_options");
-            opt.save(options_save_file);
-
-            detail::mpi_print<0>(comm_rank, "Saved options to: '{}'\n\n", options_save_file.c_str());
-        }
-
-
-        // read data file
-        std::string data_file;
-        if (parser.has_argv("data")) {
-            data_file = parser.argv_as<std::string>("data");
-
-            detail::mpi_print<0>(comm_rank, "Reading data from file: '{}'\n", data_file.c_str());
-        } else {
-            detail::mpi_print<0>(comm_rank, "\nNo data file provided!");
-            return std::nullopt;
-        }
-
-        // create data object
-//        auto data = make_data<memory_layout::aos>(opt, data_file); // TODO 2020-06-10 18:13 marcel: change back
-        auto data = make_data<layout>(opt, 10, 3);
-        detail::mpi_print<0>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
-
-        // read the number of nearest-neighbours to search for
-        typename decltype(opt)::index_type k = 0;
-        if (parser.has_argv("k")) {
-            k = parser.argv_as<decltype(k)>("k");
-            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
-
-            detail::mpi_print<0>(comm_rank, "Number of nearest-neighbors to search for: {}\n\n", k);
-        } else {
-            detail::mpi_print<0>(comm_rank, "\nNo number of nearest-neighbors given!\n");
-            return std::nullopt;
-        }
-
-        return std::make_optional(std::make_pair(std::move(opt), std::move(data)));
-
-    } catch (const std::exception& e) {
-        detail::mpi_print<0>(comm_rank, e.what());
-        return std::nullopt;
-    } catch (...) {
-        detail::mpi_print<0>(comm_rank, "Something went terrible wrong!");
-        return std::nullopt;
-    }
-}
-
-
-
-int calculate_nearest_neighbors(const MPI_Comm& communicator, const int comm_size, const int comm_rank, const std::size_t size, const std::size_t dims) {
-    using real_type = float;
-
-    // create host buffers
-    mpi_buffers<real_type> buff(communicator, size, dims);
-
-    // fill first buffer (later: with data from file)
-    std::iota(buff.active().begin(), buff.active().end(), comm_rank * size * dims);
-
-    sycl::queue queue(sycl::default_selector{});
-    sycl::buffer<real_type, 1> data_device_buffer(buff.active().begin(), buff.active().end());
-
-    MPI_Barrier(communicator);
-    for (int i = 1; i < comm_size; ++i) {
-
-        sycl::buffer<real_type> current_device_buffer(buff.active().begin(), buff.active().end());
-        {
-            queue.submit([&](sycl::handler& cgh) {
-                cgh.parallel_for<class test_kernel>(sycl::range<>(buff.active().size()), [=](sycl::item<> item) {
-                    const std::size_t idx = item.get_linear_id();
-                    if (idx == 0 && comm_rank == 0) detail::print("Index: {}\n", idx);
-                });
-            });
-        }
-
-        detail::mpi_print<0>(comm_rank, "before sending\n");
-        buff.send_receive();
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        detail::mpi_print<0>(comm_rank, "after sending\n");
-
-//        std::cout << buff;
-
-        MPI_Barrier(communicator);
-        detail::mpi_print<0>(comm_rank, "after MPI barrier\n");
-        queue.wait();
-        detail::mpi_print<0>(comm_rank, "after SYCL barrier\n");
-    }
+//int calculate_nearest_neighbors(const MPI_Comm& communicator, const int comm_size, const int comm_rank, const std::size_t size, const std::size_t dims) {
+//    using real_type = float;
+//
+//    // create host buffers
+//    mpi_buffers<real_type> buff(communicator, size, dims);
+//
+//    // fill first buffer (later: with data from file)
+//    std::iota(buff.active().begin(), buff.active().end(), comm_rank * size * dims);
+//
+//    sycl::queue queue(sycl::default_selector{});
+//    sycl::buffer<real_type, 1> data_device_buffer(buff.active().begin(), buff.active().end());
+//
+//    MPI_Barrier(communicator);
+//    for (int i = 1; i < comm_size; ++i) {
+//
+//        sycl::buffer<real_type> current_device_buffer(buff.active().begin(), buff.active().end());
+//        {
+//            queue.submit([&](sycl::handler& cgh) {
+//                cgh.parallel_for<class test_kernel>(sycl::range<>(buff.active().size()), [=](sycl::item<> item) {
+//                    const std::size_t idx = item.get_linear_id();
+//                    if (idx == 0 && comm_rank == 0) detail::print("Index: {}\n", idx);
+//                });
+//            });
+//        }
+//
+//        detail::mpi_print<print_rank>(comm_rank, "before sending\n");
+//        buff.send_receive();
+//        std::this_thread::sleep_for(std::chrono::seconds(2));
+//        detail::mpi_print<print_rank>(comm_rank, "after sending\n");
+//
+////        std::cout << buff;
+//
+//        MPI_Barrier(communicator);
+//        detail::mpi_print<print_rank>(comm_rank, "after MPI barrier\n");
+//        queue.wait();
+//        detail::mpi_print<print_rank>(comm_rank, "after SYCL barrier\n");
+//    }
 
     ////        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
 ////        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
@@ -210,160 +119,163 @@ int calculate_nearest_neighbors(const MPI_Comm& communicator, const int comm_siz
 ////
 ////        std::printf("recall: %.2f %%\n", recall(knns, vec));
 ////        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
+//
+//    return EXIT_SUCCESS;
+//}
 
-    return EXIT_SUCCESS;
+
+void mpi_error_handler_fn(MPI_Comm* comm, int* err, ...) {
+    throw mpi_exception(*comm, *err);
 }
 
 
+// TODO 2020-06-10 18:49 marcel: MPI save opt file?
 int main(int argc, char** argv) {
-    // initialize MPI environment
-    MPI_Init(&argc, &argv);
+    constexpr int print_rank = 0;
 
-    // duplicate MPI_COMM_WORLD
     MPI_Comm communicator;
-    MPI_Comm_dup(MPI_COMM_WORLD, &communicator);
+    int comm_rank;
 
-#ifndef NDEBUG
-    // TODO 2020-06-10 16:32 marcel: better custom error handler
-    // set special MPI error handler in debug mode
-    MPI_Errhandler_set(communicator, MPI_ERRORS_ARE_FATAL);
-#endif
+    try {
+        // initialize MPI environment
+        MPI_Init(&argc, &argv);
 
-    // print MPI info
-    int comm_size, comm_rank;
-    MPI_Comm_size(communicator, &comm_size);
-    MPI_Comm_rank(communicator, &comm_rank);
-    detail::mpi_print<0>(comm_rank, "MPI_Comm_size: {} (on rank: {})\n\n", comm_size, comm_rank);
+        // duplicate MPI_COMM_WORLD
+        MPI_Comm_dup(MPI_COMM_WORLD, &communicator);
 
-    auto parsed = parse_command_line_arguments<options<>, memory_layout::aos>(argc, argv, comm_rank);
-    if (parsed.has_value()) {
-        detail::mpi_print<0>(comm_rank, "CALCULATING...\n");
-    } else {
+        // set special MPI error handler
+        MPI_Errhandler mpi_error_handler;
+        MPI_Comm_create_errhandler(mpi_error_handler_fn, &mpi_error_handler);
+        MPI_Comm_set_errhandler(communicator, mpi_error_handler);
+
+        // print MPI info
+        int comm_size;
+        MPI_Comm_size(communicator, &comm_size);
+        MPI_Comm_rank(communicator, &comm_rank);
+        detail::mpi_print<print_rank>(comm_rank, "MPI_Comm_size: {} (on rank: {})\n\n", comm_size, comm_rank);
+
+
+        argv_parser parser(argc, argv);
+
+        // display help message
+        if (parser.has_argv("help")) {
+            detail::mpi_print<print_rank>(comm_rank, parser.description().c_str());
+            return EXIT_SUCCESS;
+        }
+
+        // read options file
+        options<>::factory options_factory;
+        if (parser.has_argv("options")) {
+            auto options_file = parser.argv_as<std::string>("options");
+            options_factory = decltype(options_factory)(options_file);
+
+            detail::mpi_print<print_rank>(comm_rank, "Reading options from file: '{}'\n\n", options_file.c_str());
+        }
+
+        // change options values through factory functions using the provided values
+        if (parser.has_argv("num_hash_tables")) {
+            options_factory.set_num_hash_tables(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>("num_hash_tables"));
+        }
+        if (parser.has_argv("hash_table_size")) {
+            options_factory.set_hash_table_size(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>("hash_table_size"));
+        }
+        if (parser.has_argv("num_hash_functions")) {
+            options_factory.set_num_hash_functions(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>("num_hash_functions"));
+        }
+        if (parser.has_argv("w")) {
+            options_factory.set_w(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>("w"));
+        }
+
+        // create options object from factory
+        options opt = options_factory.create();
+        detail::mpi_print<print_rank>(comm_rank, "Used options: \n{}\n\n", detail::to_string(opt).c_str());
+
+        // save the options file
+        if (parser.has_argv("save_options")) {
+            auto options_save_file = parser.argv_as<std::string>("save_options");
+            opt.save(options_save_file);
+
+            detail::mpi_print<print_rank>(comm_rank, "Saved options to: '{}'\n\n", options_save_file.c_str());
+        }
+
+
+        // read data file
+        std::string data_file;
+        if (parser.has_argv("data")) {
+            data_file = parser.argv_as<std::string>("data");
+
+            detail::mpi_print<print_rank>(comm_rank, "Reading data from file: '{}'\n", data_file.c_str());
+        } else {
+            detail::mpi_print<print_rank>(comm_rank, "\nNo data file provided!\n");
+            return EXIT_FAILURE;
+        }
+
+        // create data object
+//        auto data = make_data<memory_layout::aos>(opt, data_file);
+        auto data = make_data<memory_layout::aos>(opt, 10, 3);
+        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
+
+        // read the number of nearest-neighbours to search for
+        typename decltype(opt)::index_type k = 0;
+        if (parser.has_argv("k")) {
+            k = parser.argv_as<decltype(k)>("k");
+            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
+
+            detail::mpi_print<print_rank>(comm_rank, "Number of nearest-neighbors to search for: {}\n\n", k);
+        } else {
+            detail::mpi_print<print_rank>(comm_rank, "\nNo number of nearest-neighbors given!\n");
+            return EXIT_FAILURE;
+        }
+
+//        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
+//        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
+//
+//        START_TIMING(creating_hash_tables);
+//
+//        auto hash_functions = make_hash_functions<memory_layout::aos>(data);
+//        auto hash_tables = make_hash_tables(queue, hash_functions);
+//
+//        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
+//
+//        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
+//
+//        // wait until all kernels have finished
+//        queue.wait_and_throw();
+//
+//        // save the calculated k-nearest-neighbours
+//        if (parser.has_argv("save_knn")) {
+//            auto knns_save_file = parser.argv_as<std::string>("save_knn");
+//            knns.save(knns_save_file);
+//
+//            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
+//        }
+//        std::cout << std::endl;
+//
+//        using index_type = typename decltype(opt)::index_type;
+//        std::vector<index_type> vec;
+//        vec.reserve(data.size * k);
+//        for (index_type i = 0; i < data.size; ++i) {
+//            for (index_type j = 0; j < k; ++j) {
+//                vec.emplace_back(i);
+//            }
+//        }
+//
+//        std::printf("recall: %.2f %%\n", recall(knns, vec));
+//        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
+
+    } catch (const mpi_exception& e) {
+        detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: '{}' (error code: {})\n", e.rank(), e.what(), e.error_code());
+    } catch (const std::exception& e) {
+        detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: {}", comm_rank, e.what());
+        return EXIT_FAILURE;
+    } catch (...) {
+        detail::mpi_print<>(comm_rank, "Something went terrible wrong on rank {}!", comm_rank);
         return EXIT_FAILURE;
     }
-
-//    try
-//    {
-//        argv_parser parser(argc, argv);
-//
-//        // display help message
-//        if (parser.has_argv("help")) {
-//            detail::mpi_print<0>(comm_rank, parser.description().c_str());
-////            std::cout << parser.description() << std::endl;
-//            return EXIT_SUCCESS;
-//        }
-//
-//        // read options file
-//        options<>::factory options_factory;
-//        if (parser.has_argv("options")) {
-//            auto options_file = parser.argv_as<std::string>("options");
-//            options_factory = decltype(options_factory)(options_file);
-//
-//            std::cout << "Reading options from file: '" << options_file << "'\n" << std::endl;
-//        }
-//
-//        // change options values through factory functions using the provided values
-//        if (parser.has_argv("num_hash_tables")) {
-//            options_factory.set_num_hash_tables(
-//                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>("num_hash_tables"));
-//        }
-//        if (parser.has_argv("hash_table_size")) {
-//            options_factory.set_hash_table_size(
-//                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>("hash_table_size"));
-//        }
-//        if (parser.has_argv("num_hash_functions")) {
-//            options_factory.set_num_hash_functions(
-//                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>("num_hash_functions"));
-//        }
-//        if (parser.has_argv("w")) {
-//            options_factory.set_w(
-//                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>("w"));
-//        }
-//
-//        // create options object from factory
-//        options opt = options_factory.create();
-//        std::cout << "Used options: \n" << opt << '\n' << std::endl;
-//
-//        // save the options file
-//        if (parser.has_argv("save_options")) {
-//            auto options_save_file = parser.argv_as<std::string>("save_options");
-//            opt.save(options_save_file);
-//
-//            std::cout << "Saved options to: '" << options_save_file << "'\n" << std::endl;
-//        }
-//
-//
-//        // read data file
-//        std::string data_file;
-//        if (parser.has_argv("data")) {
-//            data_file = parser.argv_as<std::string>("data");
-//
-//            std::cout << "Reading data from file: '" << data_file << '\'' << std::endl;
-//        } else {
-//            std::cerr << "\nNo data file provided!" << std::endl;
-//            return EXIT_FAILURE;
-//        }
-//
-//        // create data object
-////        auto data = make_data<memory_layout::aos>(opt, data_file);
-//        auto data = make_data<memory_layout::aos>(opt, 10, 3);
-//        std::cout << "\nUsed data set: \n" << data << '\n' << std::endl;
-//
-//        // read the number of nearest-neighbours to search for
-//        typename decltype(opt)::index_type k = 0;
-//        if (parser.has_argv("k")) {
-//            k = parser.argv_as<decltype(k)>("k");
-//            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
-//
-//            std::cout << "Number of nearest-neighbours to search for: " << k << '\n' << std::endl;
-//        } else {
-//            std::cerr << "\nNo number of nearest-neighbours given!" << std::endl;
-//            return EXIT_FAILURE;
-//        }
-//
-////        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
-////        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
-////
-////        START_TIMING(creating_hash_tables);
-////
-////        auto hash_functions = make_hash_functions<memory_layout::aos>(data);
-////        auto hash_tables = make_hash_tables(queue, hash_functions);
-////
-////        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
-////
-////        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
-////
-////        // wait until all kernels have finished
-////        queue.wait_and_throw();
-////
-////        // save the calculated k-nearest-neighbours
-////        if (parser.has_argv("save_knn")) {
-////            auto knns_save_file = parser.argv_as<std::string>("save_knn");
-////            knns.save(knns_save_file);
-////
-////            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
-////        }
-////        std::cout << std::endl;
-////
-////        using index_type = typename decltype(opt)::index_type;
-////        std::vector<index_type> vec;
-////        vec.reserve(data.size * k);
-////        for (index_type i = 0; i < data.size; ++i) {
-////            for (index_type j = 0; j < k; ++j) {
-////                vec.emplace_back(i);
-////            }
-////        }
-////
-////        std::printf("recall: %.2f %%\n", recall(knns, vec));
-////        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
-//
-//    } catch (const std::exception& e) {
-//        std::cerr << e.what() << std::endl;
-//        return EXIT_FAILURE;
-//    } catch (...) {
-//        std::cerr << "Something went terrible wrong!" << std::endl;
-//        return EXIT_FAILURE;
-//    }
 
     MPI_Comm_free(&communicator);
     MPI_Finalize();
