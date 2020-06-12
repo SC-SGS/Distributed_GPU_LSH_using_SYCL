@@ -1,18 +1,29 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_TYPE_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_TYPE_HPP
 
-#include <cstdint>
 
 #include <mpi.h>
 
 
-#define CREATE_MPI_TYPE_CAST(type, mpi_type)                                  \
-template <>                                                                   \
+/**
+ * @def CREATE_MPI_TYPE_CAST
+ * @brief Defines a macro to create all possible conversion functions from @p type to the *MPI_Datatype* @p mpi_type.
+ * @param[in] type the data type to convert to a *MPI_Datatype*
+ * @param[in] mpi_type the *MPI_Datatype*
+ */
+#define CREATE_MPI_TYPE_CAST(type, mpi_type)                                         \
+template <>                                                                          \
 [[nodiscard]] inline MPI_Datatype mpi_type_cast<type>() noexcept { return mpi_type; }
 
 
 namespace detail {
 
+    /**
+     * @brief Tries to convert the given type to its corresponding *MPI_Datatype*.
+     * @details The definition is marked as **deleted** if no conversion from `T` to a *MPI_Datatype* is possible.
+     * @tparam T the type to convert to *MPI_Datatype*
+     * @return the *MPI_Datatype* equivalent of `T`
+     */
     template <typename T>
     [[nodiscard]] inline MPI_Datatype mpi_type_cast() noexcept = delete;
 
