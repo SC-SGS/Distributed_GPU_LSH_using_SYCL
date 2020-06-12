@@ -47,9 +47,9 @@ void sycl_exception_handler(sycl::exception_list exceptions) {
 
 /**
  * @brief Exception handler for errors occurred due to a call to a MPI function.
- * @param comm the communicator on which the error occurred
- * @param err the occurred error
- * @param ... additional arguments
+ * @param[in] comm the communicator on which the error occurred
+ * @param[in] err the occurred error
+ * @param[in] ... additional arguments
  */
 void mpi_exception_handler(MPI_Comm* comm, int* err, ...) {
     throw mpi_exception(*comm, *err);
@@ -163,6 +163,7 @@ int main(int argc, char** argv) {
         detail::mpi_print<print_rank>(comm_rank, "MPI_Comm_size: {} (on rank: {})\n\n", comm_size, comm_rank);
 
 
+        // parse command line arguments
         argv_parser parser(argc, argv);
 
         // display help message
@@ -240,6 +241,7 @@ int main(int argc, char** argv) {
             detail::mpi_print<print_rank>(comm_rank, "\nNo number of nearest-neighbors given!\n");
             return EXIT_FAILURE;
         }
+
 
 //        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
 //        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
