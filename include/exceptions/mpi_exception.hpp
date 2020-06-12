@@ -1,3 +1,10 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-12
+ * @brief Implements a custom exception class, which retrieves its what message from the MPI error code.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_EXCEPTION_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_EXCEPTION_HPP
 
