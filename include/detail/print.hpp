@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-10
+ * @date 2020-06-12
  *
  * @brief Implements a custom print function using `{}` as placeholders.
  * @details Internally converts `{}` to the respective `printf` format specifiers and calls `printf`.
@@ -250,8 +250,8 @@ namespace detail {
     }
 
     template <int... Ranks, typename... Args>
-    inline void mpi_print(const int comm_rank, const char* msg, Args&&... args) {
-        if (sizeof...(Ranks) == 0) {
+    inline void mpi_print([[maybe_unused]] const int comm_rank, const char* msg, Args&&... args) {
+        if constexpr (sizeof...(Ranks) == 0) {
             print(msg, std::forward<Args>(args)...);
         } else {
             int ranks[] = { Ranks... };
