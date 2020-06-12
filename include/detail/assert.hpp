@@ -32,7 +32,9 @@ namespace detail {
         // check if the condition holds
         if (!cond) {
             // calculate sizes of the messages
-            const char* loc_msg = "Assertion '{}' failed!\n  in file '{}'\n  in function '{}'\n  @ line {}\n\n";
+            const char* loc_msg = loc.rank() == -1 ?
+                                  "Assertion '{}' failed!\n  in file '{}'\n  in function '{}'\n  @ line {}\n\n" :
+                                  "Assertion '{}' failed on rank {}!\n  in file '{}'\n  in function '{}'\n  @ line {}\n\n";
             const int loc_msg_size = detail::c_str_size(loc_msg);
             const int msg_size = detail::c_str_size(msg);
 
@@ -54,7 +56,11 @@ namespace detail {
             full_msg[idx] = '\0';
 
             // print the full_msg
-            print(full_msg, cond_str, loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+            if (loc.rank() == -1) {
+                print(full_msg, cond_str, loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+            } else {
+                print(full_msg, cond_str, loc.rank(), loc.file_name(), loc.function_name(), loc.line(), std::forward<Args>(args)...);
+            }
 
             // delete full_msg (previously allocated with new)
             delete[] full_msg;
@@ -75,12 +81,23 @@ namespace detail {
  * @param[in] cond the assert condition
  * @param[in] msg the custom assert message
  * @param[in] ... varying number of parameters to fill the `printf` like placeholders in the custom assert message
+ *
+ * @def DEBUG_ASSERT_MPI
+ * @brief Defines a custom `assert()` macro including the MPI rank info.
+ * @details This macro is only defined in debug builds.
+ * @param[in] cond the assert condition
+ * @param[in] comm_rank the MPI rank
+ * @param[in] msg the custom assert message
+ * @param[in] ... varying number of parameters to fill the `printf` like placeholders in the custom assert message
  */
 #ifdef NDEBUG
 #define DEBUG_ASSERT(cond, msg, ...)
+#define DEBUG_ASSERT_MPI(cond, comm_rank, msg, ...)
 #else
 #define DEBUG_ASSERT(cond, msg, ...) \
         detail::check(cond, #cond, detail::source_location::current(PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
+#define DEBUG_ASSERT_MPI(cond, comm_rank, msg, ...) \
+        detail::check(cond, #cond, detail::source_location::current(comm_rank, PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
 #endif
 
 
