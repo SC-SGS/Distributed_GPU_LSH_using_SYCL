@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-06-12
  *
  * @brief Implements a conversion function from std::string to numeric types.
  */
@@ -27,13 +27,15 @@ namespace detail {
      */
     template <typename T, std::enable_if_t<std::is_arithmetic_v<std::remove_reference_t<T>>, int> = 0>
     [[nodiscard]] inline T convert_to(const std::string& str) {
-        if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
+        using decayed_type = std::decay_t<T>;
+
+        if constexpr (std::is_floating_point_v<decayed_type>) {
             // try to convert str to a floating point type using the old stof/stod/stold functions
-            // since std::from_chars doesn't support floating point type syet
+            // since std::from_chars doesn't support floating point types yet
             try {
-                if constexpr (std::is_same_v<std::decay_t<T>, float>) {
+                if constexpr (std::is_same_v<decayed_type, float>) {
                     return std::stof(str);
-                } else if constexpr (std::is_same_v<std::decay_t<T>, double>) {
+                } else if constexpr (std::is_same_v<decayed_type, double>) {
                     return std::stod(str);
                 } else {
                     return std::stold(str);
@@ -53,10 +55,16 @@ namespace detail {
         }
     }
 
-
+    /**
+     * @brief Converts the given value @p val to a [`std::string`](https://en.cppreference.com/w/cpp/string/basic_string).
+     * @details Uses the [`operator<<`](https://en.cppreference.com/w/cpp/language/operators) overload.
+     * @tparam T the type to convert.
+     * @param[in] val the value to convert
+     * @return @p val represented as a [`std::string`](https://en.cppreference.com/w/cpp/string/basic_string) (`[[nodiscard]]`)
+     */
     template <typename T>
     [[nodiscard]] inline std::string to_string(const T& val) {
-        std::stringstream ss;
+        std::ostringstream ss;
         ss << val;
         return ss.str();
     }
