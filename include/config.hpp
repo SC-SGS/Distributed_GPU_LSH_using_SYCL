@@ -72,4 +72,6 @@ std::cout << "Elapsed time (" << #name << "): " << duration_##name << " ms" << s
 #endif
 
 
+constexpr int print_rank = 0;
+
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP

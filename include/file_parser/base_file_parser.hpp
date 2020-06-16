@@ -19,6 +19,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <options.hpp>
+#include <mpi_buffer.hpp>
 
 
 /**
@@ -36,27 +37,33 @@ public:
     using index_type = typename Options::index_type;
 
     /**
-     * @brief Constructs a new @ref file_parser object.
+     * @brief Constructs a new @ref file_parser object and opens the file to retrieve a *MPI_File* handle.
      * @param[in] file the file to parse
+     * @param[in] communicator the *MPI_Comm* communicator used to open the @p file with
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    explicit file_parser(std::string file, const bool distributed) : file_(std::move(file)), distributed_(distributed) {
+    file_parser(const std::string& file, MPI_Comm& communicator) : comm_(communicator) {
         // check if the file exists
-        if (!std::filesystem::exists(file_)) {
-            throw std::invalid_argument("File '" + file_ + "' doesn't exist!");
+        if (!std::filesystem::exists(file)) {
+            throw std::invalid_argument("File '" + file + "' doesn't exist!");
         }
+        // open the file
+        MPI_File_open(comm_, file.c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &file_);
     }
     /**
-     * @brief Virtual destructor to prevent memory leaks.
+     * @brief Close the *MPI_File* handle upon destruction.
      */
-    virtual ~file_parser() = default;
+    virtual ~file_parser() {
+        MPI_File_close(&file_);
+    }
 
     /**
      * @brief Computes the number of data points in the file.
      * @return the number of data points (`[[nodiscard]]`)
      */
     [[nodiscard]] virtual index_type parse_size() const = 0;
+    [[nodiscard]] virtual index_type parse_rank_size() const = 0;
     /**
      * @brief Computes the number of dimensions of each data point in the file.
      * @return the number of dimensions (`[[nodiscard]]`)
@@ -68,13 +75,7 @@ public:
      * @param[in] size the number of data points
      * @param[in] dims the number of dimensions per data points
      */
-    virtual void parse_content(sycl::buffer<real_type, 1>& buffer, const index_type size, const index_type dims) const = 0;
-
-    /**
-     * @brief Returns whether the current file parser can be used to read a data set in a distributed fashion.
-     * @return `true` if distributed parsing is supported, otherwise `false`
-     */
-    [[nodiscard]] bool is_distributed() const noexcept { return distributed_; }
+    virtual void parse_content(mpi_buffers<real_type>& buffer, const index_type total_size, const index_type rank_size, const index_type dims) const = 0;
 
 protected:
     /**
@@ -103,10 +104,10 @@ protected:
         }
     }
 
-    /// The file to parse.
-    const std::string file_;
-    /// True if the file_parser can be used to read a data set in a distributed fashion, false otherwise.
-    const bool distributed_;
+    /// The communicator used to open the *MPI_File*.
+    MPI_Comm& comm_;
+    /// The opened *MPI_File* handle.
+    MPI_File file_;
 };
 
 

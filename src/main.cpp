@@ -142,8 +142,6 @@ void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
 
 // TODO 2020-06-10 18:49 marcel: MPI save knn file?
 int main(int argc, char** argv) {
-    constexpr int print_rank = 0;
-
     MPI_Comm communicator;
     int comm_rank;
 
@@ -232,8 +230,8 @@ int main(int argc, char** argv) {
 
         // create data object
 //        auto data = make_data<memory_layout::aos>(opt, data_file);
-        auto data = make_data<memory_layout::aos>(opt, 10, 3);
-        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
+//        auto data = make_data<memory_layout::aos>(opt, 10, 3);
+//        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
 
         // read the number of nearest-neighbours to search for
         typename decltype(opt)::index_type k = 0;
@@ -248,6 +246,26 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
+        using options_type = decltype(opt);
+        using index_type = typename options_type::index_type;
+        using real_type = typename options_type::real_type;
+
+        [[maybe_unused]] auto fp = make_file_parser<memory_layout::soa, decltype(opt)>(data_file, communicator);
+
+        const index_type total_size = fp->parse_size();
+        const index_type rank_size = fp->parse_rank_size();
+        const real_type dims = fp->parse_dims();
+        mpi_buffers<real_type> buffers(communicator, rank_size, dims);
+        fp->parse_content(buffers, total_size, rank_size, dims);
+
+        std::ostringstream ss;
+        ss << buffers.active().size() << " -> ";
+        ss << "Rank " << comm_rank << " (total_size: " << total_size << ", rank_size: " << rank_size << ", dims: " << dims << "): ";
+        for (const auto val : buffers.active()) {
+            ss << val << ' ';
+        }
+        ss << '\n';
+        std::cout << ss.str();
 
 //        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
 //        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
