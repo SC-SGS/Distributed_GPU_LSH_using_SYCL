@@ -250,13 +250,12 @@ int main(int argc, char** argv) {
         using index_type = typename options_type::index_type;
         using real_type = typename options_type::real_type;
 
-        [[maybe_unused]] auto fp = make_file_parser<memory_layout::soa, decltype(opt)>(data_file, communicator);
+        [[maybe_unused]] auto fp = make_file_parser<memory_layout::aos, decltype(opt)>(data_file, communicator);
 
         const index_type total_size = fp->parse_size();
         const index_type rank_size = fp->parse_rank_size();
         const real_type dims = fp->parse_dims();
-        mpi_buffers<real_type> buffers(communicator, rank_size, dims);
-        fp->parse_content(buffers, total_size, rank_size, dims);
+        mpi_buffers<real_type> buffers = fp->parse_content();
 
         std::ostringstream ss;
         ss << buffers.active().size() << " -> ";

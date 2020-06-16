@@ -43,7 +43,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    file_parser(const std::string& file, MPI_Comm& communicator) : comm_(communicator) {
+    file_parser(const std::string& file, const MPI_Comm& communicator) : comm_(communicator) {
         // check if the file exists
         if (!std::filesystem::exists(file)) {
             throw std::invalid_argument("File '" + file + "' doesn't exist!");
@@ -59,23 +59,28 @@ public:
     }
 
     /**
-     * @brief Computes the number of data points in the file.
-     * @return the number of data points (`[[nodiscard]]`)
+     * @brief Pareses the **total** number of data points in the file.
+     * @return the total number of data points (`[[nodiscard]]`)
      */
     [[nodiscard]] virtual index_type parse_size() const = 0;
+    /**
+     * @brief Parses the number of data points **per MPI rank** of the file.
+     * @details Example: \n
+     *          `this->parse_size() = 14, comm_size = 4` \n
+     *          -> `this->parse_rank_size() = 4` for **ALL** MPI ranks and **NOT** `{ 4, 4, 3, 3 }`.
+     * @return the number of data points per MPI rank (`[[nodiscard]]`)
+     */
     [[nodiscard]] virtual index_type parse_rank_size() const = 0;
     /**
-     * @brief Computes the number of dimensions of each data point in the file.
+     * @brief Parses the number of dimensions of each data point in the file.
      * @return the number of dimensions (`[[nodiscard]]`)
      */
     [[nodiscard]] virtual index_type parse_dims() const = 0;
     /**
-     * @brief Parse the content of the file and write it back to @p buffer.
-     * @param[inout] buffer the @p buffer to write the data points to
-     * @param[in] size the number of data points
-     * @param[in] dims the number of dimensions per data points
+     * @brief Parse the content of the file.
+     * @return the @ref mpi_buffers containing the parsed data (`[[nodiscard]]`)
      */
-    virtual void parse_content(mpi_buffers<real_type>& buffer, const index_type total_size, const index_type rank_size, const index_type dims) const = 0;
+    [[nodiscard]] virtual mpi_buffers<real_type> parse_content() const = 0;
 
 protected:
     /**
@@ -105,7 +110,7 @@ protected:
     }
 
     /// The communicator used to open the *MPI_File*.
-    MPI_Comm& comm_;
+    const MPI_Comm& comm_;
     /// The opened *MPI_File* handle.
     MPI_File file_;
 };

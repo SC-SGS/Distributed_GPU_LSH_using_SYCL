@@ -67,14 +67,14 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    arff_parser(const std::string& file, MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
+    arff_parser(const std::string& file, const MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
         detail::mpi_print<print_rank>(communicator, "Parsing a '.arff' file using the default_parser together with MPI IO!\n");
     }
 
     [[nodiscard]] index_type parse_size() const override { throw std::logic_error("Not implemented yet!"); }
     [[nodiscard]] index_type parse_rank_size() const override { throw std::logic_error("Not implemented yet!"); }
     [[nodiscard]] index_type parse_dims() const override { throw std::logic_error("Not implemented yet!"); }
-    void parse_content(mpi_buffers<real_type>& buffer, const index_type total_size, const index_type rank_size, const index_type dims) const override {
+    mpi_buffers<real_type> parse_content() const override {
         throw std::logic_error("Not implemented yet!");
     }
 

@@ -63,7 +63,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    default_parser(const std::string& file, MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
+    default_parser(const std::string& file, const MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
         detail::mpi_print<print_rank>(communicator, "Parsing a file using the default_parser together with MPI IO!\n");
     }
 
@@ -74,15 +74,16 @@ public:
         return static_cast<index_type>(size);
     }
     [[nodiscard]] index_type parse_rank_size() const override {
-        // read first line containing the size
-        int comm_size, comm_rank;
+        // parse the size per rank
+        // note: total_size = 14, comm_size = 4 -> rank_size = 4 for ALL comm_ranks
+        const index_type total_size = this->parse_size();
+        int comm_size;
         MPI_Comm_size(base::comm_, &comm_size);
-        MPI_Comm_rank(base::comm_, &comm_rank);
-        const index_type size = this->parse_size();
-
-        index_type rank_size = size / comm_size;
-        if (static_cast<index_type>(comm_rank) < size % comm_size) ++rank_size;
-        return rank_size;
+        if (total_size % comm_size == 0) {
+            return total_size / comm_size;
+        } else {
+            return total_size / comm_size + 1;
+        }
     }
     [[nodiscard]] index_type parse_dims() const override {
         // read second line containing the dims
@@ -90,17 +91,22 @@ public:
         MPI_File_read_at(base::file_, sizeof(index_type), &dims, 1, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
         return static_cast<index_type>(dims);
     }
-    void parse_content(mpi_buffers<real_type>& buffer, const index_type total_size,
-            [[maybe_unused]] const index_type rank_size, const index_type dims) const override
-    {
-        DEBUG_ASSERT(0 < total_size, "Illegal total size!: {}", total_size);
-        DEBUG_ASSERT(0 < rank_size, "Illegal rank size!: {}", rank_size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
-
+    mpi_buffers<real_type> parse_content() const override {
         // calculate communicator size and rank
         int comm_size, comm_rank;
         MPI_Comm_size(base::comm_, &comm_size);
         MPI_Comm_rank(base::comm_, &comm_rank);
+
+        // calculate total_size, the ceiled rank_size and dims AND perform sanity checks
+        const index_type total_size = this->parse_size();
+        const index_type ceil_rank_size = this->parse_rank_size();
+        const index_type dims = this->parse_dims();
+        DEBUG_ASSERT(0 < total_size, "Illegal total size!: {}", total_size);
+        DEBUG_ASSERT(0 < ceil_rank_size, "Illegal (ceiled) rank size!: {}", ceil_rank_size);
+        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+
+        // create buffers
+        mpi_buffers<real_type> buffer(base::comm_, ceil_rank_size, dims);
 
         // check for correct real_type
         MPI_Offset file_size;
@@ -110,23 +116,33 @@ public:
 
         // calculate byte offsets
         MPI_Offset initial_offset = 2 * sizeof(index_type);
+        MPI_Offset rank_size = total_size / comm_size;
+        if (static_cast<index_type>(comm_rank) < total_size % comm_size) ++rank_size;
         MPI_Offset rank_offset = (total_size / comm_size * comm_rank + std::min<MPI_Offset>(comm_rank, total_size % comm_size)) * dims * sizeof(real_type);
 
         std::vector<real_type>& internal_buffer = layout == memory_layout::aos ? buffer.active() : buffer.inactive();
         // read data elements, ALWAYS in Array of Structs format
-        MPI_File_read_at(base::file_, initial_offset + rank_offset, internal_buffer.data(), internal_buffer.size(),
+        MPI_File_read_at(base::file_, initial_offset + rank_offset, internal_buffer.data(), rank_size * dims,
                 detail::mpi_type_cast<real_type>(), MPI_STATUS_IGNORE);
+
+        // fill missing data point with copy of the first
+        if (static_cast<index_type>(comm_rank) >= total_size % comm_size) {
+            for (index_type dim = 0; dim < dims; ++dim) {
+                internal_buffer[rank_size * dims + dim] = internal_buffer[dim];
+            }
+        }
 
         // convert to Struct of Arrays format if necessary
         if constexpr (layout == memory_layout::soa) {
             std::vector<real_type>& active_internal_buffer = buffer.active();
-            for (index_type point = 0; point < rank_size; ++point) {
+            for (index_type point = 0; point < ceil_rank_size; ++point) {
                 for (index_type dim = 0; dim < dims; ++dim) {
-                    active_internal_buffer[base::get_linear_id(point, dim, rank_size, dims)] = internal_buffer[point * dims + dim];
+                    active_internal_buffer[base::get_linear_id(point, dim, ceil_rank_size, dims)] = internal_buffer[point * dims + dim];
                 }
             }
         }
 
+        return buffer;
     }
 
 };
