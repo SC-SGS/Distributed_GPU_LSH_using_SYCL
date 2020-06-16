@@ -24,6 +24,7 @@
 #include <data.hpp>
 #include <evaluation.hpp>
 #include <exceptions/mpi_exception.hpp>
+#include <exceptions/mpi_file_exception.hpp>
 #include <hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
@@ -54,7 +55,9 @@ void sycl_exception_handler(sycl::exception_list exceptions) {
 void mpi_exception_handler(MPI_Comm* comm, int* err, ...) {
     throw mpi_exception(*comm, *err);
 }
-
+void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
+    throw mpi_file_exception(*file, *err);
+}
 
 //int calculate_nearest_neighbors(const MPI_Comm& communicator, const int comm_size, const int comm_rank, const std::size_t size, const std::size_t dims) {
 //    using real_type = float;
@@ -151,10 +154,12 @@ int main(int argc, char** argv) {
         // duplicate MPI_COMM_WORLD
         MPI_Comm_dup(MPI_COMM_WORLD, &communicator);
 
-        // set special MPI error handler
+        // set special MPI error handlers
         MPI_Errhandler mpi_error_handler;
         MPI_Comm_create_errhandler(mpi_exception_handler, &mpi_error_handler);
         MPI_Comm_set_errhandler(communicator, mpi_error_handler);
+        MPI_File_create_errhandler(mpi_file_exception_handler, &mpi_error_handler);
+        MPI_File_set_errhandler(MPI_FILE_NULL, mpi_error_handler);
 
         // print MPI info
         int comm_size;
@@ -282,11 +287,15 @@ int main(int argc, char** argv) {
 
     } catch (const mpi_exception& e) {
         detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: '{}' (error code: {})\n", e.rank(), e.what(), e.error_code());
+        return EXIT_FAILURE;
+    } catch (const mpi_file_exception& e) {
+        detail::mpi_print<>(comm_rank, "File exception thrown: '{}' (error code: {})\n", e.what(), e.error_code());
+        return EXIT_FAILURE;
     } catch (const std::exception& e) {
-        detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: {}", comm_rank, e.what());
+        detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: {}\n", comm_rank, e.what());
         return EXIT_FAILURE;
     } catch (...) {
-        detail::mpi_print<>(comm_rank, "Something went terrible wrong on rank {}!", comm_rank);
+        detail::mpi_print<>(comm_rank, "Something went terrible wrong on rank {}!\n", comm_rank);
         return EXIT_FAILURE;
     }
 
