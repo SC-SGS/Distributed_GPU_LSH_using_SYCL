@@ -30,12 +30,16 @@ parser.add_argument("--num_cluster", help="the number of different clusters", ty
 parser.add_argument("--cluster_std", help="the clusters standard deviation", type=float, default=1.0, required=False)
 parser.add_argument("--scale", help="scales the data points to [0, 1]", action="store_true")
 parser.add_argument("--binary", help="saves the data in binary format", action="store_true")
+parser.add_argument("--debug", help="uses debug data", action="store_true")
 args = parser.parse_args()
 
 
 # generate data points
-data = sklearn.datasets.make_blobs(n_samples=args.size, n_features=args.dims, centers=args.num_cluster, \
-                                   cluster_std=args.cluster_std, shuffle=True, random_state=1)[0].astype(real_type)
+if args.debug:
+    data = np.arange(args.size * args.dims, dtype=real_type)
+else:
+    data = sklearn.datasets.make_blobs(n_samples=args.size, n_features=args.dims, centers=args.num_cluster, \
+                                       cluster_std=args.cluster_std, shuffle=True, random_state=1)[0].astype(real_type)
 
 
 # scale data to [0, 1] if requested
