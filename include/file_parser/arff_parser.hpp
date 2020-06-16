@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-03
+ * @date 2020-06-16
  *
  * @brief File parser for parsing `.arff` files.
  */
@@ -42,7 +42,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    explicit arff_parser(std::string file) : file_parser<layout, Options>(std::move(file)) {
+    explicit arff_parser(std::string file) : file_parser<layout, Options>(std::move(file), false) {
         std::cout << "Parsing a file in .arff format using the arff_parser!" << std::endl;
     }
 

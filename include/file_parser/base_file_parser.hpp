@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-03
+ * @date 2020-06-16
  *
  * @brief Base class for all file parsers.
  * @details Pure virtual.
@@ -41,7 +41,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    explicit file_parser(std::string file) : file_(std::move(file)) {
+    explicit file_parser(std::string file, const bool distributed) : file_(std::move(file)), distributed_(distributed) {
         // check if the file exists
         if (!std::filesystem::exists(file_)) {
             throw std::invalid_argument("File '" + file_ + "' doesn't exist!");
@@ -70,6 +70,12 @@ public:
      */
     virtual void parse_content(sycl::buffer<real_type, 1>& buffer, const index_type size, const index_type dims) const = 0;
 
+    /**
+     * @brief Returns whether the current file parser can be used to read a data set in a distributed fashion.
+     * @return `true` if distributed parsing is supported, otherwise `false`
+     */
+    [[nodiscard]] bool is_distributed() const noexcept { return distributed_; }
+
 protected:
     /**
      * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
@@ -83,7 +89,7 @@ protected:
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims.
      */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim,
-            const index_type size, const index_type dims) const noexcept
+            [[maybe_unused]] const index_type size, [[maybe_unused]] const index_type dims) const noexcept
     {
         DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
         DEBUG_ASSERT(0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
@@ -99,6 +105,8 @@ protected:
 
     /// The file to parse.
     const std::string file_;
+    /// True if the file_parser can be used to read a data set in a distributed fashion, false otherwise.
+    const bool distributed_;
 };
 
 

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-06-16
  *
  * @brief File parser for parsing plain data files.
  */
@@ -54,8 +54,8 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    explicit default_parser(std::string file) : file_parser<layout, Options>(std::move(file)) {
-        std::cout << "Parsing a file in .txt format using the default_parser!" << std::endl;
+    explicit default_parser(std::string file) : file_parser<layout, Options>(std::move(file), false) {
+        std::cout << "Parsing a file using the default_parser!" << std::endl;
     }
 
     [[nodiscard]] index_type parse_size() const override {
