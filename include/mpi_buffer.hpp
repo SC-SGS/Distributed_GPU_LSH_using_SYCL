@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-06-16
  *
  * @brief Implements buffers for the MPI communication.
  */
@@ -43,6 +43,12 @@ public:
         dest_ = (comm_rank + 1) % comm_size;
         source_ = (comm_size + (comm_rank - 1) % comm_size) % comm_size;
     }
+
+    // make sure an object of this class will NEVER be copied
+    mpi_buffers(const mpi_buffers&) = delete;
+    mpi_buffers(mpi_buffers&& other) noexcept = default;
+    mpi_buffers& operator=(const mpi_buffers&) = delete;
+    mpi_buffers& operator=(mpi_buffers&&) = delete;
 
     /**
      * @brief Returns the currently active buffer, i.e. the buffer which holds the data currently worked on.
