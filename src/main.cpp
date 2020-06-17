@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
 
 
         // parse command line arguments
-        argv_parser parser(argc, argv);
+        argv_parser parser(argc, argv, comm_rank);
 
         // display help message
         if (parser.has_argv("help")) {
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
         if (parser.has_argv("k")) {
             k = parser.argv_as<decltype(k)>("k");
             if (comm_rank == 1) k = 0;
-            DEBUG_ASSERT_MPI(0 < k, comm_rank, "Illegal number of nearest neighbors!: 0 < {}", k);
+            DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
 
             detail::mpi_print<print_rank>(comm_rank, "Number of nearest-neighbors to search for: {}\n\n", k);
         } else {

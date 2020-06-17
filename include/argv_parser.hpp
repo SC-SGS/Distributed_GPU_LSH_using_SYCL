@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-26
+ * @date 2020-06-17
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -64,9 +64,9 @@ public:
      * @pre @p argc **must** be greater or equal than 1.
      * @pre @p argv **must not** be `nullptr`.
      */
-    argv_parser(const int argc, char** argv) {
-        DEBUG_ASSERT(argc >= 1, "Not enough command line arguments given! {} >= 1", argc);
-        DEBUG_ASSERT(argv != nullptr, "argv must not be the nullptr!{}", "");
+    argv_parser(const int argc, char** argv, int comm_rank) : comm_rank_(comm_rank) {
+        DEBUG_ASSERT_MPI(comm_rank_, argc >= 1, "Not enough command line arguments given! {} >= 1", argc);
+        DEBUG_ASSERT_MPI(comm_rank_, argv != nullptr, "argv must not be the nullptr!{}", "");
 
         for(int i = 1; i < argc; ++i) {
             std::string key = argv[i];
@@ -111,7 +111,7 @@ public:
      */
     template <typename T>
     [[nodiscard]] bool has_argv(T&& key) const {
-        DEBUG_ASSERT(possible_argvs_.count(key) != 0, "'{}' isn't a possible command line argument!", key);
+        DEBUG_ASSERT_MPI(comm_rank_, possible_argvs_.count(key) != 0, "'{}' isn't a possible command line argument!", key);
 
         return argvs_.count(std::forward<T>(key)) > 0;
     }
@@ -153,6 +153,8 @@ public:
     }
 
 private:
+    /// The current MPI rank.
+    const int comm_rank_;
     /// Map containing all provided command line arguments.
     std::map<std::string, std::string> argvs_;
 };

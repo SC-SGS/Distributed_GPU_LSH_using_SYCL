@@ -85,8 +85,8 @@ namespace detail {
  * @def DEBUG_ASSERT_MPI
  * @brief Defines a custom `assert()` macro including the MPI rank info.
  * @details This macro is only defined in debug builds.
- * @param[in] cond the assert condition
  * @param[in] comm_rank the MPI rank
+ * @param[in] cond the assert condition
  * @param[in] msg the custom assert message
  * @param[in] ... varying number of parameters to fill the `printf` like placeholders in the custom assert message
  */
@@ -96,7 +96,7 @@ namespace detail {
 #else
 #define DEBUG_ASSERT(cond, msg, ...) \
         detail::check(cond, #cond, detail::source_location::current(PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
-#define DEBUG_ASSERT_MPI(cond, comm_rank, msg, ...) \
+#define DEBUG_ASSERT_MPI(comm_rank, cond, msg, ...) \
         detail::check(cond, #cond, detail::source_location::current(comm_rank, PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
 #endif
 
