@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-16
+ * @date 2020-06-17
  *
  * @brief Base class for all file parsers.
  * @details Pure virtual.
@@ -80,7 +80,7 @@ public:
      * @brief Parse the content of the file.
      * @return the @ref mpi_buffers containing the parsed data (`[[nodiscard]]`)
      */
-    [[nodiscard]] virtual mpi_buffers<real_type> parse_content() const = 0;
+    [[nodiscard]] virtual mpi_buffers<real_type, index_type> parse_content() const = 0;
 
 protected:
     /**
