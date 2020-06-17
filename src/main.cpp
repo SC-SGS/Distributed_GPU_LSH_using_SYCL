@@ -176,10 +176,10 @@ int main(int argc, char** argv) {
 
         // read options file
         using options_type = options<>;
-        options_type::factory options_factory;
+        options_type::factory options_factory(comm_rank);
         if (parser.has_argv("options")) {
             auto options_file = parser.argv_as<std::string>("options");
-            options_factory = decltype(options_factory)(options_file);
+            options_factory = decltype(options_factory)(options_file, comm_rank);
 
             detail::mpi_print<print_rank>(comm_rank, "Reading options from file: '{}'\n\n", options_file.c_str());
         }

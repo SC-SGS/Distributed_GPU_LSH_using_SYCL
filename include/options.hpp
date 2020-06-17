@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-17
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -62,17 +62,19 @@ public:
         friend struct options;
     public:
         /**
-         * @brief Default construct a factory object.
+         * @brief Construct a factory object with default values.
+         * @param[in] comm_rank the current MPI rank
          */
-        factory() = default;
+        factory(const int comm_rank) : comm_rank_(comm_rank) { }
         /**
          * @brief Construct a factory object using the values given in @p file.
          * @param[in] file the file containing the option values
+         * @param[in] comm_rank the current MPI rank
          *
          * @throw std::invalid_argument if @p file doesn't exist.
          * @throw std::invalid_arguemnt if @p file contains a wrong option pair.
          */
-        explicit factory(const std::string& file) {
+        explicit factory(const std::string& file, int comm_rank) : comm_rank_(comm_rank) {
             // check if file exists
             if (!std::filesystem::exists(file)) {
                 throw std::invalid_argument("File '" + file + "' doesn't exist!");
@@ -109,7 +111,7 @@ public:
          * @pre @p factory_num_hash_tables **must** be greater than `0`.
          */
         factory& set_num_hash_tables(const index_type factory_num_hash_tables) {
-            DEBUG_ASSERT(0 < factory_num_hash_tables, "Illegal number of hash tables!: 0 < {}", factory_num_hash_tables);
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_hash_tables, "Illegal number of hash tables!: 0 < {}", factory_num_hash_tables);
             num_hash_tables_ = factory_num_hash_tables;
             return *this;
         }
@@ -123,8 +125,8 @@ public:
          * @pre @p factory_hash_table_size **must** be a prime number.
          */
         factory& set_hash_table_size(const hash_value_type factory_hash_table_size) {
-            DEBUG_ASSERT(0 < factory_hash_table_size, "Illegal hash_table_size!: 0 < {}", factory_hash_table_size);
-            DEBUG_ASSERT(this->is_prime(factory_hash_table_size), "{} is not a prime!", factory_hash_table_size);
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_hash_table_size, "Illegal hash_table_size!: 0 < {}", factory_hash_table_size);
+            DEBUG_ASSERT_MPI(comm_rank_, this->is_prime(factory_hash_table_size), "{} is not a prime!", factory_hash_table_size);
             hash_table_size_ = factory_hash_table_size;
             return *this;
         }
@@ -136,7 +138,7 @@ public:
          * @pre @p factory_num_hash_functions **must** be greater than `0`.
          */
         factory& set_num_hash_functions(const index_type factory_num_hash_functions) {
-            DEBUG_ASSERT(0 < factory_num_hash_functions, "Illegal number of hash functions!: 0 < {}", factory_num_hash_functions);
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_hash_functions, "Illegal number of hash functions!: 0 < {}", factory_num_hash_functions);
             num_hash_functions_ = factory_num_hash_functions;
             return *this;
         }
@@ -148,7 +150,7 @@ public:
          * @pre @p factory_w **must** be greater than `0.0`.
          */
         factory& set_w(const real_type factory_w) {
-            DEBUG_ASSERT(0.0 < factory_w, "Illegal 'w' value!: 0.0 < {}", factory_w);
+            DEBUG_ASSERT_MPI(comm_rank_, 0.0 < factory_w, "Illegal 'w' value!: 0.0 < {}", factory_w);
             w_ = factory_w;
             return *this;
         }
@@ -183,6 +185,8 @@ public:
         hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
         index_type num_hash_functions_ = static_cast<index_type>(4);
         real_type w_ = static_cast<real_type>(1.0);
+
+        int comm_rank_;
     };
 
 
@@ -190,7 +194,7 @@ public:
      * @brief Create a new options instance from a options factory.
      * @param[in] fact a options factory
      */
-    options(options::factory fact = options<real_type, index_type, hash_value_type>::factory())
+    options(options::factory fact)
             : num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
               num_hash_functions(fact.num_hash_functions_), w(fact.w_) { }
 

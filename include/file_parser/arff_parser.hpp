@@ -67,7 +67,9 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    arff_parser(const std::string& file, const MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
+    arff_parser(const std::string& file, const MPI_Comm& communicator, const int comm_rank_)
+        : file_parser<layout, Options>(file, communicator, comm_rank_)
+    {
 //        detail::mpi_print<print_rank>(communicator, "Parsing an '.arff' file using the default_parser together with MPI IO!\n");
         throw std::logic_error("Parsing an '.arff' file is currently no supported! Maybe run data_sets/convert_arff_to_binary.py first?");
     }

@@ -94,8 +94,8 @@ public:
      * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
      */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
-        DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
-        DEBUG_ASSERT(0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
@@ -125,10 +125,10 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_>
-    friend auto make_data(const Options_&, const std::string&, MPI_Comm&);
+    friend auto make_data(const Options_&, const std::string&, const MPI_Comm&);
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_>
-    friend auto make_data(const Options_&, typename Options_::index_type, typename Options_::index_type, MPI_Comm&);
+    friend auto make_data(const Options_&, typename Options_::index_type, typename Options_::index_type, const MPI_Comm&);
     /// Befriend data class (including the one with another @ref memory_layout).
     template <memory_layout, typename>
     friend class data;
@@ -142,13 +142,13 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers)
+    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank)
         : total_size(buffers.total_size), size(buffers.size), dims(buffers.dims),
-          buffer(buffers.active().begin(), buffers.active().end()), opt_(opt)
+          buffer(buffers.active().begin(), buffers.active().end()), comm_rank_(comm_rank), opt_(opt)
     {
-        DEBUG_ASSERT(0 < total_size, "Illegal total_size!: {}", total_size);
-        DEBUG_ASSERT(0 < size, "Illegal rank_size!: {}", size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < total_size, "Illegal total_size!: {}", total_size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < size, "Illegal rank_size!: {}", size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
     }
 
     /**
@@ -164,6 +164,8 @@ private:
         return out;
     }
 
+    /// The current MPI rank.
+    const int comm_rank_;
     /// Const reference to @ref options object.
     const Options& opt_;
 };
@@ -182,7 +184,7 @@ private:
  * @note **Each** MPI rank contains `size * dims` points!
  */
 template <memory_layout layout, typename Options>
-[[nodiscard]] inline auto make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims, MPI_Comm& communicator) {
+[[nodiscard]] inline auto make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims, const MPI_Comm& communicator) {
     using data_type = data<layout, Options>;
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
@@ -191,6 +193,7 @@ template <memory_layout layout, typename Options>
     START_TIMING(creating_data);
     int comm_rank;
     MPI_Comm_rank(communicator, &comm_rank);
+
     mpi_buffers_type buffers(communicator, size, dims);
     // set dummy data based on the memory_layout
     if constexpr (layout == memory_layout::aos) {
@@ -205,7 +208,7 @@ template <memory_layout layout, typename Options>
     }
     END_TIMING_MPI(creating_data, communicator);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers), std::move(buffers));
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
 }
 
 /**
@@ -220,18 +223,21 @@ template <memory_layout layout, typename Options>
  * @throw std::invalid_argument if @p file doesn't exist.
  */
 template <memory_layout layout, typename Options>
-[[nodiscard]] inline auto make_data(const Options& opt, const std::string& file, MPI_Comm& communicator) {
+[[nodiscard]] inline auto make_data(const Options& opt, const std::string& file, const MPI_Comm& communicator) {
     using data_type = data<layout, Options>;
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
     using mpi_buffers_type = mpi_buffers<real_type, index_type>;
 
     START_TIMING(parsing_data_file);
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+
     auto fp = make_file_parser<layout, Options>(file, communicator);
     mpi_buffers_type buffers = fp->parse_content();
     END_TIMING_MPI(parsing_data_file, communicator);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers), std::move(buffers));
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
 }
 
 

@@ -43,7 +43,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    file_parser(const std::string& file, const MPI_Comm& communicator) : comm_(communicator) {
+    file_parser(const std::string& file, const MPI_Comm& communicator, const int comm_rank) : comm_(communicator), comm_rank_(comm_rank) {
         // check if the file exists
         if (!std::filesystem::exists(file)) {
             throw std::invalid_argument("File '" + file + "' doesn't exist!");
@@ -97,8 +97,8 @@ protected:
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim,
             [[maybe_unused]] const index_type size, [[maybe_unused]] const index_type dims) const noexcept
     {
-        DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
-        DEBUG_ASSERT(0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
@@ -111,6 +111,8 @@ protected:
 
     /// The communicator used to open the *MPI_File*.
     const MPI_Comm& comm_;
+    /// The current MPI rank.
+    const int comm_rank_;
     /// The opened *MPI_File* handle.
     MPI_File file_;
 };

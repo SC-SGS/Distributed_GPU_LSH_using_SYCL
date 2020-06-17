@@ -63,7 +63,9 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    default_parser(const std::string& file, const MPI_Comm& communicator) : file_parser<layout, Options>(file, communicator) {
+    default_parser(const std::string& file, const MPI_Comm& communicator, const int comm_rank_)
+        : file_parser<layout, Options>(file, communicator, comm_rank_)
+    {
         detail::mpi_print<print_rank>(communicator, "Parsing a file using the default_parser together with MPI IO!\n");
     }
 
@@ -101,9 +103,9 @@ public:
         const index_type total_size = this->parse_size();
         const index_type ceil_rank_size = this->parse_rank_size();
         const index_type dims = this->parse_dims();
-        DEBUG_ASSERT(0 < total_size, "Illegal total size!: {}", total_size);
-        DEBUG_ASSERT(0 < ceil_rank_size, "Illegal (ceiled) rank size!: {}", ceil_rank_size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
+        DEBUG_ASSERT_MPI(base::comm_rank_, 0 < total_size, "Illegal total size!: {}", total_size);
+        DEBUG_ASSERT_MPI(base::comm_rank_, 0 < ceil_rank_size, "Illegal (ceiled) rank size!: {}", ceil_rank_size);
+        DEBUG_ASSERT_MPI(base::comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
 
         // create buffers
         mpi_buffers<real_type, index_type> buffer(base::comm_, ceil_rank_size, dims);

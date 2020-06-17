@@ -32,7 +32,7 @@
  * @return the specific file parser for parsing @p file (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Options>
-[[nodiscard]] std::unique_ptr<file_parser<layout, Options>> make_file_parser(const std::string& file, MPI_Comm& communicator) {
+[[nodiscard]] inline std::unique_ptr<file_parser<layout, Options>> make_file_parser(const std::string& file, const MPI_Comm& communicator) {
     std::filesystem::path path(file);
 
     // check if file exists
@@ -40,11 +40,14 @@ template <memory_layout layout, typename Options>
         throw std::invalid_argument("File '" + file + "' doesn't exist!");
     }
 
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+
     // create file parser based on file extension
     if (path.extension() == ".arff") {
-        return std::make_unique<arff_parser<layout, Options>>(file, communicator);
+        return std::make_unique<arff_parser<layout, Options>>(file, communicator, comm_rank);
     } else {
-        return std::make_unique<default_parser<layout, Options>>(file, communicator);
+        return std::make_unique<default_parser<layout, Options>>(file, communicator, comm_rank);
     }
 }
 
