@@ -180,3 +180,4 @@ html/
 ### Data sets ###
 data_sets/*
 !data_sets/generate_data.py
+!data_sets/convert_arff_to_binary.py
