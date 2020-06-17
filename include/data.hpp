@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-17
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
@@ -22,6 +23,7 @@
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
 #include <file_parser/file_parser.hpp>
+#include <mpi_buffer.hpp>
 #include <options.hpp>
 
 
@@ -121,59 +123,28 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_>
-    friend data<layout_, Options_> make_data(const Options_&, const std::string&);
+    friend auto make_data(const Options_&, const std::string&, MPI_Comm&);
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_>
-    friend data<layout_, Options_> make_data(const Options_&, typename Options_::index_type, typename Options_::index_type);
+    friend auto make_data(const Options_&, typename Options_::index_type, typename Options_::index_type, MPI_Comm&);
     /// Befriend data class (including the one with another @ref memory_layout).
     template <memory_layout, typename>
     friend class data;
 
 
     /**
-     * @brief Construct a new data object if size: `size * dims`.
-     * @details Initialize the buffer with iota values if @p init is set to `true` (default: `true`).
+     * @brief Construct a new data object from the given @p buffers.
      * @param[in] opt the provided @ref options object
-     * @param[in] size the number of data points
-     * @param[in] dims the number of dimensions of each data point
-     *
-     * @pre @p size **must** be greater than `0`.
-     * @pre @p dims **must** be greater than `0`.
-     */
-    data(const Options& opt, const index_type size, const index_type dims)
-            : size(size), dims(dims), buffer(size * dims), opt_(opt)
-    {
-        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
-        DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
-
-        // fill "iota" like
-        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-        real_type val = 0.0;
-        for (index_type point = 0; point < size; ++point) {
-            for (index_type dim = 0; dim < dims; ++dim) {
-                acc[this->get_linear_id(point, dim)] = val++;
-            }
-        }
-    }
-    /**
-     * @brief Construct a new data object from the given @p file.
-     * @param[in] opt the provided @ref options object
-     * @param[in] parser the @ref file_parser responsible for loading all data points
-     *
-     * @throw std::invalid_argument if @p file doesn't exist.
+     * @param[in] buffers the @ref mpi_buffers containing the data points
      *
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, std::unique_ptr<file_parser<layout, Options>> parser)
-            : size(parser->parse_size()), dims(parser->parse_dims()), buffer(size * dims), opt_(opt)
+    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers)
+        : size(buffers.size), dims(buffers.dims), buffer(buffers.active().begin(), buffers.active().end()), opt_(opt)
     {
         DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
-
-        START_TIMING(reading_data_file);
-        parser->parse_content(buffer, size, dims);
-        END_TIMING(reading_data_file);
     }
 
     /**
@@ -194,30 +165,68 @@ private:
 
 
 /**
- * @brief Factory function for creating a new @ref data object from a @p size and @p dims.
+ * @brief Factory function for creating a new @ref data and @ref mpi_buffers object from a @p size and @p dims.
  * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
  * @param[in] opt the used @ref options object
  * @param[in] size the number of data points
  * @param[in] dims the number of dimensions per data point
- * @return the newly constructed @ref data object (`[[nodiscard]]`)
+ * @param[in] communicator the *MPI_Comm* communicator used to read the data in a distributed manner
+ * @return the newly constructed @ref data and @ref mpi_buffers object (`[[nodiscard]]`)
+ *
+ * @note **Each** MPI rank contains `size * dims` points!
  */
 template <memory_layout layout, typename Options>
-[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims) {
-    return data<layout, Options>(opt, size, dims);
+[[nodiscard]] inline auto make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims, MPI_Comm& communicator) {
+    using data_type = data<layout, Options>;
+    using real_type = typename Options::real_type;
+    using index_type = typename Options::index_type;
+    using mpi_buffers_type = mpi_buffers<real_type, index_type>;
+
+    START_TIMING(creating_data);
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+    mpi_buffers_type buffers(communicator, size, dims);
+    // set dummy data based on the memory_layout
+    if constexpr (layout == memory_layout::aos) {
+        std::iota(buffers.active().begin(), buffers.active().end(), comm_rank * buffers.active().size());
+    } else {
+        typename Options::real_type val = comm_rank * buffers.active().size();
+        for (index_type point = 0; point < size; ++point) {
+            for (index_type dim = 0; dim < dims; ++dim) {
+                buffers.active()[point + dim * size] = val++;
+            }
+        }
+    }
+    END_TIMING(creating_data);
+
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers), std::move(buffers));
 }
 
 /**
- * @brief Factory function for creating a new @ref data object from a @p file.
+ * @brief Factory function for creating a new @ref data and @ref mpi_buffers object from a @p file.
  * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
  * @param[in] opt the used @ref options object
  * @param[in] file the @p file from which the data should get loaded
- * @return the newly constructed @ref data object (`[[nodiscard]]`)
+ * @param[in] communicator the *MPI_Comm* communicator used to read the data in a distributed manner
+ * @return the newly constructed @ref data and @ref mpi_buffers object (`[[nodiscard]]`)
+ *
+ * @throw std::invalid_argument if @p file doesn't exist.
  */
 template <memory_layout layout, typename Options>
-[[nodiscard]] inline data<layout, Options> make_data(const Options& opt, const std::string& file) {
-    return data<layout, Options>(opt, make_file_parser<layout, Options>(file));
+[[nodiscard]] inline auto make_data(const Options& opt, const std::string& file, MPI_Comm& communicator) {
+    using data_type = data<layout, Options>;
+    using real_type = typename Options::real_type;
+    using index_type = typename Options::index_type;
+    using mpi_buffers_type = mpi_buffers<real_type, index_type>;
+
+    START_TIMING(parsing_data_file);
+    auto fp = make_file_parser<layout, Options>(file, communicator);
+    mpi_buffers_type buffers = fp->parse_content();
+    END_TIMING(parsing_data_file);
+
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers), std::move(buffers));
 }
 
 
