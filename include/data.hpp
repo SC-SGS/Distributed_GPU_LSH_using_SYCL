@@ -52,7 +52,9 @@ public:
     using options_type = Options;
 
 
-    /// The number of data points.
+    /// The number of data points in total.
+    const index_type total_size;
+    /// The number of data points per MPI rank.
     const index_type size;
     /// The dimension of each data point.
     const index_type dims;
@@ -141,9 +143,11 @@ private:
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
     data(const Options& opt, mpi_buffers<real_type, index_type>& buffers)
-        : size(buffers.size), dims(buffers.dims), buffer(buffers.active().begin(), buffers.active().end()), opt_(opt)
+        : total_size(buffers.total_size), size(buffers.size), dims(buffers.dims),
+          buffer(buffers.active().begin(), buffers.active().end()), opt_(opt)
     {
-        DEBUG_ASSERT(0 < size, "Illegal size!: {}", size);
+        DEBUG_ASSERT(0 < total_size, "Illegal total_size!: {}", total_size);
+        DEBUG_ASSERT(0 < size, "Illegal rank_size!: {}", size);
         DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!: {}", dims);
     }
 
@@ -154,7 +158,8 @@ private:
      * @return the output stream
      */
     friend std::ostream& operator<<(std::ostream& out, const data& data) {
-        out << "size " << data.size << '\n';
+        out << "total_size " << data.total_size << '\n';
+        out << "rank_size " << data.size << '\n';
         out << "dims " << data.dims;
         return out;
     }

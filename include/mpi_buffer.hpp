@@ -23,7 +23,9 @@
 template <typename value_type, typename size_type = std::size_t>
 class mpi_buffers {
 public:
-    /// The number of data points.
+    /// The number of data points in total.
+    const size_type total_size;
+    /// The number of data points per MPI rank.
     const size_type size;
     /// The dimension of each data point.
     const size_type dims;
@@ -37,7 +39,8 @@ public:
      * @param[in] dims the number of dimensions per data point in the buffer
      */
     mpi_buffers(const MPI_Comm& communicator, const size_type size, const size_type dims)
-            : size(size), dims(dims), communicator_(communicator), active_buffer_(0), buffer_0_(size * dims), buffer_1_(size * dims)
+            : total_size([&]() { int comm_size; MPI_Comm_size(communicator, &comm_size); return comm_size * size; }()),
+              size(size), dims(dims), communicator_(communicator), active_buffer_(0), buffer_0_(size * dims), buffer_1_(size * dims)
     {
         int comm_size, comm_rank;
         MPI_Comm_size(communicator_, &comm_size);
