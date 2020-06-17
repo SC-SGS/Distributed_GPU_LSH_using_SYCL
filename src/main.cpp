@@ -175,7 +175,8 @@ int main(int argc, char** argv) {
         }
 
         // read options file
-        options<>::factory options_factory;
+        using options_type = options<>;
+        options_type::factory options_factory;
         if (parser.has_argv("options")) {
             auto options_file = parser.argv_as<std::string>("options");
             options_factory = decltype(options_factory)(options_file);
@@ -186,19 +187,19 @@ int main(int argc, char** argv) {
         // change options values through factory functions using the provided values
         if (parser.has_argv("num_hash_tables")) {
             options_factory.set_num_hash_tables(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>("num_hash_tables"));
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_tables)>>("num_hash_tables"));
         }
         if (parser.has_argv("hash_table_size")) {
             options_factory.set_hash_table_size(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>("hash_table_size"));
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().hash_table_size)>>("hash_table_size"));
         }
         if (parser.has_argv("num_hash_functions")) {
             options_factory.set_num_hash_functions(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>("num_hash_functions"));
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_functions)>>("num_hash_functions"));
         }
         if (parser.has_argv("w")) {
             options_factory.set_w(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>("w"));
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().w)>>("w"));
         }
 
         // create options object from factory
@@ -233,7 +234,7 @@ int main(int argc, char** argv) {
 //        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
 
         // read the number of nearest-neighbours to search for
-        typename decltype(opt)::index_type k = 0;
+        typename options_type::index_type k = 0;
         if (parser.has_argv("k")) {
             k = parser.argv_as<decltype(k)>("k");
             if (comm_rank == 1) k = 0;
