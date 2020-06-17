@@ -25,6 +25,8 @@ args = parser.parse_args()
 
 if not args.input_file.endswith('.arff'):
     raise ValueError("'{}' is not an .arff file!".format(args.input_file))
+if args.output_file.endswith('.arff'):
+    raise ValueError("The output file ('{}') should NOT have an '.arff' extension!".format(args.output_file))
 
 # read .arff file and convert it to the custom binary format
 data = arff.loadarff(args.input_file)[0]
