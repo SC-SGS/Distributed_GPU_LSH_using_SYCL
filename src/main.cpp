@@ -1,26 +1,19 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-06-17
  *
  * @brief The main file containing the main logic.
  */
 
-#include <cstdio>
 #include <iostream>
-#include <optional>
 #include <utility>
-#include <sstream>
-
-#include <chrono>
-#include <thread>
 
 #include <mpi.h>
 
 #include <argv_parser.hpp>
 #include <config.hpp>
 #include <detail/assert.hpp>
-#include <detail/mpi_type.hpp>
 #include <data.hpp>
 #include <evaluation.hpp>
 #include <exceptions/mpi_exception.hpp>
@@ -48,13 +41,19 @@ void sycl_exception_handler(sycl::exception_list exceptions) {
 
 /**
  * @brief Exception handler for errors occurred due to a call to a MPI function.
- * @param[in] comm the communicator on which the error occurred
+ * @param[in] comm the *MPI_Comm* on which the error occurred
  * @param[in] err the occurred error
  * @param[in] ... additional arguments
  */
 void mpi_exception_handler(MPI_Comm* comm, int* err, ...) {
     throw mpi_exception(*comm, *err);
 }
+/**
+ * @brief Exception handler for errors occurred due to a call to a MPI_File function.
+ * @param[in] file the *MPI_File* on which the error occurred
+ * @param[in] err the occurred error
+ * @param[in] ... additional arguments
+ */
 void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
     throw mpi_file_exception(*file, *err);
 }
