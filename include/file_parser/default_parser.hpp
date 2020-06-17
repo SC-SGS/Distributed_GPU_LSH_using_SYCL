@@ -91,7 +91,7 @@ public:
         MPI_File_read_at(base::file_, sizeof(index_type), &dims, 1, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
         return static_cast<index_type>(dims);
     }
-    mpi_buffers<real_type> parse_content() const override {
+    [[nodiscard]] mpi_buffers<real_type> parse_content() const override {
         // calculate communicator size and rank
         int comm_size, comm_rank;
         MPI_Comm_size(base::comm_, &comm_size);

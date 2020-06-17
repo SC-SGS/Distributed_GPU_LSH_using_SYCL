@@ -74,7 +74,7 @@ public:
     [[nodiscard]] index_type parse_size() const override { throw std::logic_error("Not implemented yet!"); }
     [[nodiscard]] index_type parse_rank_size() const override { throw std::logic_error("Not implemented yet!"); }
     [[nodiscard]] index_type parse_dims() const override { throw std::logic_error("Not implemented yet!"); }
-    mpi_buffers<real_type> parse_content() const override {
+    [[nodiscard]] mpi_buffers<real_type> parse_content() const override {
         throw std::logic_error("Not implemented yet!");
     }
 
