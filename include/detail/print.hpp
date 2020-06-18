@@ -17,6 +17,8 @@
 
 #include <mpi.h>
 
+#include <config.hpp>
+
 
 namespace detail {
 
@@ -260,6 +262,24 @@ namespace detail {
             }
         }
     }
+    /**
+     * @brief Print the given message @p msg after replacing all occurrences of `{}` with the corresponding `printf` format specifiers
+     * based on the types of @p args iff the MPI rank @p comm_rank is present in @p Ranks or if @p Ranks is empty.
+     * @tparam Ranks array of all MPI ranks on which @p msg should get printed
+     * @tparam Args the types to fill the placeholders
+     * @param[in] comm_rank the MPI rank
+     * @param[in] msg the message (potentially) containing placeholders
+     * @param[in] args the values to fill the placeholders
+     */
+    template <decltype(print_rank) Ranks, typename... Args>
+    inline void mpi_print(const int comm_rank, const char* msg, Args&&... args) {
+        for (const int rank : *Ranks) {
+            if (rank == comm_rank) {
+                print(msg, std::forward<Args>(args)...);
+                break;
+            }
+        }
+    }
 
     /**
      * @brief Print the given message @p msg after replacing all occurrences of `{}` with the corresponding `printf` format specifiers
@@ -276,6 +296,22 @@ namespace detail {
         MPI_Comm_rank(communicator, &comm_rank);
 
         mpi_print<Ranks...>(comm_rank, msg, std::forward<Args>(args)...);
+    }
+    /**
+     * @brief Print the given message @p msg after replacing all occurrences of `{}` with the corresponding `printf` format specifiers
+     * based on the types of @p args iff the MPI rank obtained through @p communicator is present in @p Ranks or if @p Ranks is empty.
+     * @tparam Ranks array of all MPI ranks on which @p msg should get printed
+     * @tparam Args the types to fill the placeholders
+     * @param[in] communicator the communicator to obtain the MPI rank from
+     * @param[in] msg the message (potentially) containing placeholders
+     * @param[in] args the values to fill the placeholders
+     */
+    template <decltype(print_rank) Ranks, typename... Args>
+    inline void mpi_print(const MPI_Comm& communicator, const char* msg, Args&&... args) {
+        int comm_rank;
+        MPI_Comm_rank(communicator, &comm_rank);
+
+        mpi_print<Ranks>(comm_rank, msg, std::forward<Args>(args)...);
     }
 
 }

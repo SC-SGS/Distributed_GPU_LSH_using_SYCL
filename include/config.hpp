@@ -9,8 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
 #define DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
 
-#include <chrono>
-#include <type_traits>
+#include <array>
 
 #include <CL/sycl.hpp>
 
@@ -30,8 +29,8 @@ enum class memory_layout {
 
 
 /// The MPI rank on which the @ref detail::mpi_print information should be printed.
-constexpr int print_rank = 0;
-
+constexpr std::array print_rank_values = { 0, 1 };
+constexpr decltype(print_rank_values)* print_rank = &print_rank_values;
 
 
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
