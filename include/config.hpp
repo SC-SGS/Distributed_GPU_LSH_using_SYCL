@@ -28,8 +28,8 @@ enum class memory_layout {
 };
 
 
-/// The MPI rank on which the @ref detail::mpi_print information should be printed.
-constexpr std::array print_rank_values = { 0, 1 };
+/// The MPI rank(s) on which the @ref detail::mpi_print information should be printed.
+constexpr std::array print_rank_values = { 0 };
 constexpr decltype(print_rank_values)* print_rank = &print_rank_values;
 
 
