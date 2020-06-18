@@ -209,7 +209,7 @@ private:
         : buffer(tmp_buffer.begin(), tmp_buffer.end()), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
     /// The current MPI rank.
-    int comm_rank_;
+    const int comm_rank_;
     /// Const reference to @ref options object.
     const Options& opt_;
     /// Reference to @ref data object.
