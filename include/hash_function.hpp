@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-05-29
+ * @date 2020-06-18
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -12,9 +12,13 @@
 #include <cmath>
 #include <random>
 #include <type_traits>
+#include <vector>
+
+#include <mpi.h>
 
 #include <config.hpp>
 #include <data.hpp>
+#include <detail/mpi_type.hpp>
 #include <options.hpp>
 
 
@@ -66,9 +70,9 @@ public:
     [[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point,
             AccData& acc_data, AccHashFunction& acc_hash_function)
     {
-        DEBUG_ASSERT(0 <= hash_table && hash_table < opt_.num_hash_tables,
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= hash_table && hash_table < opt_.num_hash_tables,
                 "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
-        DEBUG_ASSERT(0 <= point && point < data_.size,
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.size,
                 "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
         hash_value_type combined_hash = opt_.num_hash_functions;
@@ -127,19 +131,47 @@ public:
     [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function,
             const index_type dim) const noexcept
     {
-        DEBUG_ASSERT(0 <= hash_table && hash_table < opt_.num_hash_tables,
-                "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
-        DEBUG_ASSERT(0 <= hash_function && hash_function < opt_.num_hash_functions,
-                "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt_.num_hash_functions);
-        DEBUG_ASSERT(0 <= dim && dim < data_.dims + 1,
-                "Out-of-bounce access!: 0 <= {} < {}", dim, data_.dims + 1);
+        return hash_functions::get_linear_id(comm_rank_, hash_table, opt_.num_hash_tables, hash_function, opt_.num_hash_functions, dim, data_.dims);
+    }
+    /**
+     * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+     * @param[in] comm_rank the current MPI rank
+     * @param[in] hash_table the provided hash table
+     * @param[in] num_hash_tables the total number of hash tables
+     * @param[in] hash_function the provided hash function
+     * @param[in] num_hash_functions the total number of hash functions
+     * @param[in] dim the provided dimension
+     * @param[in] dims the total number of dimensions
+     * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p num_hash_tables **must** be greater than `0`.
+     * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
+     * @þre @p num_hash_functions **must be greater than `0`.
+     * @pre @p hash_function **must** be greater or equal than `0` and less than @p num_hash_functions.
+     * @pre @p dims **must** be greater than `0`.
+     * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
+     */
+    [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
+                                                            const index_type hash_table, const index_type num_hash_tables,
+                                                            const index_type hash_function, const index_type num_hash_functions,
+                                                            const index_type dim, const index_type dims) noexcept
+    {
+        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_tables, "Illegal total number of hash tables!: 0 < {}", num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_functions, "Illegal total number of hash functions!: 0 < {}", num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < num_hash_functions,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Illegal number of total dimensions!: 0 < {}", dims);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < dims + 1,
+                         "Out-of-bounce access!: 0 <= {} < {}", dim, dims + 1);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
-            return hash_table * opt_.num_hash_functions * (data_.dims + 1) + hash_function * (data_.dims + 1) + dim;
+            return hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dim;
         } else {
             // Struct of Arrays
-            return hash_table * opt_.num_hash_functions * (data_.dims + 1) + dim * opt_.num_hash_functions + hash_function;
+            return hash_table * num_hash_functions * (dims + 1) + dim * num_hash_functions + hash_function;
         }
     }
 
@@ -162,45 +194,24 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Data_>
-    friend hash_functions<layout_, typename Data_::options_type, Data_> make_hash_functions(Data_&);
+    friend auto make_hash_functions(Data_&, const MPI_Comm&);
     /// Befriend hash_functions class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
     friend class hash_functions;
 
 
     /**
-     * @brief Construct new hash functions given the options in @p opt and sizes in @p data.
+     * @brief Construct new hash functions.
      * @param[in] opt the @ref options object representing the currently set options
      * @param[in] data the @ref data object representing the used data set
-     * @param[in] init `true` if the @ref buffer should be initialized, `false` otherwise
+     * @param[in] tmp_buffer the hash functions to initialize the sycl::buffer with
+     * @param[in] comm_rank the current MPI rank
      */
-    hash_functions(const Options& opt, Data& data, const bool init = true)
-        : buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1)), opt_(opt), data_(data)
-    {
-        START_TIMING(creating_hash_functions);
-        if (init) {
-            // TODO 2020-05-07 19:03 marcel: uncomment for truly random numbers
-//        std::random_device rnd_device;
-//        std::mt19937 rnd_normal_gen(rnd_device());
-//        std::mt19937 rnd_uniform_gen(rnd_device());
-            std::mt19937 rnd_normal_gen;
-            std::mt19937 rnd_uniform_gen;
-            std::normal_distribution<real_type> rnd_normal_dist;
-            std::uniform_real_distribution<real_type> rnd_uniform_dist(0, opt.w);
+    hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
+        : buffer(tmp_buffer.begin(), tmp_buffer.end()), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
-            auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
-            for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
-                    for (index_type dim = 0; dim < data_.dims; ++dim) {
-                        acc[this->get_linear_id(hash_table, hash_function, dim)] = std::abs(rnd_normal_dist(rnd_normal_gen));
-                    }
-                    acc[this->get_linear_id(hash_table, hash_function, data_.dims)] = rnd_uniform_dist(rnd_uniform_gen);
-                }
-            }
-        }
-        END_TIMING(creating_hash_functions);
-    }
-
+    /// The current MPI rank.
+    int comm_rank_;
     /// Const reference to @ref options object.
     const Options& opt_;
     /// Reference to @ref data object.
@@ -208,17 +219,59 @@ private:
 
 };
 
+#include <numeric>
+#include <getopt.h>
 
 /**
  * @brief Factory function for creating a new @ref hash_functions object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
  * @param[in] data the used data object
+ * @param[in] communicator the *MPI_Comm* communicator used to distribute the hash functions created on MPI rank 0
  * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data>
-[[nodiscard]] inline hash_functions<layout, typename Data::options_type, Data> make_hash_functions(Data& data) {
-    return hash_functions<layout, typename Data::options_type, Data>(data.get_options(), data);
+[[nodiscard]] inline auto make_hash_functions(Data& data, const MPI_Comm& communicator) {
+    using options_type = typename Data::options_type;
+    using real_type = typename options_type::real_type;
+    using index_type = typename options_type::index_type;
+    using hash_functions_type = hash_functions<layout, options_type, Data>;
+
+    START_TIMING(creating_hash_functions);
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+
+    options_type opt = data.get_options();
+    std::vector<real_type> buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1));
+
+    if (comm_rank == 0) {
+        // create hash functions on MPI rank 0
+        // TODO 2020-05-07 19:03 marcel: uncomment for truly random numbers
+//        std::random_device rnd_device;
+//        std::mt19937 rnd_normal_gen(rnd_device());
+//        std::mt19937 rnd_uniform_gen(rnd_device());
+        std::mt19937 rnd_normal_gen;
+        std::mt19937 rnd_uniform_gen;
+        std::normal_distribution<real_type> rnd_normal_dist;
+        std::uniform_real_distribution<real_type> rnd_uniform_dist(0, opt.w);
+
+        for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+            for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                for (index_type dim = 0; dim < data.dims; ++dim) {
+                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, dim, data.dims)]
+                        = std::abs(rnd_normal_dist(rnd_normal_gen));
+                }
+                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, data.dims, data.dims)]
+                    = rnd_uniform_dist(rnd_uniform_gen);
+            }
+        }
+    }
+
+    // broadcast hash functions to other MPI ranks
+    MPI_Bcast(buffer.data(), buffer.size(), detail::mpi_type_cast<real_type>(), 0, communicator);
+    END_TIMING_MPI(creating_hash_functions, communicator);
+
+    return hash_functions_type(data.get_options(), data, buffer, comm_rank);
 }
 
 
