@@ -269,7 +269,7 @@ template <memory_layout layout, typename Data>
 
     // broadcast hash functions to other MPI ranks
     MPI_Bcast(buffer.data(), buffer.size(), detail::mpi_type_cast<real_type>(), 0, communicator);
-    END_TIMING_MPI(creating_hash_functions, communicator);
+    END_TIMING_MPI(creating_hash_functions, comm_rank);
 
     return hash_functions_type(data.get_options(), data, buffer, comm_rank);
 }

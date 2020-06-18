@@ -207,7 +207,7 @@ template <memory_layout layout, typename Options>
             }
         }
     }
-    END_TIMING_MPI(creating_data, communicator);
+    END_TIMING_MPI(creating_data, comm_rank);
 
     return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
 }
@@ -236,7 +236,7 @@ template <memory_layout layout, typename Options>
 
     auto fp = make_file_parser<layout, Options>(file, communicator);
     mpi_buffers_type buffers = fp->parse_content();
-    END_TIMING_MPI(parsing_data_file, communicator);
+    END_TIMING_MPI(parsing_data_file, comm_rank);
 
     return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
 }
