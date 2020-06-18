@@ -128,9 +128,7 @@ public:
      * @pre @p hash_function **must** be greater or equal than `0` and less than `options::num_hash_functions`.
      * @pre @p dim **must** be greater or equal than `0` and less than `data::dims + 1`.
      */
-    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function,
-            const index_type dim) const noexcept
-    {
+    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function, const index_type dim) const noexcept {
         return hash_functions::get_linear_id(comm_rank_, hash_table, opt_.num_hash_tables, hash_function, opt_.num_hash_functions, dim, data_.dims);
     }
     /**
