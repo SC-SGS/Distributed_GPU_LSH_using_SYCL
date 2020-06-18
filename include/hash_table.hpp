@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-06-18
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -52,13 +52,13 @@ public:
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
-    hash_functions<layout, Options, Data> hash_functions_;
+    hash_functions<layout, Options, Data> hash_function;
 
 
     template <memory_layout knn_layout>
     auto calculate_knn(const index_type k) {
         if (k > data_.size) {
-            throw std::invalid_argument("k must not be greater than data.size()!");
+            throw std::invalid_argument("k must not be greater than data.size!");
         }
 
         START_TIMING(calculate_nearest_neighbors);
@@ -66,7 +66,7 @@ public:
 
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_knns = knns.buffer.template get_access<sycl::access::mode::discard_write>(cgh);
@@ -88,7 +88,7 @@ public:
                 }
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_bucket = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    const hash_value_type hash_bucket = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
 
                     for (index_type bucket_element = acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket];
                             bucket_element < acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket + 1];
@@ -132,12 +132,12 @@ public:
             });
         });
 
-        END_TIMING_WITH_BARRIER(calculate_nearest_neighbors, queue_);
+        END_TIMING_BARRIER(calculate_nearest_neighbors, queue_);
         return knns;
     }
 
 
-    [[nodiscard]] constexpr index_type get_linear_idx(const index_type hash_table, const hash_value_type hash_value) const noexcept {
+    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const hash_value_type hash_value) const noexcept {
         // TODO 2020-05-11 17:17 marcel: implement correctly
         return hash_table * data_.size + static_cast<index_type>(hash_value);
     }
@@ -160,11 +160,8 @@ public:
 
 private:
     /// Befriend factory function.
-    template <memory_layout layout_, typename Data_>
-    friend hash_tables<layout_, typename Data_::options_type, Data_> make_hash_tables(sycl::queue&, Data_&);
-    /// Befriend factory function.
     template <memory_layout layout_, typename Options_, typename Data_>
-    friend hash_tables<layout_, Options_, Data_> make_hash_tables(sycl::queue&, hash_functions<layout_, Options_, Data_>);
+    friend auto make_hash_tables(sycl::queue&, hash_functions<layout_, Options_, Data_>, const MPI_Comm&);
 
 
     /**
@@ -173,10 +170,11 @@ private:
      * @param[in] opt the @ref options object representing the currently set options
      * @param[in] data the @ref data object representing the used data set
      * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
+     * @param[in] comm_rank the current MPI rank
      */
-    hash_tables(sycl::queue& queue, const Options& opt, Data& data, hash_functions<layout, Options, Data> hash_functions)
+    hash_tables(sycl::queue& queue, const Options& opt, Data& data, hash_functions<layout, Options, Data> hash_functions, const int comm_rank)
             : buffer(opt.num_hash_tables * data.size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
-              hash_functions_(hash_functions), queue_(queue), opt_(opt), data_(data)
+              hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
         {
             // create temporary buffer to count the occurrence of each hash value
@@ -194,16 +192,6 @@ private:
         this->fill_hash_tables();
     }
 
-    /**
-     * @brief Construct new hash tables given the options in @p opt and sizes in @p data.
-     * @details Internally constructs a @ref hash_functions object with the parameters givne in @p opt and @p data.
-     * @param[inout] queue the SYCL command queue
-     * @param[in] opt the @ref options object representing the currently set options
-     * @param[in] data the @ref data object representing the used data set
-     */
-    hash_tables(sycl::queue& queue, const Options& opt, Data& data)
-            : hash_tables(queue, opt, data, make_hash_functions<layout>(data)) { }
-
 
     /**
      * @brief Calculates the number of data points assigned to each hash bucket in each hash table.
@@ -213,7 +201,7 @@ private:
         START_TIMING(count_hash_values);
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::atomic>(cgh);
-            auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
 
             cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_.size), [=](sycl::item<> item) {
@@ -222,12 +210,12 @@ private:
                 if (idx >= data_.size) return;
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    const hash_value_type hash_value = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
                     acc_hash_value_count[hash_table * opt_.hash_table_size + hash_value].fetch_add(1);
                 }
             });
         });
-        END_TIMING_WITH_BARRIER(count_hash_values, queue_);
+        END_TIMING_MPI_AND_BARRIER(count_hash_values, comm_rank_, queue_);
     }
     /**
      * @brief Calculates the offsets for each hash bucket in each hash table.
@@ -256,7 +244,7 @@ private:
                 }
             });
         });
-        END_TIMING_WITH_BARRIER(calculate_offsets, queue_);
+        END_TIMING_MPI_AND_BARRIER(calculate_offsets, comm_rank_, queue_);
     }
     /**
      * @brief Fill the hash tables with the data points using the previously calculated offsets.
@@ -265,7 +253,7 @@ private:
         START_TIMING(fill_hash_tables);
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_hash_functions = hash_functions_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
@@ -273,16 +261,18 @@ private:
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_functions_.hash(hash_table, idx, acc_data, acc_hash_functions);
+                    const hash_value_type hash_value = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
                     acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
                 }
             });
         });
-        END_TIMING_WITH_BARRIER(fill_hash_tables, queue_);
+        END_TIMING_MPI_AND_BARRIER(fill_hash_tables, comm_rank_, queue_);
     }
 
     /// Reference to the SYCL queue object.
     sycl::queue queue_;
+    /// The current MPI rank.
+    const int comm_rank_;
     /// Const reference to @ref options object.
     const Options& opt_;
     /// Reference to @ref data object.
@@ -293,29 +283,18 @@ private:
 /**
  * @brief Factory function for creating a new @ref hash_tables object.
  * @tparam layout the @ref memory_layout type
- * @tparam Data the @ref data type
- * @param[inout] queue the SYCL command queue
- * @param[in] data the used data object
- * @return the newly constructed @ref hash_tables object (`[[nodiscard]]`)
- */
-template <memory_layout layout, typename Data>
-[[nodiscard]] inline hash_tables<layout, typename Data::options_type, Data> make_hash_tables(sycl::queue& queue, Data& data) {
-    return hash_tables<layout, typename Data::options_type, Data>(queue, data.get_options(), data);
-}
-
-/**
- * @brief Factory function for creating a new @ref hash_tables object.
- * @tparam layout the @ref memory_layout type
  * @tparam Options the @ref options type
  * @tparam Data the @ref data type
  * @param[inout] queue the SYCL command queue
  * @param[in] hash_functions the used @ref hash_functions for this hash tables
+ * @param[in] communicator the *MPI_Comm* communicator
  * @return the newly constructed @ref hash_tables object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] inline hash_tables<layout, Options, Data> make_hash_tables(sycl::queue& queue, hash_functions<layout, Options, Data> hash_functions)
-{
-    return hash_tables<layout, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions);
+[[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, hash_functions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+    return hash_tables<layout, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank);
 }
 
 
