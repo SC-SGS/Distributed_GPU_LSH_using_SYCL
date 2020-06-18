@@ -94,8 +94,30 @@ public:
      * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
      */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
+        return data::get_linear_id(comm_rank_, point, size, dim, dims);
+    }
+    /**
+     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+     * @param[in] comm_rank the current MPI rank
+     * @param[in] point the provided data point
+     * @param[in] size the total number of data points
+     * @param[in] dim the provided dimension
+     * @param[in] dims the total number of dimensions
+     * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p size **must** be greater than `0`.
+     * @pre @p point **must** be greater or equal than `0` and less than @p size.
+     * @pre @p dims **must** be greater than `0`.
+     * @pre @p dim **must** be greater or equal than `0` and less than @p dims.
+     */
+    [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] int comm_rank,
+                                                            const index_type point, [[maybe_unused]] const index_type size,
+                                                            const index_type dim, [[maybe_unused]] const index_type dims) noexcept
+    {
+        DEBUG_ASSERT_MPI(comm_rank, 0 < size, "Illegal total number of data points!: 0 < {}", size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Illegal total number of dimensions!: 0 < {}", dims);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < dims, "Out-of-bounce access!: 0 <= {} < {}", dim, dims);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
@@ -110,16 +132,12 @@ public:
      * @brief Returns the @ref options object which has been used to create this @ref data object.
      * @return the @ref options object (`[[nodiscard]]`)
      */
-    [[nodiscard]] const Options& get_options() const noexcept {
-        return opt_;
-    }
+    [[nodiscard]] const Options& get_options() const noexcept { return opt_; }
     /**
      * @brief Returns the specified @ref memory_layout (*Array of Structs* or *Struct of Arrays*).
      * @return the specified @ref memory_layout (`[[nodiscard]]`)
      */
-    [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept {
-        return layout;
-    }
+    [[nodiscard]] constexpr memory_layout get_memory_layout() const noexcept { return layout; }
 
 
 private:
@@ -197,14 +215,10 @@ template <memory_layout layout, typename Options>
 
     mpi_buffers_type buffers(communicator, size, dims);
     // set dummy data based on the memory_layout
-    if constexpr (layout == memory_layout::aos) {
-        std::iota(buffers.active().begin(), buffers.active().end(), comm_rank * buffers.active().size());
-    } else {
-        typename Options::real_type val = comm_rank * buffers.active().size();
-        for (index_type point = 0; point < size; ++point) {
-            for (index_type dim = 0; dim < dims; ++dim) {
-                buffers.active()[point + dim * size] = val++;
-            }
+    real_type val = comm_rank * buffers.active().size();
+    for (index_type point = 0; point < size; ++point) {
+        for (index_type dim = 0; dim < dims; ++dim) {
+            buffers.active()[data_type::get_linear_id(comm_rank, point, size, dim, dims)] = val++;
         }
     }
     END_TIMING_MPI(creating_data, comm_rank);
