@@ -14,6 +14,7 @@
 #include <argv_parser.hpp>
 #include <config.hpp>
 #include <detail/assert.hpp>
+#include <detail/timing.hpp>
 #include <data.hpp>
 #include <evaluation.hpp>
 #include <exceptions/mpi_exception.hpp>
@@ -229,9 +230,10 @@ int main(int argc, char** argv) {
         }
 
         // create data object
-//        auto data = make_data<memory_layout::aos>(opt, data_file);
-//        auto data = make_data<memory_layout::aos>(opt, 10, 3);
-//        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
+//        auto [data, buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
+        auto [data, buffers] = make_data<memory_layout::aos>(opt, 10, 3, communicator);
+        detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
+
 
         // read the number of nearest-neighbours to search for
         typename options_type::index_type k = 0;
@@ -246,46 +248,16 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-        auto [data, buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
 
-//        if (comm_rank == 0 || comm_rank == 1) {
-//            auto acc = data.buffer.get_access<sycl::access::mode::read>();
-//            for (std::size_t i = 0; i < acc.get_count(); ++i) {
-//                std::cout << acc[i] << ' ';
-//            }
-//            std::cout << std::endl;
-//        }
+        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
+        detail::mpi_print<print_rank>(comm_rank, "Used device: {}\n", queue.get_device().get_info<sycl::info::device::name>().c_str());
 
+        START_TIMING(creating_hash_tables);
 
-//        using options_type = decltype(opt);
-//        using index_type = typename options_type::index_type;
-//        using real_type = typename options_type::real_type;
-//
-//        [[maybe_unused]] auto fp = make_file_parser<memory_layout::aos, decltype(opt)>(data_file, communicator);
-//
-//        const index_type total_size = fp->parse_size();
-//        const index_type rank_size = fp->parse_rank_size();
-//        const real_type dims = fp->parse_dims();
-//        mpi_buffers<real_type> buffers = fp->parse_content();
-//
-//        std::ostringstream ss;
-//        ss << buffers.active().size() << " -> ";
-//        ss << "Rank " << comm_rank << " (total_size: " << total_size << ", rank_size: " << rank_size << ", dims: " << dims << "): ";
-//        for (const auto val : buffers.active()) {
-//            ss << val << ' ';
-//        }
-//        ss << '\n';
-//        std::cout << ss.str();
+        auto hash_functions = make_hash_functions<memory_layout::aos>(data, communicator);
+        auto hash_tables = make_hash_tables(queue, hash_functions, communicator);
 
-//        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
-//        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
-//
-//        START_TIMING(creating_hash_tables);
-//
-//        auto hash_functions = make_hash_functions<memory_layout::aos>(data);
-//        auto hash_tables = make_hash_tables(queue, hash_functions);
-//
-//        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
+        END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 //
 //        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 //

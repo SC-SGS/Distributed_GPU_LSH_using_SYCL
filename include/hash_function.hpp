@@ -19,6 +19,7 @@
 #include <config.hpp>
 #include <data.hpp>
 #include <detail/mpi_type.hpp>
+#include <detail/timing.hpp>
 #include <options.hpp>
 
 

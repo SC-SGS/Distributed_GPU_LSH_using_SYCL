@@ -22,6 +22,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
+#include <detail/timing.hpp>
 #include <file_parser/file_parser.hpp>
 #include <mpi_buffer.hpp>
 #include <options.hpp>
