@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-18
  *
  * @brief Base class for all file parsers.
  * @details Pure virtual.
@@ -40,6 +40,7 @@ public:
      * @brief Constructs a new @ref file_parser object and opens the file to retrieve a *MPI_File* handle.
      * @param[in] file the file to parse
      * @param[in] communicator the *MPI_Comm* communicator used to open the @p file with
+     * @param[in] comm_rank the current MPI rank
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */

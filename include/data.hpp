@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-18
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -138,6 +138,7 @@ private:
      * @brief Construct a new data object from the given @p buffers.
      * @param[in] opt the provided @ref options object
      * @param[in] buffers the @ref mpi_buffers containing the data points
+     * @param[in] comm_rank the current MPI rank
      *
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.

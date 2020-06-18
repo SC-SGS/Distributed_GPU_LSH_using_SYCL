@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-18
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -55,6 +55,7 @@ public:
      * @brief Parse the given command line arguments.
      * @param[in] argc the number of provided command line arguments
      * @param[in] argv the command line arguments
+     * @param[in] comm_rank the current MPI rank
      *
      * @throws std::invalid_argument if **any** key **doesn't** starts with "--".
      * @throws std::invalid_argument if **any** key **isn't** a legal key according to @ref possible_argvs_.

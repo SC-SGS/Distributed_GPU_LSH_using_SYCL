@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-18
  *
  * @brief File parser for parsing plain data files.
  */
@@ -60,11 +60,12 @@ public:
      * @brief Constructs a new @ref default_parser object for parsing plain data files.
      * @param[in] file the file to parse
      * @param[in] communicator the *MPI_Comm* communicator used to open the @p file with
+     * @param[in] comm_rank the current MPI rank
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    default_parser(const std::string& file, const MPI_Comm& communicator, const int comm_rank_)
-        : file_parser<layout, Options>(file, communicator, comm_rank_)
+    default_parser(const std::string& file, const MPI_Comm& communicator, const int comm_rank)
+        : file_parser<layout, Options>(file, communicator, comm_rank)
     {
         detail::mpi_print<print_rank>(communicator, "Parsing a file using the default_parser together with MPI IO!\n");
     }
