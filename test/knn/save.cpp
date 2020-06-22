@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-05-29
  *
- * @brief Test cases for the @ref knn::save(const std::string&) member function of the @ref knn class.
+ * @brief Test cases for the @ref knn::save(const std::string&, const MPI_Comm&) member function of the @ref knn class.
  * @details Testsuite: *KnnTest*
  * | test case name | test case description                                    |
  * |:---------------|:---------------------------------------------------------|

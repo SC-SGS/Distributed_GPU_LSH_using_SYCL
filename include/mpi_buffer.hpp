@@ -9,8 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 
-#include <vector>
-
+#include <numeric>
 #include <mpi.h>
 
 #include <detail/mpi_type.hpp>
@@ -40,7 +39,8 @@ public:
      */
     mpi_buffers(const MPI_Comm& communicator, const size_type size, const size_type dims)
             : total_size([&]() { int comm_size; MPI_Comm_size(communicator, &comm_size); return comm_size * size; }()),
-              size(size), dims(dims), communicator_(communicator), active_buffer_(0), buffer_0_(size * dims), buffer_1_(size * dims)
+              size(size), dims(dims), communicator_(communicator),
+              active_buffer_(0), buffer_0_(new value_type[size * dims]), buffer_1_(new value_type[size * dims])
     {
         int comm_size, comm_rank;
         MPI_Comm_size(communicator_, &comm_size);
@@ -50,9 +50,21 @@ public:
         source_ = (comm_size + (comm_rank - 1) % comm_size) % comm_size;
     }
 
+    ~mpi_buffers() {
+        delete[] buffer_0_;
+        delete[] buffer_1_;
+    }
+
     // make sure an object of this class will NEVER be copied
     mpi_buffers(const mpi_buffers&) = delete;
-    mpi_buffers(mpi_buffers&& other) noexcept = default;
+    mpi_buffers(mpi_buffers&& other) noexcept
+        : total_size(other.total_size), size(other.size), dims(other.dims),
+          communicator_(other.communicator_), active_buffer_(other.active_buffer_), dest_(other.dest_), source_(other.source_),
+          buffer_0_(other.buffer_0_), buffer_1_(other.buffer_1_)
+    {
+        other.buffer_0_ = nullptr;
+        other.buffer_1_ = nullptr;
+    }
     mpi_buffers& operator=(const mpi_buffers&) = delete;
     mpi_buffers& operator=(mpi_buffers&&) = delete;
 
@@ -60,20 +72,20 @@ public:
      * @brief Returns the currently active buffer, i.e. the buffer which holds the data currently worked on.
      * @return the active buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::vector<value_type>& active() noexcept { return active_buffer_ == 0 ? buffer_0_ : buffer_1_; }
+    [[nodiscard]] value_type* active() noexcept { return active_buffer_ == 0 ? buffer_0_ : buffer_1_; }
     /**
      * @brief Returns the currently inactive buffer, i.e. the buffer which holds the data that can be savely discarded.
      * @return the inactive buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::vector<value_type>& inactive() noexcept { return active_buffer_ == 1 ? buffer_0_ : buffer_1_; }
+    [[nodiscard]] value_type* inactive() noexcept { return active_buffer_ == 1 ? buffer_0_ : buffer_1_; }
 
     /**
      * @brief Send the currently active buffer to the neighboring inactive buffer using a ring like send pattern.
      * @details Swaps the currently active and inactive buffers.
      */
     void send_receive() {
-        MPI_Sendrecv(this->active().data(), this->active().size(), detail::mpi_type_cast<value_type>(), dest_, 0,
-                     this->inactive().data(), this->inactive().size(), detail::mpi_type_cast<value_type>(), source_, 0,
+        MPI_Sendrecv(this->active(), size * dims, detail::mpi_type_cast<value_type>(), dest_, 0,
+                     this->inactive(), size * dims, detail::mpi_type_cast<value_type>(), source_, 0,
                      communicator_, MPI_STATUS_IGNORE);
         active_buffer_ = (active_buffer_ + 1) % 2;
     }
@@ -88,9 +100,9 @@ private:
     /// The source MPI rank.
     int source_;
     /// The first buffer.
-    std::vector<value_type> buffer_0_;
+    value_type* buffer_0_;
     /// The second buffer.
-    std::vector<value_type> buffer_1_;
+    value_type* buffer_1_;
 };
 
 

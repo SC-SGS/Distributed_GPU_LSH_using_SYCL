@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-06-19
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -11,9 +11,12 @@
 
 #include <vector>
 
+#include <mpi.h>
+
 #include <config.hpp>
-#include <options.hpp>
 #include <data.hpp>
+#include <mpi_buffer.hpp>
+#include <options.hpp>
 
 
 namespace detail {
@@ -41,8 +44,8 @@ public:
     using index_type = typename Options::index_type;
 
 
-    /// The SYCL buffer holding all data: `buffer.get_count() == data::size * knn::k`.
-    sycl::buffer<index_type, 1> buffer;
+    /// The buffers containing the found knns.
+    mpi_buffers<index_type, index_type> buffers;
     /// The number of nearest neighbors to search for.
     const index_type k;
 
@@ -59,9 +62,9 @@ public:
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
         std::vector<index_type> res(k);
-        auto acc = buffer.template get_access<sycl::access::mode::read>();
+        std::vector<index_type>& buffer = buffers.active();
         for (index_type i = 0; i < k; ++i) {
-            res[i] = acc[this->get_linear_id(point, i)];
+            res[i] = buffer[this->get_linear_id(point, i)];
         }
         return res;
     }
@@ -79,11 +82,11 @@ public:
         DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
 
         std::vector<real_type> res(k * data_.dims);
-        auto acc_knn = buffer.template get_access<sycl::access::mode::read>();
+        std::vector<index_type> buffer = buffers.active();
         auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>();
         for (index_type i = 0; i < k; ++i) {
             // get the knn index
-            const index_type knn_id = acc_knn[this->get_linear_id(point, i)];
+            const index_type knn_id = buffer[this->get_linear_id(point, i)];
             for (index_type dim = 0; dim < data_.dims; ++dim) {
                 // get the concrete data point value of the current dimension
                 const real_type knn_dim = acc_data[data_.get_linear_id(knn_id, dim)];
@@ -104,12 +107,12 @@ public:
 //            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
     {
         knn<new_layout, Options, Data> new_knn(k, data_);
-        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
-        auto acc_new = new_knn.buffer.template get_access<sycl::access::mode::discard_write>();
+        std::vector<index_type> buffer_this = buffers.active();
+        std::vector<index_type> buffer_new = new_knn.buffers.active();
         for (index_type s = 0; s < data_.size(); ++s) {
             for (index_type nn = 0; nn < k; ++nn) {
                 // transform memory layout
-                acc_new[new_knn.get_linear_id(s, nn)] = acc_this[this->get_linear_id(s, nn)];
+                buffer_new[new_knn.get_linear_id(s, nn)] = buffer_this[this->get_linear_id(s, nn)];
             }
         }
         return new_knn;
@@ -122,16 +125,36 @@ public:
      * @return the flattened index (`[[nodiscard]]`)
      *
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
-     * @pre @p i **must** be greater or equal than `0` and less than `options::k`.
+     * @pre @p i **must** be greater or equal than `0` and less than `k`.
      */
     [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type i) const noexcept {
-        DEBUG_ASSERT(0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
+        return knn::get_linear_id(point, data_.size, i, k);
+    }
+    /**
+     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+     * @param[in] point the provided data point
+     * @param[in] size the total number of data points
+     * @param[in] i the provided knn index
+     * @param[in] k the number of nearest-neighbors to search for
+     * @return the flattened index (`[[nodiscard]]`)
+     *
+     * @pre @p size **must** be greater than `0`
+     * @pre @p point **must** be greater or equal than `0` and less than @p dims.
+     * @pre @p k **must** be greater than `0`
+     * @pre @p i **must** be greater or equal than `0` and less than @p k.
+     */
+    [[nodiscard]] static constexpr index_type get_linear_id(const index_type point, [[maybe_unused]] const index_type size,
+                                                            const index_type i, [[maybe_unused]] const index_type k) noexcept
+    {
+        DEBUG_ASSERT(0 < size, "Illegal total number of data points!: 0 < {}", size);
+        DEBUG_ASSERT(0 <= point && point < size, "Out-of-bounce access!: 0 <= {} < {}", point, size);
+        DEBUG_ASSERT(0 < k, "Illegal number of k-nearest-neighbors to search for!: 0 < {}", k);
         DEBUG_ASSERT(0 <= i && i < k, "Out-of-bounce access!: 0 <= {} < {}", i, k);
 
         if constexpr (layout == memory_layout::aos) {
             return point * k + i;
         } else {
-            return i * data_.size + point;
+            return i * size + point;
         }
     }
 
@@ -149,30 +172,39 @@ public:
     /**
      * @brief Saves the nearest-neighbors to @p file using the current @ref memory_layout.
      * @details The content of @p file is overwritten if it already exists.
-     * @param[in] file the name of the @p file
+     * @param[in] file_name the name of the @p file
+     * @param[in] communicator the MPI communicator used to write the data to the file
      *
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
-    void save(const std::string& file) {
-        std::ofstream out(file, std::ofstream::trunc);
-        if (out.bad()) {
-            // something went wrong while opening/creating the file
-            throw std::invalid_argument("Can't write to file '" + file + "'!");
-        }
-        auto acc = buffer.template get_access<sycl::access::mode::read>();
-        for (index_type point = 0; point < data_.size; ++point) {
-            out << acc[this->get_linear_id(point, 0)];
-            for (index_type i = 1; i < k; ++i) {
-                out << ',' << acc[this->get_linear_id(point, i)];
-            }
-            out << '\n';
-        }
+    void save(const std::string& file_name, const MPI_Comm& communicator) {
+        // TODO 2020-06-19 15:25 marcel: write using MPI IO
+//        std::ofstream out(file_name, std::ofstream::trunc);
+//        if (out.bad()) {
+//            // something went wrong while opening/creating the file
+//            throw std::invalid_argument("Can't write to file '" + file_name + "'!");
+//        }
+//        std::vector<index_type> buffer = buffers.active();
+//        for (index_type point = 0; point < data_.size; ++point) {
+//            out << buffer[this->get_linear_id(point, 0)];
+//            for (index_type i = 1; i < k; ++i) {
+//                out << ',' << buffer[this->get_linear_id(point, i)];
+//            }
+//            out << '\n';
+//        }
+
+        MPI_File file;
+
+        MPI_File_open(communicator, file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
+        MPI_File_write_ordered(file, buffers.active(), buffers.size * buffers.dims, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
+
+//        MPI_File_close(&file);
     }
 
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Data_, typename Options_>
-    friend knn<layout_, Options_, Data_> make_knn(typename Options_::index_type, Data_&);
+    friend auto make_knn(typename Options_::index_type, Data_&, const MPI_Comm&);
     /// Befriend knn class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
     friend class knn;
@@ -182,13 +214,20 @@ private:
      * @brief Construct a new @ref knn object given @p k and sizes in @p data.
      * @param[in] k the number of nearest-neighbors to search for
      * @param[in] data the @ref data object representing the used data set
+     * @param[in] communicator the *MPI_Comm* communicator used
+     * @param[in] comm_rank the current MPI rank
      *
      * @pre @p k **must** be greater than `0`.
      */
-    knn(const index_type k, Data& data) : buffer(data.size * k), k(k), data_(data) {
+    knn(const index_type k, Data& data, const MPI_Comm& communicator, const int comm_rank)
+        : buffers(communicator, data.size, k), k(k), comm_rank_(comm_rank), data_(data)
+    {
         DEBUG_ASSERT(0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
+        std::iota(buffers.active(), buffers.active() + data.size * k, comm_rank * data.size * k);
     }
 
+    /// The current MPI rank.
+    const int comm_rank_;
     /// Reference to @ref data object.
     Data& data_;
 };
@@ -200,11 +239,14 @@ private:
  * @tparam Data the @ref data type
  * @param[in] k the number of nearest-neighbors to search for
  * @param[in] data the used data object
+ * @param[in] communicator the *MPI_Comm* communicator used
  * @return the newly constructed @ref knn object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data, typename Options = typename Data::options_type>
-[[nodiscard]] inline knn<layout, Options, Data> make_knn(const typename Options::index_type k, Data& data) {
-    return knn<layout, Options, Data>(k, data);
+[[nodiscard]] inline auto make_knn(const typename Options::index_type k, Data& data, const MPI_Comm& communicator) {
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+    return knn<layout, Options, Data>(k, data, communicator, comm_rank);
 }
 
 

@@ -164,7 +164,7 @@ private:
      */
     data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank)
         : total_size(buffers.total_size), size(buffers.size), dims(buffers.dims),
-          buffer(buffers.active().begin(), buffers.active().end()), comm_rank_(comm_rank), opt_(opt)
+          buffer(buffers.active(), buffers.active() + size * dims), comm_rank_(comm_rank), opt_(opt)
     {
         DEBUG_ASSERT_MPI(comm_rank_, 0 < total_size, "Illegal total_size!: {}", total_size);
         DEBUG_ASSERT_MPI(comm_rank_, 0 < size, "Illegal rank_size!: {}", size);
@@ -205,9 +205,9 @@ private:
  */
 template <memory_layout layout, typename Options>
 [[nodiscard]] inline auto make_data(const Options& opt, const typename Options::index_type size, const typename Options::index_type dims, const MPI_Comm& communicator) {
-    using data_type = data<layout, Options>;
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
+    using data_type = data<layout, Options>;
     using mpi_buffers_type = mpi_buffers<real_type, index_type>;
 
     START_TIMING(creating_data);
@@ -216,7 +216,7 @@ template <memory_layout layout, typename Options>
 
     mpi_buffers_type buffers(communicator, size, dims);
     // set dummy data based on the memory_layout
-    real_type val = comm_rank * buffers.active().size();
+    real_type val = comm_rank * buffers.size * buffers.dims;
     for (index_type point = 0; point < size; ++point) {
         for (index_type dim = 0; dim < dims; ++dim) {
             buffers.active()[data_type::get_linear_id(comm_rank, point, size, dim, dims)] = val++;
@@ -240,9 +240,9 @@ template <memory_layout layout, typename Options>
  */
 template <memory_layout layout, typename Options>
 [[nodiscard]] inline auto make_data(const Options& opt, const std::string& file, const MPI_Comm& communicator) {
-    using data_type = data<layout, Options>;
     using real_type = typename Options::real_type;
     using index_type = typename Options::index_type;
+    using data_type = data<layout, Options>;
     using mpi_buffers_type = mpi_buffers<real_type, index_type>;
 
     START_TIMING(parsing_data_file);

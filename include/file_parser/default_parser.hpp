@@ -16,6 +16,7 @@
 #include <fstream>
 #include <limits>
 #include <string>
+#include <vector>
 
 #include <mpi.h>
 
@@ -115,7 +116,7 @@ public:
         MPI_Offset file_size;
         MPI_File_get_size(base::file_, &file_size);
         file_size -= 2 * sizeof(index_type);
-        assert((file_size == total_size * dims * sizeof(real_type)));
+        assert((static_cast<std::size_t>(file_size) == total_size * dims * sizeof(real_type)));
 
         // calculate byte offsets
         MPI_Offset initial_offset = 2 * sizeof(index_type);
@@ -123,10 +124,11 @@ public:
         if (static_cast<index_type>(comm_rank) < total_size % comm_size) ++rank_size;
         MPI_Offset rank_offset = (total_size / comm_size * comm_rank + std::min<MPI_Offset>(comm_rank, total_size % comm_size)) * dims * sizeof(real_type);
 
-        std::vector<real_type>& internal_buffer = layout == memory_layout::aos ? buffer.active() : buffer.inactive();
-        // read data elements, ALWAYS in Array of Structs format
-        MPI_File_read_at(base::file_, initial_offset + rank_offset, internal_buffer.data(), rank_size * dims,
+        // read data
+        real_type* internal_buffer = layout == memory_layout::aos ? buffer.active() : buffer.inactive();
+        MPI_File_read_at(base::file_, initial_offset + rank_offset, internal_buffer, buffer.size * buffer.dims,
                 detail::mpi_type_cast<real_type>(), MPI_STATUS_IGNORE);
+
 
         // fill missing data point with copy of the first
         if (static_cast<index_type>(comm_rank) >= total_size % comm_size) {
@@ -137,7 +139,7 @@ public:
 
         // convert to Struct of Arrays format if necessary
         if constexpr (layout == memory_layout::soa) {
-            std::vector<real_type>& active_internal_buffer = buffer.active();
+            real_type* active_internal_buffer = buffer.active();
             for (index_type point = 0; point < ceil_rank_size; ++point) {
                 for (index_type dim = 0; dim < dims; ++dim) {
                     active_internal_buffer[base::get_linear_id(point, dim, ceil_rank_size, dims)] = internal_buffer[point * dims + dim];

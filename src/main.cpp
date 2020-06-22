@@ -230,8 +230,8 @@ int main(int argc, char** argv) {
         }
 
         // create data object
-//        auto [data, buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
-        auto [data, buffers] = make_data<memory_layout::aos>(opt, 10, 3, communicator);
+        auto [data, buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
+//        auto [data, buffers] = make_data<memory_layout::aos>(opt, 10, 3, communicator);
         detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
 
 
@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
         typename options_type::index_type k = 0;
         if (parser.has_argv("k")) {
             k = parser.argv_as<decltype(k)>("k");
-            if (comm_rank == 1) k = 0;
+
             DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
 
             detail::mpi_print<print_rank>(comm_rank, "Number of nearest-neighbors to search for: {}\n\n", k);
@@ -252,13 +252,20 @@ int main(int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::mpi_print<print_rank>(comm_rank, "Used device: {}\n", queue.get_device().get_info<sycl::info::device::name>().c_str());
 
+
         START_TIMING(creating_hash_tables);
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data, communicator);
         auto hash_tables = make_hash_tables(queue, hash_functions, communicator);
 
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
-//
+
+        auto knns = make_knn<memory_layout::aos>(k, data, communicator);
+
+
+        knns.save("saved_knns.txt", communicator);
+
+
 //        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 //
 //        // wait until all kernels have finished
