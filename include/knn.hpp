@@ -178,27 +178,14 @@ public:
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
     void save(const std::string& file_name, const MPI_Comm& communicator) {
-        // TODO 2020-06-19 15:25 marcel: write using MPI IO
-//        std::ofstream out(file_name, std::ofstream::trunc);
-//        if (out.bad()) {
-//            // something went wrong while opening/creating the file
-//            throw std::invalid_argument("Can't write to file '" + file_name + "'!");
-//        }
-//        std::vector<index_type> buffer = buffers.active();
-//        for (index_type point = 0; point < data_.size; ++point) {
-//            out << buffer[this->get_linear_id(point, 0)];
-//            for (index_type i = 1; i < k; ++i) {
-//                out << ',' << buffer[this->get_linear_id(point, i)];
-//            }
-//            out << '\n';
-//        }
-
+        START_TIMING(save_knns);
         MPI_File file;
 
         MPI_File_open(communicator, file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
         MPI_File_write_ordered(file, buffers.active(), buffers.size * buffers.dims, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
 
 //        MPI_File_close(&file);
+        END_TIMING_MPI(save_knns, comm_rank_);
     }
 
 private:
@@ -223,7 +210,6 @@ private:
         : buffers(communicator, data.size, k), k(k), comm_rank_(comm_rank), data_(data)
     {
         DEBUG_ASSERT(0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
-        std::iota(buffers.active(), buffers.active() + data.size * k, comm_rank * data.size * k);
     }
 
     /// The current MPI rank.

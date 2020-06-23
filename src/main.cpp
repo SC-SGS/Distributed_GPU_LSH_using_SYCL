@@ -262,35 +262,31 @@ int main(int argc, char** argv) {
 
         auto knns = make_knn<memory_layout::aos>(k, data, communicator);
 
-
-        knns.save("saved_knns.txt", communicator);
-
-
+        // calculate k-nearest-neighbors
 //        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
-//
-//        // wait until all kernels have finished
-//        queue.wait_and_throw();
-//
-//        // save the calculated k-nearest-neighbours
-//        if (parser.has_argv("save_knn")) {
-//            auto knns_save_file = parser.argv_as<std::string>("save_knn");
-//            knns.save(knns_save_file);
-//
-//            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
-//        }
-//        std::cout << std::endl;
-//
-//        using index_type = typename decltype(opt)::index_type;
-//        std::vector<index_type> vec;
-//        vec.reserve(data.size * k);
-//        for (index_type i = 0; i < data.size; ++i) {
-//            for (index_type j = 0; j < k; ++j) {
-//                vec.emplace_back(i);
+
+        // wait until all kernels have finished
+        queue.wait_and_throw();
+
+        // save the calculated k-nearest-neighbours
+        if (parser.has_argv("save_knn")) {
+            auto knns_save_file = parser.argv_as<std::string>("save_knn");
+
+            detail::mpi_print<print_rank>(comm_rank, "\nSaving knns to: '{}'\n", knns_save_file.c_str());
+            knns.save(knns_save_file, communicator);
+        }
+
+//        // TODO 2020-06-23 17:11 marcel: correctly read correct knns
+//        using index_type = typename options_type::index_type;
+//        index_type* correct_knns = knns.buffers.inactive();
+//        for (index_type point = 0; point < data.size; ++point) {
+//            for (index_type nn = 0; nn < k; ++nn) {
+//                correct_knns[point * k + nn] = point;
 //            }
 //        }
 //
-//        std::printf("recall: %.2f %%\n", recall(knns, vec));
-//        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
+//        detail::mpi_print<print_rank>(comm_rank, "\nrecall: {} %\n", recall(knns));
+//        detail::mpi_print<print_rank>(comm_rank, "error ration: {}\n", error_ratio(knns, data));
 
     } catch (const mpi_exception& e) {
         detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: '{}' (error code: {})\n", e.rank(), e.what(), e.error_code());

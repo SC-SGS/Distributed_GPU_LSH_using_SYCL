@@ -23,29 +23,28 @@
 /**
  * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
  * @tparam Knn represents the calculated nearest neighbors
- * @tparam T type of the correct nearest neighbors
- * @param knns the calculated k nearest neighbors
- * @param ideal_knns the correct k nearest neighbors
+ * @param knns the calculated and correct k-nearest-neighbors
  * @return the calculated recall
  */
-template <typename Knn, typename T>
-[[nodiscard]] double recall(Knn& knns, std::vector<T>& ideal_knns) {
-    static_assert(std::is_base_of_v<detail::knn_base, Knn>, "The first template parameter must by a 'knn' type!");
+template <typename Knns>
+[[nodiscard]] double recall(Knns& knns) {
+    static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
 
-    using index_type = typename Knn::index_type;
-    using real_type = typename Knn::real_type;
+    using index_type = typename Knns::index_type;
+    using real_type = typename Knns::real_type;
 
     const index_type size = knns.get_data().size;
     const index_type k = knns.k;
     real_type average_recall = 0.0;
 
-    auto acc = knns.buffer.template get_access<sycl::access::mode::read>();
+    index_type* calculated_knns = knns.buffers.active();
+    index_type* correct_knns = knns.buffers.inactive();
     for (index_type point = 0; point < size; ++point) {
         index_type count = 0;
         for (index_type i = 0; i < k; ++i) {
             for (index_type j = 0; j < k; ++j) {
-                if (acc[knns.get_linear_id(point, i)] == ideal_knns[knns.get_linear_id(point, j)]) {
+                if (calculated_knns[knns.get_linear_id(point, i)] == correct_knns[knns.get_linear_id(point, j)]) {
                     ++count;
                     break;
                 }
@@ -61,23 +60,22 @@ template <typename Knn, typename T>
 /**
  * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
  * @tparam Knn represents the calculated nearest neighbors
- * @tparam T type of the correct nearest neighbors
  * @tparam Data represents the used data
- * @param knns the calculated k nearest neighbors
- * @param ideal_knns the correct k nearest neighbors
+ * @param knns the calculated and correct k-nearest-neighbors
  * @param data the data set
  * @return the calculated error ratio
  */
-template <typename Knn, typename T, typename Data>
-[[nodiscard]] double error_ratio(Knn& knns, std::vector<T>& ideal_knns, Data& data) {
-    static_assert(std::is_base_of_v<detail::knn_base, Knn>, "The first template parameter must by a 'knn' type!");
+template <typename Knns, typename Data>
+[[nodiscard]] double error_ratio(Knns& knns, Data& data) {
+    static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
     static_assert(std::is_base_of_v<detail::data_base, Data>, "The second template parameter must by a 'data' type!");
 
 
     using index_type = typename Data::index_type;
     using real_type = typename Data::real_type;
 
-    auto acc_knns = knns.buffer.template get_access<sycl::access::mode::read>();
+    index_type* calculated_knns = knns.buffers.active();
+    index_type* correct_knns = knns.buffers.inactive();
     auto acc_data = data.buffer.template get_access<sycl::access::mode::read>();
 
     std::vector<real_type> dist(knns.k, 0.0);
@@ -102,8 +100,8 @@ template <typename Knn, typename T, typename Data>
 
 
     for (index_type point = 0; point < data.size; ++point) {
-        distances_sorted(point, acc_knns, dist);
-        distances_sorted(point, ideal_knns, ideal_dist);
+        distances_sorted(point, calculated_knns, dist);
+        distances_sorted(point, correct_knns, ideal_dist);
 
         // TODO 2020-06-04 18:01 marcel: penalty
         index_type error_count = 0;
