@@ -55,21 +55,23 @@ public:
     hash_functions<layout, Options, Data> hash_function;
 
 
-    template <memory_layout knn_layout>
-    auto calculate_knn(const index_type k) {
+    template <typename Knns>
+    void calculate_knn(const index_type k, mpi_buffers<real_type, index_type>& data_mpi_buffers, Knns& knns) {
+        // TODO 2020-06-23 18:54 marcel: implement correctly
         if (k > data_.size) {
             throw std::invalid_argument("k must not be greater than data.size!");
         }
 
         START_TIMING(calculate_nearest_neighbors);
-        auto knns = make_knn<knn_layout>(k, data_);
 
         queue_.submit([&](sycl::handler& cgh) {
+            sycl::buffer<index_type, 1> knn_buffers(knns.buffers.active(), knns.buffers.size * knns.buffers.dims);
+
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_knns = knns.buffer.template get_access<sycl::access::mode::discard_write>(cgh);
+            auto acc_knns = knn_buffers.template get_access<sycl::access::mode::discard_write>(cgh);
 
             cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
@@ -124,7 +126,7 @@ public:
 
                 // write back to result buffer
                 for (index_type i = 0; i < k; ++i) {
-                    acc_knns[knns.get_linear_id(idx, i)] = nearest_neighbors[i];
+                    acc_knns[Knns::get_linear_id(idx, data_.size, i, k)] = nearest_neighbors[i];
                 }
 
                 delete[] nearest_neighbors;
@@ -132,8 +134,7 @@ public:
             });
         });
 
-        END_TIMING_BARRIER(calculate_nearest_neighbors, queue_);
-        return knns;
+        END_TIMING_MPI_AND_BARRIER(calculate_nearest_neighbors, comm_rank_, queue_);
     }
 
 

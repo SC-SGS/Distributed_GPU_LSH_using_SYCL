@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
         }
 
         // create data object
-        auto [data, buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
+        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
 //        auto [data, buffers] = make_data<memory_layout::aos>(opt, 10, 3, communicator);
         detail::mpi_print<print_rank>(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
 
@@ -263,6 +263,21 @@ int main(int argc, char** argv) {
         auto knns = make_knn<memory_layout::aos>(k, data, communicator);
 
         // calculate k-nearest-neighbors
+        detail::mpi_print<print_rank>(comm_rank, "\n");
+        for (int rank = 0; rank < comm_size; ++rank) {
+            detail::mpi_print<print_rank>(comm_rank, "Round {} of {}\n", rank + 1, comm_size);
+            // calculate k-nearest-neighbors
+            hash_tables.calculate_knn(k, data_buffers, knns);
+            // asynchronously send data to next rank
+            data_buffers.send_receive();
+
+            // wait until all k-nearest-neighbors were calculated
+            queue.wait();
+            // send calculated k-nearest-neighbors to next rank
+            knns.buffers.send_receive();
+            // wait until ALL communication has finished
+            MPI_Barrier(communicator);
+        }
 //        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
 
         // wait until all kernels have finished
