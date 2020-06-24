@@ -1,3 +1,10 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-06-24
+ * @brief Timing macros compatible with MPI and/or SYCL.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMING_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMING_HPP
 
@@ -64,7 +71,7 @@ detail::mpi_print<print_rank>(comm_rank, "Elapsed time on rank {} ({}): {} ms\n"
 
 #define END_TIMING_BARRIER(name, queue)                                                                                \
 do {                                                                                                                   \
-queue.wait();                                                                                                          \
+queue.wait_and_throw();                                                                                                          \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
 detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);                                                   \
@@ -72,7 +79,7 @@ detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);            
 
 #define END_TIMING_MPI_AND_BARRIER(name, comm_rank, queue)                                                             \
 do {                                                                                                                   \
-queue.wait();                                                                                                          \
+queue.wait_and_throw();                                                                                                          \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
 detail::mpi_print<print_rank>(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
