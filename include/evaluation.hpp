@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-06-24
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -18,6 +18,25 @@
 #include <config.hpp>
 #include <data.hpp>
 #include <knn.hpp>
+
+
+/**
+ * @brief Averages the given @p values over all MPI ranks.
+ * @param communicator the MPI_Comm communicator
+ * @param value the value to average
+ * @return the average value
+ */
+[[nodiscard]] double average(const MPI_Comm& communicator, double value) {
+    double sum = 0.0;
+    MPI_Reduce(&value, &sum, 1, MPI_DOUBLE, MPI_SUM, 0, communicator);
+
+    int comm_size;
+    MPI_Comm_size(communicator, &comm_size);
+    double avg = sum / comm_size;
+    MPI_Bcast(&avg, 1, MPI_DOUBLE, 0, communicator);
+
+    return avg;
+}
 
 
 /**

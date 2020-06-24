@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-24
  *
  * @brief The main file containing the main logic.
  */
@@ -291,17 +291,17 @@ int main(int argc, char** argv) {
             knns.save(knns_save_file, communicator);
         }
 
-//        // TODO 2020-06-23 17:11 marcel: correctly read correct knns
-//        using index_type = typename options_type::index_type;
-//        index_type* correct_knns = knns.buffers.inactive();
-//        for (index_type point = 0; point < data.size; ++point) {
-//            for (index_type nn = 0; nn < k; ++nn) {
-//                correct_knns[point * k + nn] = point;
-//            }
-//        }
-//
-//        detail::mpi_print<print_rank>(comm_rank, "\nrecall: {} %\n", recall(knns));
-//        detail::mpi_print<print_rank>(comm_rank, "error ration: {}\n", error_ratio(knns, data));
+        // TODO 2020-06-23 17:11 marcel: correctly read correct knns
+        using index_type = typename options_type::index_type;
+        index_type* correct_knns = knns.buffers.inactive();
+        for (index_type point = 0; point < data.size; ++point) {
+            for (index_type nn = 0; nn < k; ++nn) {
+                correct_knns[point * k + nn] = point;
+            }
+        }
+
+        detail::mpi_print<print_rank>(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns)));
+//        detail::mpi_print<print_rank>(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data)));
 
     } catch (const mpi_exception& e) {
         detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: '{}' (error code: {})\n", e.rank(), e.what(), e.error_code());
