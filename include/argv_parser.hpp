@@ -155,7 +155,7 @@ public:
 
 private:
     /// The current MPI rank.
-    const int comm_rank_;
+    [[maybe_unused]] const int comm_rank_;
     /// Map containing all provided command line arguments.
     std::map<std::string, std::string> argvs_;
 };
