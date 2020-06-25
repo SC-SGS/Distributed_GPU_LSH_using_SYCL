@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-24
+ * @date 2020-06-25
  * @brief Timing macros compatible with MPI and/or SYCL.
  */
 
@@ -66,12 +66,12 @@ detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);            
 do {                                                                                                                   \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
-detail::mpi_print<print_rank>(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
+detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
 } while (false)
 
 #define END_TIMING_BARRIER(name, queue)                                                                                \
 do {                                                                                                                   \
-queue.wait_and_throw();                                                                                                          \
+queue.wait_and_throw();                                                                                                \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
 detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);                                                   \
@@ -79,10 +79,10 @@ detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);            
 
 #define END_TIMING_MPI_AND_BARRIER(name, comm_rank, queue)                                                             \
 do {                                                                                                                   \
-queue.wait_and_throw();                                                                                                          \
+queue.wait_and_throw();                                                                                                \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
-detail::mpi_print<print_rank>(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
+detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
 } while (false)
 #else
 #define START_TIMING(name)
