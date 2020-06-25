@@ -59,88 +59,7 @@ void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
     throw mpi_file_exception(*file, *err);
 }
 
-//int calculate_nearest_neighbors(const MPI_Comm& communicator, const int comm_size, const int comm_rank, const std::size_t size, const std::size_t dims) {
-//    using real_type = float;
-//
-//    // create host buffers
-//    mpi_buffers<real_type> buff(communicator, size, dims);
-//
-//    // fill first buffer (later: with data from file)
-//    std::iota(buff.active().begin(), buff.active().end(), comm_rank * size * dims);
-//
-//    sycl::queue queue(sycl::default_selector{});
-//    sycl::buffer<real_type, 1> data_device_buffer(buff.active().begin(), buff.active().end());
-//
-//    MPI_Barrier(communicator);
-//    for (int i = 1; i < comm_size; ++i) {
-//
-//        sycl::buffer<real_type> current_device_buffer(buff.active().begin(), buff.active().end());
-//        {
-//            queue.submit([&](sycl::handler& cgh) {
-//                cgh.parallel_for<class test_kernel>(sycl::range<>(buff.active().size()), [=](sycl::item<> item) {
-//                    const std::size_t idx = item.get_linear_id();
-//                    if (idx == 0 && comm_rank == 0) detail::print("Index: {}\n", idx);
-//                });
-//            });
-//        }
-//
-//        detail::mpi_print<print_rank>(comm_rank, "before sending\n");
-//        buff.send_receive();
-//        std::this_thread::sleep_for(std::chrono::seconds(2));
-//        detail::mpi_print<print_rank>(comm_rank, "after sending\n");
-//
-////        std::cout << buff;
-//
-//        MPI_Barrier(communicator);
-//        detail::mpi_print<print_rank>(comm_rank, "after MPI barrier\n");
-//        queue.wait();
-//        detail::mpi_print<print_rank>(comm_rank, "after SYCL barrier\n");
-//    }
 
-    ////        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
-////        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
-////
-////        START_TIMING(creating_hash_tables);
-////
-////        auto hash_functions = make_hash_functions<memory_layout::aos>(data);
-////        auto hash_tables = make_hash_tables(queue, hash_functions);
-////
-////        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
-////
-////        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
-////
-////        // wait until all kernels have finished
-////        queue.wait_and_throw();
-////
-////        // save the calculated k-nearest-neighbours
-////        if (parser.has_argv("save_knn")) {
-////            auto knns_save_file = parser.argv_as<std::string>("save_knn");
-////            knns.save(knns_save_file);
-////
-////            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
-////        }
-////        std::cout << std::endl;
-////
-////        using index_type = typename decltype(opt)::index_type;
-////        std::vector<index_type> vec;
-////        vec.reserve(data.size * k);
-////        for (index_type i = 0; i < data.size; ++i) {
-////            for (index_type j = 0; j < k; ++j) {
-////                vec.emplace_back(i);
-////            }
-////        }
-////
-////        std::printf("recall: %.2f %%\n", recall(knns, vec));
-////        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
-//
-//    return EXIT_SUCCESS;
-//}
-
-
-
-
-
-// TODO 2020-06-10 18:49 marcel: MPI save knn file?
 int main(int argc, char** argv) {
     MPI_Comm communicator;
     int comm_rank;
@@ -249,7 +168,7 @@ int main(int argc, char** argv) {
         }
 
 
-        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
+        sycl::queue queue(sycl::gpu_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::mpi_print<print_rank>(comm_rank, "Used device: {}\n", queue.get_device().get_info<sycl::info::device::name>().c_str());
 
 
@@ -257,6 +176,9 @@ int main(int argc, char** argv) {
 
         auto hash_functions = make_hash_functions<memory_layout::aos>(data, communicator);
         auto hash_tables = make_hash_tables(queue, hash_functions, communicator);
+        MPI_Comm_free(&communicator);
+        MPI_Finalize();
+        return EXIT_SUCCESS;
 
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
@@ -291,17 +213,17 @@ int main(int argc, char** argv) {
             knns.save(knns_save_file, communicator);
         }
 
-        // TODO 2020-06-23 17:11 marcel: correctly read correct knns
-        using index_type = typename options_type::index_type;
-        index_type* correct_knns = knns.buffers.inactive();
-        for (index_type point = 0; point < data.size; ++point) {
-            for (index_type nn = 0; nn < k; ++nn) {
-                correct_knns[point * k + nn] = point;
-            }
-        }
-
-        detail::mpi_print<print_rank>(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns)));
-//        detail::mpi_print<print_rank>(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data)));
+//        // TODO 2020-06-23 17:11 marcel: correctly read correct knns
+//        using index_type = typename options_type::index_type;
+//        index_type* correct_knns = knns.buffers.inactive();
+//        for (index_type point = 0; point < data.size; ++point) {
+//            for (index_type nn = 0; nn < k; ++nn) {
+//                correct_knns[point * k + nn] = point;
+//            }
+//        }
+//
+//        detail::mpi_print<print_rank>(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns)));
+////        detail::mpi_print<print_rank>(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data)));
 
     } catch (const mpi_exception& e) {
         detail::mpi_print<>(comm_rank, "Exception thrown on rank {}: '{}' (error code: {})\n", e.rank(), e.what(), e.error_code());

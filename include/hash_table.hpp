@@ -20,6 +20,29 @@
 #include <options.hpp>
 
 
+template <typename hash_value_type, typename index_type, typename real_type, typename AccData, typename AccHashFunction>
+[[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point,
+                                   AccData& acc_data, AccHashFunction& acc_hash_function,
+                                   index_type num_hash_functions, real_type w, index_type hash_table_size, index_type dims)
+{
+    hash_value_type combined_hash = num_hash_functions;
+    for (index_type hash_function = 0; hash_function < num_hash_functions; ++hash_function) {
+        real_type hash = acc_hash_function[hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dims];
+        for (index_type dim = 0; dim < dims; ++dim) {
+            hash += acc_data[dim + point * dims] * acc_hash_function[hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dim];
+        }
+        combined_hash ^= static_cast<hash_value_type>(hash / w)
+                         + static_cast<hash_value_type>(0x9e3779b9)
+                         + (combined_hash << static_cast<hash_value_type>(6))
+                         + (combined_hash >> static_cast<hash_value_type>(2));
+    }
+    if constexpr (std::is_signed_v<hash_value_type>) {
+        combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
+    }
+    return combined_hash %= hash_table_size;
+}
+
+
 namespace detail {
     /**
      * @brief Empty base class for the @ref hash_tables class. Only for static_asserts.
@@ -187,10 +210,11 @@ private:
             this->count_hash_values(hash_value_count);
 
             // calculate the offset values
-            this->calculate_offsets(hash_value_count);
+//            this->calculate_offsets(hash_value_count);
+            queue_.wait_and_throw();
         }
         // fill the hash tables based on the previously calculated offset values
-        this->fill_hash_tables();
+//        this->fill_hash_tables();
     }
 
 
@@ -204,19 +228,26 @@ private:
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            const index_type data_size = data_.size;
+            const index_type opt_num_hash_tables = opt_.num_hash_tables;
+            const index_type opt_hash_table_size = opt_.hash_table_size;
+            const index_type opt_num_hash_functions = opt_.num_hash_functions;
+            const index_type opt_w = opt_.w;
+            const index_type data_dims = data_.dims;
 
-            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_.size), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
-                if (idx >= data_.size) return;
+                if (idx >= data_size) return;
 
-                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
-                    acc_hash_value_count[hash_table * opt_.hash_table_size + hash_value].fetch_add(1);
+                for (index_type hash_table = 0; hash_table < opt_num_hash_tables; ++hash_table) {
+                    const hash_value_type hash_value =
+                            hash<hash_value_type, index_type, real_type>(hash_table, idx, acc_data, acc_hash_functions, opt_num_hash_functions, opt_w, opt_hash_table_size, data_dims);
+                    acc_hash_value_count[hash_table * opt_hash_table_size + hash_value].fetch_add(1);
                 }
             });
         });
-        END_TIMING_MPI_AND_BARRIER(count_hash_values, comm_rank_, queue_);
+        END_TIMING_MPI(count_hash_values, comm_rank_);
     }
     /**
      * @brief Calculates the offsets for each hash bucket in each hash table.
