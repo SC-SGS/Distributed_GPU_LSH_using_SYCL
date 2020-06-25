@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-17
+ * @date 2020-06-25
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -65,7 +65,7 @@ public:
          * @brief Construct a factory object with default values.
          * @param[in] comm_rank the current MPI rank
          */
-        factory(const int comm_rank) : comm_rank_(comm_rank) { }
+        explicit factory(const int comm_rank) : comm_rank_(comm_rank) { }
         /**
          * @brief Construct a factory object using the values given in @p file.
          * @param[in] file the file containing the option values
@@ -74,7 +74,7 @@ public:
          * @throw std::invalid_argument if @p file doesn't exist.
          * @throw std::invalid_arguemnt if @p file contains a wrong option pair.
          */
-        explicit factory(const std::string& file, int comm_rank) : comm_rank_(comm_rank) {
+        explicit factory(int comm_rank, const std::string& file) : comm_rank_(comm_rank) {
             // check if file exists
             if (!std::filesystem::exists(file)) {
                 throw std::invalid_argument("File '" + file + "' doesn't exist!");
