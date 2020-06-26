@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-06-26
  *
  * @brief Implements a custom print function using `{}` as placeholders.
  * @details Internally converts `{}` to the respective `printf` format specifiers and calls `printf`.
@@ -262,7 +262,7 @@ namespace detail {
     }
     /**
      * @brief Print the given message @p msg after replacing all occurrences of `{}` with the corresponding `printf` format specifiers
-     * based on the types of @p args iff the MPI rank @p comm_rank is present in @ref print_ranks.
+     * based on the types of @p args iff the MPI rank @p comm_rank is present in print_ranks.
      * @tparam Args the types to fill the placeholders
      * @param[in] comm_rank the MPI rank
      * @param[in] msg the message (potentially) containing placeholders

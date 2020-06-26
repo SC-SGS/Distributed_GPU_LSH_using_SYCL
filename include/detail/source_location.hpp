@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-06-26
  *
  * @brief Custom implementation for the [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location) class.
  * @details Includes a better function name (if supported) and the MPI rank.
@@ -56,7 +56,7 @@ namespace detail {
         }
         /**
          * @brief Constructs a new source_location with the respective information about the current call side including the MPI rank.
-         * @param[in] rank the MPI rank
+         * @param[in] comm_rank the MPI rank
          * @param[in] func the function name (including its signature if supported via the macro `PRETTY_FUNC_NAME__`)
          * @param[in] file the file name (absolute path)
          * @param[in] line the line number
