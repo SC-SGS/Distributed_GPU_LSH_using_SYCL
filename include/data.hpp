@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-18
+ * @date 2020-07-02
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -56,7 +56,7 @@ public:
     /// The number of data points in total.
     const index_type total_size;
     /// The number of data points per MPI rank.
-    const index_type size;
+    const index_type rank_size;
     /// The dimension of each data point.
     const index_type dims;
     /// The SYCL buffer holding all data: `buffer.get_count() == size * dims`.
@@ -65,18 +65,18 @@ public:
 
     /**
      * @brief Returns the current data set with `new_layout`.
-     * @details If `new_layout == layout` a compiler warning is issued (currently disabled).
+     * @details If `new_layout == layout` a compiler errer is issued.
      * @tparam new_layout the layout of the data set
      * @return the data set with the `new_layout` (`[[nodiscard]]`)
      */
     template <memory_layout new_layout>
-    [[nodiscard]] data<new_layout, Options> get_as()
-//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
-    {
-        data<new_layout, Options> new_data(opt_, size, dims);
+    [[nodiscard]] data<new_layout, Options> get_as() {
+        static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
+
+        data<new_layout, Options> new_data(opt_, rank_size, dims);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
-        for (index_type s = 0; s < size; ++s) {
+        for (index_type s = 0; s < rank_size; ++s) {
             for (index_type d = 0; d < dims; ++d) {
                 // transform memory layout
                 acc_new[new_data.get_linear_id(s, d)] = acc_this[this->get_linear_id(s, d)];
@@ -85,18 +85,18 @@ public:
         return new_data;
     }
 
-    /**
-     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
-     * @param[in] point the provided data point
-     * @param[in] dim the provided dimension
-     * @return the flattened index (`[[nodiscard]]`)
-     *
-     * @pre @p point **must** be greater or equal than `0` and less than `size`.
-     * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
-     */
-    [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
-        return data::get_linear_id(comm_rank_, point, size, dim, dims);
-    }
+//    /**
+//     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
+//     * @param[in] point the provided data point
+//     * @param[in] dim the provided dimension
+//     * @return the flattened index (`[[nodiscard]]`)
+//     *
+//     * @pre @p point **must** be greater or equal than `0` and less than `size`.
+//     * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
+//     */
+//    [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
+//        return data::get_linear_id(comm_rank_, point, size, dim, dims);
+//    }
     /**
      * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
@@ -162,12 +162,12 @@ private:
      * @pre the number of data points in @p file **must** be greater than `0`.
      * @pre the dimension of the data points in @p file **must** be greater than `0`.
      */
-    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank)
-        : total_size(buffers.total_size), size(buffers.size), dims(buffers.dims),
-          buffer(buffers.active(), buffers.active() + size * dims), comm_rank_(comm_rank), opt_(opt)
+    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank, const index_type total_size)
+        : total_size(total_size), rank_size(buffers.rank_size), dims(buffers.dims),
+          buffer(buffers.active().begin(), buffers.active().end()), comm_rank_(comm_rank), opt_(opt)
     {
         DEBUG_ASSERT_MPI(comm_rank_, 0 < total_size, "Illegal total_size!: {}", total_size);
-        DEBUG_ASSERT_MPI(comm_rank_, 0 < size, "Illegal rank_size!: {}", size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < rank_size, "Illegal rank_size!: {}", rank_size);
         DEBUG_ASSERT_MPI(comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
     }
 
@@ -179,7 +179,7 @@ private:
      */
     friend std::ostream& operator<<(std::ostream& out, const data& data) {
         out << "total_size " << data.total_size << '\n';
-        out << "rank_size " << data.size << '\n';
+        out << "rank_size " << data.rank_size << '\n';
         out << "dims " << data.dims;
         return out;
     }
@@ -211,12 +211,14 @@ template <memory_layout layout, typename Options>
     using mpi_buffers_type = mpi_buffers<real_type, index_type>;
 
     START_TIMING(creating_data);
-    int comm_rank;
+    int comm_size, comm_rank;
+    MPI_Comm_size(communicator, &comm_size);
     MPI_Comm_rank(communicator, &comm_rank);
 
-    mpi_buffers_type buffers(communicator, size, dims);
+    mpi_buffers_type buffers(size, dims, communicator);
     // set dummy data based on the memory_layout
-    real_type val = comm_rank * buffers.size * buffers.dims;
+    const index_type total_size = comm_size * buffers.rank_size * buffers.dims;
+    real_type val = comm_rank * buffers.rank_size * buffers.dims;
     for (index_type point = 0; point < size; ++point) {
         for (index_type dim = 0; dim < dims; ++dim) {
             buffers.active()[data_type::get_linear_id(comm_rank, point, size, dim, dims)] = val++;
@@ -224,7 +226,7 @@ template <memory_layout layout, typename Options>
     }
     END_TIMING_MPI(creating_data, comm_rank);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank, total_size), std::move(buffers));
 }
 
 /**
@@ -249,11 +251,31 @@ template <memory_layout layout, typename Options>
     int comm_rank;
     MPI_Comm_rank(communicator, &comm_rank);
 
-    auto fp = make_file_parser<layout, Options>(file, communicator);
-    mpi_buffers_type buffers = fp->parse_content();
+    auto fp = make_file_parser<Options>(file, communicator);
+    const index_type total_size = fp->parse_total_size();
+    mpi_buffers_type buffers(fp->parse_rank_size(), fp->parse_dims(), communicator);
+    fp->parse_content(buffers.active().data());
+
+    // assumed that data is always read in Array of Structs format
+    // -> convert to Struct of Arrays if requested
+    if constexpr (layout == memory_layout::soa) {
+        using active_data_type = data<memory_layout::soa, Options>;
+        using inactive_data_type = data<memory_layout::aos, Options>;
+
+        const std::vector<real_type>& active = buffers.active();
+        std::vector<real_type>& inactive = buffers.inactive();
+        for (index_type point = 0; point < buffers.rank_size; ++point) {
+            for (index_type dim = 0; dim < buffers.dims; ++dim) {
+                inactive[inactive_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)] =
+                        active[active_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)];
+            }
+        }
+        // IMPORTANT: swap active buffers (now buffer_1_ is active and buffer_0_ is inactive)
+        buffers.swap_buffers();
+    }
     END_TIMING_MPI(parsing_data_file, comm_rank);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank), std::move(buffers));
+    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank, total_size), std::move(buffers));
 }
 
 
