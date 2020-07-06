@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-02
+ * @date 2020-07-06
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -164,11 +164,17 @@ private:
      */
     data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank, const index_type total_size)
         : total_size(total_size), rank_size(buffers.rank_size), dims(buffers.dims),
-          buffer(buffers.active().begin(), buffers.active().end()), comm_rank_(comm_rank), opt_(opt)
+          buffer(buffers.active().size()), comm_rank_(comm_rank), opt_(opt)
     {
         DEBUG_ASSERT_MPI(comm_rank_, 0 < total_size, "Illegal total_size!: {}", total_size);
         DEBUG_ASSERT_MPI(comm_rank_, 0 < rank_size, "Illegal rank_size!: {}", rank_size);
         DEBUG_ASSERT_MPI(comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
+
+        std::vector<real_type>& active_buffer = buffers.active();
+        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
+        for (std::size_t i = 0; i < active_buffer.size(); ++i) {
+            acc[i] = active_buffer[i];
+        }
     }
 
     /**
@@ -275,7 +281,8 @@ template <memory_layout layout, typename Options>
     }
     END_TIMING_MPI(parsing_data_file, comm_rank);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank, total_size), std::move(buffers));
+    data_type dat(opt, buffers, comm_rank, total_size);
+    return std::make_pair<data_type, mpi_buffers_type>(std::move(dat), std::move(buffers));
 }
 
 
