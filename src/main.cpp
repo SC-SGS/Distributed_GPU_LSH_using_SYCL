@@ -1,12 +1,13 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-02
+ * @date 2020-07-07
  *
  * @brief The main file containing the main logic.
  */
 
 #include <iostream>
+#include <stdlib.h>
 #include <utility>
 
 #include <mpi.h>
@@ -57,6 +58,42 @@ void mpi_comm_exception_handler(MPI_Comm* comm, int* err, ...) {
  */
 void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
     throw mpi_file_exception(*file, *err);
+}
+
+/**
+ * @brief For every GPU on a node one MPI process should be spawned
+ * -> set CUDA_VISIBLE_DEVICES to the MPI rank of the MPI process on the current node.
+ * @param[in] communicator the MPI_Comm communicator
+ * @param[in] num_cuda_devices the number of available CUDA devices on the current node
+ */
+void setup_cuda_devices(const MPI_Comm& communicator, const int num_cuda_devices) {
+    int comm_size, comm_rank;
+    MPI_Comm_size(communicator, &comm_size);
+    MPI_Comm_rank(communicator, &comm_rank);
+
+    // create communicator for each node
+    MPI_Comm node_communicator;
+    MPI_Comm_split_type(communicator, MPI_COMM_TYPE_SHARED, comm_size, MPI_INFO_NULL, &node_communicator);
+    // get node size and rank
+    int comm_node_size, comm_node_rank;
+    MPI_Comm_size(node_communicator, &comm_node_size);
+    MPI_Comm_rank(node_communicator, &comm_node_rank);
+    // its not allowed to spawn more MPI processes than CUDA devices
+    if (comm_node_size > num_cuda_devices) {
+        throw std::invalid_argument("Can't use more MPI processes than available GPUs on a node!");
+    }
+
+    // set a CUDA_VISIBLE_DEVICES for each MPI process on the current rank
+    int err = setenv("CUDA_VISIBLE_DEVICES", std::to_string(comm_node_rank).c_str(), 1);
+    if (err != 0) {
+        throw std::logic_error("Error while setting CUDA_VISIBLE_DEVICES environment variable!");
+    }
+    if (const char* env_val = getenv("CUDA_VISIBLE_DEVICES")) {
+        detail::mpi_print(comm_rank, "Used CUDA device on rank {}: CUDA_VISIBLE_DEVICES={}\n", comm_rank, env_val);
+    }
+
+    // free communicator
+    MPI_Comm_free(&node_communicator);
 }
 
 
@@ -147,6 +184,13 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             detail::mpi_print(comm_rank, "\nNo data file provided!\n");
             return EXIT_FAILURE;
         }
+
+        // set CUDA_VISIBLE_DEVICES
+        auto device_list = sycl::platform::get_platforms()[0].get_devices();
+        if (device_list[0].is_gpu() && device_list[0].get_info<sycl::info::device::vendor>() == "NVIDIA") {
+            setup_cuda_devices(communicator, device_list.size());
+        }
+
 
 //        using index_type = typename options_type::index_type;
 //        using real_type = typename options_type::real_type;
