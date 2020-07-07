@@ -185,59 +185,18 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
+
         // set CUDA_VISIBLE_DEVICES
-        auto device_list = sycl::platform::get_platforms()[0].get_devices();
-        if (device_list[0].is_gpu() && device_list[0].get_info<sycl::info::device::vendor>() == "NVIDIA") {
-            setup_cuda_devices(communicator, device_list.size());
-        }
-
-
-//        using index_type = typename options_type::index_type;
-//        using real_type = typename options_type::real_type;
-//        auto fp = make_file_parser<options_type>(data_file, communicator);
-//        mpi_buffers<real_type> buffer(fp->parse_rank_size(), fp->parse_dims(), communicator);
-//        fp->parse_content(buffer.active().data());
-//
-//        constexpr memory_layout layout = memory_layout::soa;
-//        if constexpr (layout == memory_layout::soa) {
-//            using active_data_type = data<memory_layout::soa, options_type>;
-//            using inactive_data_type = data<memory_layout::aos, options_type>;
-//
-//            auto& active = buffer.active();
-//            auto& inactive = buffer.inactive();
-//            for (index_type point = 0; point < buffer.rank_size; ++point) {
-//                for (index_type dim = 0; dim < buffer.dims; ++dim) {
-//                    inactive[inactive_data_type::get_linear_id(comm_rank, point, buffer.rank_size, dim, buffer.dims)] =
-//                            active[active_data_type::get_linear_id(comm_rank, point, buffer.rank_size, dim, buffer.dims)];
-//                }
-//            }
-//            buffer.swap_buffers();
+//        auto device_list = sycl::platform::get_platforms()[0].get_devices();
+//        if (device_list[0].is_gpu() && device_list[0].get_info<sycl::info::device::vendor>() == "NVIDIA") {
+//            setup_cuda_devices(communicator, device_list.size());
 //        }
-//
-//
-//        const bool has_smaller_rank_size = static_cast<index_type>(comm_rank) >= (fp->parse_total_size() % comm_size);
-//        const index_type rank_size = fp->parse_rank_size() - static_cast<index_type>(has_smaller_rank_size);
-//        std::stringstream ss;
-//        ss << "rank: " << comm_rank << " (buffer_size: " << buffer.active().size()
-//                                    << ", total_size: " << fp->parse_total_size()
-//                                    << ", ceiled_rank_size: " << buffer.rank_size
-//                                    << ", rank_size: " << rank_size
-//                                    << ", dims: " << buffer.dims << ") -> ";
-//        for (const auto val : buffer.active()) {
-//            ss << val << ' ';
-//        }
-//        std::cout << ss.str() << std::endl;
-//        MPI_Barrier(communicator);
-//        ss.str(std::string());
-//        ss.clear();
 
 
         // create data object
-        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, data_file, communicator);
-//        auto [data, buffers] = make_data<memory_layout::aos>(opt, 10, 3, communicator);
+        auto [data, data_buffer] = make_data<memory_layout::aos>(opt, data_file, communicator);
+//        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, 150, 5, communicator);
         detail::mpi_print(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
-
-
 
 
         // read the number of nearest-neighbours to search for
@@ -254,45 +213,11 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         }
 
 
-//        std::vector<index_type> knns(fp->parse_rank_size() * k);
-//        std::iota(knns.begin(), knns.end(), 0 + std::pow(10, comm_rank));
-//        ss << "knns rank: " << comm_rank << ": ";
-//        for (const auto val : knns) {
-//            ss << val << ' ';
-//        }
-//        std::cout << ss.str() << std::endl;
-//        MPI_Barrier(communicator);
-//
-//        MPI_File file;
-//        MPI_File_open(communicator, "saved_knns.txt", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
-//        MPI_File_write_ordered(file, knns.data(), rank_size * k, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
-//        MPI_File_close(&file);
-
-
         // create a SYCL queue for each device
-        std::vector<sycl::queue> queues;
-        for (const sycl::platform& platform : sycl::platform::get_platforms()) {
-            for (const sycl::device& device : platform.get_devices(sycl::info::device_type::gpu)) {
-                queues.emplace_back(device, sycl::async_handler(&sycl_exception_handler));
-            }
-        }
-        // print all available devices
-        detail::mpi_print(comm_rank, "Used device(s):\n");
-        for (std::size_t i = 0; i < queues.size(); ++i) {
-            const std::string device_name = queues[i].get_device().get_info<sycl::info::device::name>();
-            detail::mpi_print(comm_rank, "{}/{}: {}\n", i + 1, queues.size(), device_name.c_str());
-        }
+        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
+        detail::print("Used device on rank {}: {}\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
-        for (const sycl::queue& queue : queues) {
-            std::cout << std::boolalpha;
-            if (comm_rank == 0) {
-                using real_type = typename decltype(data)::real_type;
-                std::cout << queue.get_context().is_host() << std::endl;
-                sycl::buffer<real_type, 1> buf(data_buffers.active().begin(), data_buffers.active().end());
-//                auto c = buf.get_property<sycl::property::buffer::context_bound>();
-//                std::cout << c.get_context().is_host() << std::endl;
-            }
-        }
+
 
 
     } catch (const mpi_exception& e) {
