@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-06
+ * @date 2020-07-08
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -9,23 +9,19 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
 
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <memory>
-#include <numeric>
-#include <ostream>
-#include <sstream>
-#include <stdexcept>
-
 #include <config.hpp>
 #include <detail/assert.hpp>
-#include <detail/convert.hpp>
 #include <detail/timing.hpp>
 #include <file_parser/file_parser.hpp>
 #include <mpi_buffer.hpp>
 #include <options.hpp>
+
+#include <algorithm>
+#include <fstream>
+#include <memory>
+#include <numeric>
+#include <ostream>
+#include <stdexcept>
 
 
 namespace detail {
@@ -59,13 +55,13 @@ public:
     const index_type rank_size;
     /// The dimension of each data point.
     const index_type dims;
-    /// The SYCL buffer holding all data: `buffer.get_count() == size * dims`.
+    /// The SYCL buffer holding all data: `buffer.get_count() == rank_size * dims`.
     sycl::buffer<real_type, 1> buffer;
 
 
     /**
      * @brief Returns the current data set with `new_layout`.
-     * @details If `new_layout == layout` a compiler errer is issued.
+     * @details If `new_layout == layout` a compiler error is issued.
      * @tparam new_layout the layout of the data set
      * @return the data set with the `new_layout` (`[[nodiscard]]`)
      */
@@ -73,7 +69,7 @@ public:
     [[nodiscard]] data<new_layout, Options> get_as() {
         static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
 
-        data<new_layout, Options> new_data(opt_, rank_size, dims);
+        data<new_layout, Options> new_data(opt_, comm_rank_, rank_size, dims, total_size);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type s = 0; s < rank_size; ++s) {
@@ -85,18 +81,6 @@ public:
         return new_data;
     }
 
-//    /**
-//     * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
-//     * @param[in] point the provided data point
-//     * @param[in] dim the provided dimension
-//     * @return the flattened index (`[[nodiscard]]`)
-//     *
-//     * @pre @p point **must** be greater or equal than `0` and less than `size`.
-//     * @pre @p dim **must** be greater or equal than `0` and less than `dims`.
-//     */
-//    [[nodiscard]] constexpr index_type get_linear_id(const index_type point, const index_type dim) const noexcept {
-//        return data::get_linear_id(comm_rank_, point, size, dim, dims);
-//    }
     /**
      * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
@@ -158,9 +142,11 @@ private:
      * @param[in] opt the provided @ref options object
      * @param[in] buffers the @ref mpi_buffers containing the data points
      * @param[in] comm_rank the current MPI rank
+     * @param[in] total_size the total number of data points
      *
-     * @pre the number of data points in @p file **must** be greater than `0`.
-     * @pre the dimension of the data points in @p file **must** be greater than `0`.
+     * @pre The number of total data points **must** be greater than `0`.
+     * @pre The number of data points on this rank **must** be greater than `0`.
+     * @pre The dimension of the data points **must** be greater than `0`.
      */
     data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank, const index_type total_size)
         : total_size(total_size), rank_size(buffers.rank_size), dims(buffers.dims),
@@ -175,6 +161,27 @@ private:
         for (std::size_t i = 0; i < active_buffer.size(); ++i) {
             acc[i] = active_buffer[i];
         }
+    }
+
+    /**
+     * @brief Constructs a new data object with an empty buffer.
+     * @param[in] opt the provided @ref options object
+     * @param[in] comm_rank the current MPI rank
+     * @param[in] rank_size the total number of data points on this rank
+     * @param[in] dims the total number of dimensions
+     * @param[in] total_size the total number of data points
+     *
+     * @pre The number of total data points **must** be greater than `0`.
+     * @pre The number of data points on this rank **must** be greater than `0`.
+     * @pre The dimension of the data points **must** be greater than `0`.
+     */
+    data(const Options& opt, const int comm_rank, const index_type rank_size, const index_type dims, const index_type total_size)
+        : total_size(total_size), rank_size(rank_size), dims(dims),
+          buffer(rank_size * dims), comm_rank_(comm_rank), opt_(opt)
+    {
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < total_size, "Illegal total_size!: {}", total_size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < rank_size, "Illegal rank_size!: {}", rank_size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
     }
 
     /**
