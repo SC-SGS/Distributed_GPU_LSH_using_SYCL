@@ -193,10 +193,11 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
 
         // create data object
+        START_TIMING(parsing_data);
         auto [data, data_buffer] = make_data<memory_layout::aos>(opt, data_file, communicator);
 //        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, 150, 5, communicator);
         detail::mpi_print(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
-
+        END_TIMING_MPI(parsing_data, comm_rank);
 
         // read the number of nearest-neighbours to search for
         typename options_type::index_type k = 0;
@@ -216,7 +217,11 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
-
+        // create hash tables
+        START_TIMING(creating_hash_tables);
+        auto functions = make_hash_functions<memory_layout::aos>(data, communicator);
+        auto tables = make_hash_tables(queue, functions, communicator);
+        END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
     } catch (const mpi_exception& e) {
         detail::print("Exception thrown on rank {}: '{}' (error code: {})\n", comm_rank, e.what(), e.error_code());
