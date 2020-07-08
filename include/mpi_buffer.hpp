@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-02
+ * @date 2020-07-08
  *
  * @brief Implements buffers for the MPI communication.
  */
@@ -9,11 +9,12 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MPI_BUFFER_HPP
 
-#include <numeric>
-#include <vector>
+#include <detail/mpi_type.hpp>
+
 #include <mpi.h>
 
-#include <detail/mpi_type.hpp>
+#include <numeric>
+#include <vector>
 
 
 /**
@@ -79,6 +80,9 @@ public:
         this->swap_buffers();
     }
 
+    /**
+     * @brief Swap underlying active and inactive buffer.
+     */
     void swap_buffers() noexcept {
         active_buffer_ = (active_buffer_ + 1) % 2;
     }
