@@ -59,45 +59,6 @@ public:
     /**
      * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
      * @tparam AccData the type of data set accessor
-     * @tparam AccHashFunction the type of the hash functions accessor
-     * @param[in] hash_table the provided hash table
-     * @param[in] point the provided data point
-     * @param[in] acc_data the data set accessor
-     * @param[in] acc_hash_function the hash functions accessor
-     * @return the hash value (`[[nodiscard]]`)
-     *
-     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`
-     * @pre @p point **must** be greater or equal than `0` and less than `data::size`
-     */
-    template <typename AccData, typename AccHashFunction>
-    [[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point,
-            AccData& acc_data, AccHashFunction& acc_hash_function)
-    {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= hash_table && hash_table < opt_.num_hash_tables,
-                "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.size,
-                "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
-
-        hash_value_type combined_hash = opt_.num_hash_functions;
-        for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
-            real_type hash = acc_hash_function[this->get_linear_id(hash_table, hash_function, data_.dims)];
-            for (index_type dim = 0; dim < data_.dims; ++dim) {
-                hash += acc_data[data_.get_linear_id(point, dim)] * acc_hash_function[this->get_linear_id(hash_table, hash_function, dim)];
-            }
-            combined_hash ^= static_cast<hash_value_type>(hash / opt_.w)
-                    + static_cast<hash_value_type>(0x9e3779b9)
-                    + (combined_hash << static_cast<hash_value_type>(6))
-                    + (combined_hash >> static_cast<hash_value_type>(2));
-        }
-        if constexpr (std::is_signed_v<hash_value_type>) {
-            combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
-        }
-        return combined_hash %= opt_.hash_table_size;
-    }
-
-    /**
-     * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
-     * @tparam AccData the type of data set accessor
      * @tparam AccHashFunctions the type of the hash functions accessor
      * @param[in] comm_rank the current MPI rank
      * @param[in] hash_table the provided hash table
@@ -121,28 +82,27 @@ public:
      */
     template <typename AccData, typename AccHashFunctions>
     [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
-                                                        const index_type hash_table, [[maybe_unused]] const index_type num_hash_tables,
-                                                        AccData& acc_data, const index_type point, const index_type rank_size, const index_type dims,
-                                                        AccHashFunctions& acc_hash_functions, const index_type num_hash_functions,
-                                                        const real_type w, const hash_value_type hash_table_size)
+                                                        const index_type hash_table, const index_type point,
+                                                        AccData& acc_data, AccHashFunctions& acc_hash_functions,
+                                                        const Options& opt, const Data& data)
     {
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < num_hash_tables,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < rank_size,
-                         "Out-of-bounce access!: 0 <= {} < {}", point, rank_size);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Number of dimensions must be positive!: 0 < {}", dims);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_functions, "Number of hash function must be positive!: 0 < {}", num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0.0 < w, "w must be positive!: 0.0 < {}", w);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < hash_table_size, "The hash table size must be positive!: 0 < {}", hash_table_size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
+                         "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < data.dims, "Number of dimensions must be positive!: 0 < {}", data.dims);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_functions, "Number of hash function must be positive!: 0 < {}", opt.num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0.0 < opt.w, "w must be positive!: 0.0 < {}", opt.w);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.hash_table_size, "The hash table size must be positive!: 0 < {}", opt.hash_table_size);
 
-        hash_value_type combined_hash = num_hash_functions;
-        for (index_type hash_function = 0; hash_function < num_hash_functions; ++hash_function) {
-            real_type hash = acc_hash_functions[hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dims];
-            for (index_type dim = 0; dim < dims; ++dim) {
-                hash += acc_data[data_type::get_linear_id(comm_rank, point, rank_size, dim, dims)] *
-                        acc_hash_functions[get_linear_id(comm_rank, hash_table, num_hash_tables, hash_function, num_hash_functions, dim, dims)];
+        hash_value_type combined_hash = opt.num_hash_functions;
+        for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+            real_type hash = acc_hash_functions[hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + data.dims];
+            for (index_type dim = 0; dim < data.dims; ++dim) {
+                hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
+                        acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
-            combined_hash ^= static_cast<hash_value_type>(hash / w)
+            combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
                              + static_cast<hash_value_type>(0x9e3779b9)
                              + (combined_hash << static_cast<hash_value_type>(6))
                              + (combined_hash >> static_cast<hash_value_type>(2));
@@ -151,7 +111,7 @@ public:
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
         }
-        return combined_hash %= hash_table_size;
+        return combined_hash %= opt.hash_table_size;
     }
 
     /**
@@ -198,26 +158,25 @@ public:
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
-                                                            const index_type hash_table, [[maybe_unused]] const index_type num_hash_tables,
-                                                            const index_type hash_function, const index_type num_hash_functions,
-                                                            const index_type dim, const index_type dims) noexcept
+                                                            const index_type hash_table, const index_type hash_function, const index_type dim,
+                                                            const Options& opt, const Data& data) noexcept
     {
-        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_tables, "Illegal total number of hash tables!: 0 < {}", num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < num_hash_tables,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_functions, "Illegal total number of hash functions!: 0 < {}", num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < num_hash_functions,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Illegal number of total dimensions!: 0 < {}", dims);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < dims + 1,
-                         "Out-of-bounce access!: 0 <= {} < {}", dim, dims + 1);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_tables, "Illegal total number of hash tables!: 0 < {}", opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_functions, "Illegal total number of hash functions!: 0 < {}", opt.num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < data.dims, "Illegal number of total dimensions!: 0 < {}", data.dims);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
+                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
-            return hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dim;
+            return hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + dim;
         } else {
             // Struct of Arrays
-            return hash_table * num_hash_functions * (dims + 1) + dim * num_hash_functions + hash_function;
+            return hash_table * opt.num_hash_functions * (data.dims + 1) + dim * opt.num_hash_functions + hash_function;
         }
     }
 
@@ -318,10 +277,10 @@ template <memory_layout layout, typename Data>
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 for (index_type dim = 0; dim < data.dims; ++dim) {
-                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, dim, data.dims)]
+                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)]
                         = std::abs(rnd_normal_dist(rnd_normal_gen));
                 }
-                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, data.dims, data.dims)]
+                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)]
                     = rnd_uniform_dist(rnd_uniform_gen);
             }
         }
