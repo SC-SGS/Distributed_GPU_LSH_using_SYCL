@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-07
+ * @date 2020-07-08
  *
  * @brief The main file containing the main logic.
  */
@@ -25,7 +25,6 @@
 #include <knn.hpp>
 #include <mpi_buffer.hpp>
 #include <options.hpp>
-#include <vector>
 
 
 /**
@@ -215,8 +214,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
         // create a SYCL queue for each device
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
-        detail::print("Used device on rank {}: {}\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
-
+        detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
 
 
