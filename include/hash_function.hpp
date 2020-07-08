@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-18
+ * @date 2020-07-08
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -9,18 +9,18 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 
-#include <cmath>
-#include <random>
-#include <type_traits>
-#include <vector>
-
-#include <mpi.h>
-
 #include <config.hpp>
 #include <data.hpp>
 #include <detail/mpi_type.hpp>
 #include <detail/timing.hpp>
 #include <options.hpp>
+
+#include <mpi.h>
+
+#include <cmath>
+#include <random>
+#include <type_traits>
+#include <vector>
 
 
 namespace detail {
@@ -48,6 +48,8 @@ public:
     using index_type = typename Options::index_type;
     /// The used type of a hash value.
     using hash_value_type = typename Options::hash_value_type;
+    /// The type of the provided @ref data class.
+    using data_type = Data;
 
 
     /// The SYCL buffer holding all hash functions: `buffer.get_count() == options::num_hash_tables * options::num_hash_functions * (data::dims + 1)`.
@@ -94,16 +96,75 @@ public:
     }
 
     /**
+     * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
+     * @tparam AccData the type of data set accessor
+     * @tparam AccHashFunctions the type of the hash functions accessor
+     * @param[in] comm_rank the current MPI rank
+     * @param[in] hash_table the provided hash table
+     * @param[in] num_hash_tables the total number of hash tables
+     * @param[in] acc_data the data set accessor
+     * @param[in] point the provided data point
+     * @param[in] rank_size the number of data points on the current MPI rank
+     * @param[in] dims the number of dimensions of each data point
+     * @param[in] acc_hash_functions the hash functions accessor
+     * @param[in] num_hash_functions the total number of hash functions
+     * @param[in] w constant used in the LSH hash function
+     * @param[in] hash_table_size the number of buckets per hash table
+     * @return the hash value (`[[nodiscard]]`)
+     *
+     * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
+     * @pre @p point **must** be greater or equal than `0` and less than @p size.
+     * @pre @p dims **must** be greator or eual than `0`.
+     * @pre @p num_hash_functions **must** be greator or eual than `0`.
+     * @pre @p w **must** be greator or eual than `0.0`.
+     * @pre @p hash_table_size **must** be greator or eual than `0`.
+     */
+    template <typename AccData, typename AccHashFunctions>
+    [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
+                                                        const index_type hash_table, [[maybe_unused]] const index_type num_hash_tables,
+                                                        AccData& acc_data, const index_type point, const index_type rank_size, const index_type dims,
+                                                        AccHashFunctions& acc_hash_functions, const index_type num_hash_functions,
+                                                        const real_type w, const hash_value_type hash_table_size)
+    {
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < rank_size,
+                         "Out-of-bounce access!: 0 <= {} < {}", point, rank_size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Number of dimensions must be positive!: 0 < {}", dims);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_functions, "Number of hash function must be positive!: 0 < {}", num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0.0 < w, "w must be positive!: 0.0 < {}", w);
+        DEBUG_ASSERT_MPI(comm_rank, 0 < hash_table_size, "The hash table size must be positive!: 0 < {}", hash_table_size);
+
+        hash_value_type combined_hash = num_hash_functions;
+        for (index_type hash_function = 0; hash_function < num_hash_functions; ++hash_function) {
+            real_type hash = acc_hash_functions[hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dims];
+            for (index_type dim = 0; dim < dims; ++dim) {
+                hash += acc_data[data_type::get_linear_id(comm_rank, point, rank_size, dim, dims)] *
+                        acc_hash_functions[get_linear_id(comm_rank, hash_table, num_hash_tables, hash_function, num_hash_functions, dim, dims)];
+            }
+            combined_hash ^= static_cast<hash_value_type>(hash / w)
+                             + static_cast<hash_value_type>(0x9e3779b9)
+                             + (combined_hash << static_cast<hash_value_type>(6))
+                             + (combined_hash >> static_cast<hash_value_type>(2));
+        }
+        // TODO 2020-07-08 14:34 marcel: sycl::abs?
+        if constexpr (std::is_signed_v<hash_value_type>) {
+            combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
+        }
+        return combined_hash %= hash_table_size;
+    }
+
+    /**
      * @brief Returns the current hash functions with `new_layout`.
-     * @details If `new_layout == layout` a compiler warning is issued.
+     * @details If `new_layout == layout` a compiler error is issued.
      * @tparam new_layout the layout of the hash functions
      * @return the hash functions with the `new_layout` (`[[nodiscard]]`)
      */
     template <memory_layout new_layout>
-    [[nodiscard]] hash_functions<new_layout, Options, Data> get_as()
-//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
-    {
-        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, false);
+    [[nodiscard]] hash_functions<new_layout, Options, Data> get_as() {
+        static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
+
+        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
@@ -118,20 +179,6 @@ public:
         return new_hash_functions;
     }
 
-    /**
-     * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
-     * @param[in] hash_table the provided hash table
-     * @param[in] hash_function the provided hash function
-     * @param[in] dim the provided dimension
-     * @return the flattened index (`[[nodiscard]]`)
-     *
-     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`.
-     * @pre @p hash_function **must** be greater or equal than `0` and less than `options::num_hash_functions`.
-     * @pre @p dim **must** be greater or equal than `0` and less than `data::dims + 1`.
-     */
-    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function, const index_type dim) const noexcept {
-        return hash_functions::get_linear_id(comm_rank_, hash_table, opt_.num_hash_tables, hash_function, opt_.num_hash_functions, dim, data_.dims);
-    }
     /**
      * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
@@ -151,7 +198,7 @@ public:
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
-                                                            const index_type hash_table, const index_type num_hash_tables,
+                                                            const index_type hash_table, [[maybe_unused]] const index_type num_hash_tables,
                                                             const index_type hash_function, const index_type num_hash_functions,
                                                             const index_type dim, const index_type dims) noexcept
     {
@@ -207,7 +254,23 @@ private:
      * @param[in] comm_rank the current MPI rank
      */
     hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
-        : buffer(tmp_buffer.begin(), tmp_buffer.end()), comm_rank_(comm_rank), opt_(opt), data_(data) { }
+        : buffer(tmp_buffer.size()), comm_rank_(comm_rank), opt_(opt), data_(data)
+    {
+        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
+        for (std::size_t i = 0; i < tmp_buffer.size(); ++i) {
+            acc[i] = tmp_buffer[i];
+        }
+    }
+
+    /**
+     * @brief Construct an empty hash functions buffer.
+     * @param[in] opt the @ref options object representing the currently set options
+     * @param[in] data the @ref data object representing the used data set
+     * @param[in] size the size of the empty buffer
+     * @param[in] comm_rank the current MPI rank
+     */
+    hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
+        : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
     /// The current MPI rank.
     const int comm_rank_;
@@ -218,8 +281,6 @@ private:
 
 };
 
-#include <numeric>
-#include <getopt.h>
 
 /**
  * @brief Factory function for creating a new @ref hash_functions object.
