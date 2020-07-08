@@ -69,7 +69,7 @@ public:
     [[nodiscard]] data<new_layout, Options> get_as() {
         static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
 
-        data<new_layout, Options> new_data(opt_, comm_rank_, rank_size, dims, total_size);
+        data<new_layout, Options> new_data(opt_, rank_size, dims, total_size, comm_rank_);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_data.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type s = 0; s < rank_size; ++s) {
@@ -141,14 +141,14 @@ private:
      * @brief Construct a new data object from the given @p buffers.
      * @param[in] opt the provided @ref options object
      * @param[in] buffers the @ref mpi_buffers containing the data points
-     * @param[in] comm_rank the current MPI rank
      * @param[in] total_size the total number of data points
+     * @param[in] comm_rank the current MPI rank
      *
      * @pre The number of total data points **must** be greater than `0`.
      * @pre The number of data points on this rank **must** be greater than `0`.
      * @pre The dimension of the data points **must** be greater than `0`.
      */
-    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const int comm_rank, const index_type total_size)
+    data(const Options& opt, mpi_buffers<real_type, index_type>& buffers, const index_type total_size, const int comm_rank)
         : total_size(total_size), rank_size(buffers.rank_size), dims(buffers.dims),
           buffer(buffers.active().size()), comm_rank_(comm_rank), opt_(opt)
     {
@@ -166,16 +166,16 @@ private:
     /**
      * @brief Constructs a new data object with an empty buffer.
      * @param[in] opt the provided @ref options object
-     * @param[in] comm_rank the current MPI rank
      * @param[in] rank_size the total number of data points on this rank
      * @param[in] dims the total number of dimensions
      * @param[in] total_size the total number of data points
+     * @param[in] comm_rank the current MPI rank
      *
      * @pre The number of total data points **must** be greater than `0`.
      * @pre The number of data points on this rank **must** be greater than `0`.
      * @pre The dimension of the data points **must** be greater than `0`.
      */
-    data(const Options& opt, const int comm_rank, const index_type rank_size, const index_type dims, const index_type total_size)
+    data(const Options& opt, const index_type rank_size, const index_type dims, const index_type total_size, const int comm_rank)
         : total_size(total_size), rank_size(rank_size), dims(dims),
           buffer(rank_size * dims), comm_rank_(comm_rank), opt_(opt)
     {
@@ -239,7 +239,8 @@ template <memory_layout layout, typename Options>
     }
     END_TIMING_MPI(creating_data, comm_rank);
 
-    return std::make_pair<data_type, mpi_buffers_type>(data_type(opt, buffers, comm_rank, total_size), std::move(buffers));
+    data_type dat(opt, buffers, total_size, comm_rank);
+    return std::make_pair<data_type, mpi_buffers_type>(std::move(dat), std::move(buffers));
 }
 
 /**
@@ -288,7 +289,7 @@ template <memory_layout layout, typename Options>
     }
     END_TIMING_MPI(parsing_data_file, comm_rank);
 
-    data_type dat(opt, buffers, comm_rank, total_size);
+    data_type dat(opt, buffers, total_size, comm_rank);
     return std::make_pair<data_type, mpi_buffers_type>(std::move(dat), std::move(buffers));
 }
 
