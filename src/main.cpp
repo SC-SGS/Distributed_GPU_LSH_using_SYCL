@@ -265,6 +265,8 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             correct_knns_parser->parse_content(knns.buffers.inactive().data());
             END_TIMING_MPI(parsing_correct_knns, comm_rank);
             START_TIMING(evaluating);
+            detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
+//            detail::mpi_print(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data_buffer)));
             END_TIMING_MPI(evaluating, comm_rank);
         }
 

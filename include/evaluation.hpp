@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-24
+ * @date 2020-07-09
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -14,6 +14,7 @@
 #include <istream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <config.hpp>
 #include <data.hpp>
@@ -42,28 +43,30 @@
 /**
  * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
  * @tparam Knn represents the calculated nearest neighbors
- * @param knns the calculated and correct k-nearest-neighbors
+ * @param[in] knns the calculated and correct k-nearest-neighbors
+ * @param[in] comm_rank the current MPI rank
  * @return the calculated recall
  */
 template <typename Knns>
-[[nodiscard]] double recall(Knns& knns) {
+[[nodiscard]] double recall(Knns& knns, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
-
 
     using index_type = typename Knns::index_type;
     using real_type = typename Knns::real_type;
 
-    const index_type size = knns.get_data().size;
+    const auto& data = knns.get_data();
+    const index_type size = data.rank_size;
     const index_type k = knns.k;
     real_type average_recall = 0.0;
 
-    index_type* calculated_knns = knns.buffers.active();
-    index_type* correct_knns = knns.buffers.inactive();
+    std::vector<index_type>& calculated_knns = knns.buffers.active();
+    std::vector<index_type>& correct_knns = knns.buffers.inactive();
     for (index_type point = 0; point < size; ++point) {
         index_type count = 0;
         for (index_type i = 0; i < k; ++i) {
+            const index_type calculated_id = calculated_knns[knns.get_linear_id(comm_rank, point, i, data, k)];
             for (index_type j = 0; j < k; ++j) {
-                if (calculated_knns[knns.get_linear_id(point, i)] == correct_knns[knns.get_linear_id(point, j)]) {
+                if (calculated_id == correct_knns[knns.get_linear_id(comm_rank, point, j, data, k)]) {
                     ++count;
                     break;
                 }
@@ -71,7 +74,6 @@ template <typename Knns>
         }
         average_recall += count / static_cast<real_type>(k);
     }
-
     return (average_recall / size)  * 100;
 }
 
@@ -80,8 +82,9 @@ template <typename Knns>
  * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
  * @tparam Knn represents the calculated nearest neighbors
  * @tparam Data represents the used data
- * @param knns the calculated and correct k-nearest-neighbors
- * @param data the data set
+ * @param[in] knns the calculated and correct k-nearest-neighbors
+ * @param[in] data the data set
+ * @param[in] comm_rank the current MPI rank
  * @return the calculated error ratio
  */
 template <typename Knns, typename Data>
