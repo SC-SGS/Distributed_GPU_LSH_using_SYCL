@@ -69,39 +69,6 @@ public:
         }
         return res;
     }
-    /**
-     * @brief Returns the data points of the k-nearest-neighbors found for @p point.
-     * @tparam knn_points_layout the @ref memory_layout used for the k-nearest-neighbors
-     * @param[in] point the data point
-     * @return the data points of the k-nearest-neighbors of @p point
-     *
-     * @attention Copies the underlying points to the result vector!
-     * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
-     */
-    template <memory_layout knn_points_layout>
-    std::vector<real_type> get_knn_points(const index_type point) {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.rank_size);
-
-        std::vector<real_type> res(k * data_.dims);
-        std::vector<index_type>& buffer = buffers.active();
-        auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>();
-        for (index_type i = 0; i < k; ++i) {
-            // get the knn index
-            const index_type knn_id = buffer[this->get_linear_id(comm_rank_, point, i, data_, k)];
-            for (index_type dim = 0; dim < data_.dims; ++dim) {
-                // get the concrete data point value of the current dimension
-                const real_type knn_dim = acc_data[data_.get_linear_id(comm_rank_, knn_id, data_.rank_size, dim, data_.dims)];
-                if constexpr (knn_points_layout == memory_layout::aos) {
-                    // Array of Structs
-                    res[i * data_.dims + dim] = knn_dim;
-                } else {
-                    // Structs of Array
-                    res[dim * k + i] = knn_dim;
-                }
-            }
-        }
-        return res;
-    }
 
     /**
      * @brief Returns the current knns with `new_layout`.
