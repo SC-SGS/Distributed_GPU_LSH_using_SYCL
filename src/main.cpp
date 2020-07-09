@@ -223,6 +223,40 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         auto tables = make_hash_tables(queue, functions, communicator);
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
+        // calculate k-nearest-neighbors
+        START_TIMING(calculating_knns);
+        auto knns = make_knn<memory_layout::aos>(k, data, communicator);
+        detail::mpi_print(comm_rank, "\n");
+        for (int round = 0; round < comm_size; ++round) {
+            detail::mpi_print(comm_rank, "Round {} of {}\n", round + 1, comm_size);
+            // calculate k-nearest-neighbors
+            if (round == 0) {
+                tables.calculate_knn(k, knns);
+            } else {
+                tables.calculate_knn(k, data_buffer, knns);
+            }
+            // asynchronously send data to next rank
+            data_buffer.send_receive();
+
+            // wait until all k-nearest-neighbors were calculated
+            queue.wait();
+            // send calculated k-nearest-neighbors to next rank
+            knns.buffers.send_receive();
+            // wait until ALL communication has finished
+            MPI_Barrier(communicator);
+        }
+        // wait until all kernels have finished
+        queue.wait_and_throw();
+        END_TIMING_MPI_AND_BARRIER(calculating_knns, comm_rank, queue);
+
+        // save the calculated k-nearest-neighbours
+        if (parser.has_argv("save_knn")) {
+            auto knns_save_file = parser.argv_as<std::string>("save_knn");
+
+            detail::mpi_print(comm_rank, "\nSaving knns to: '{}'\n", knns_save_file.c_str());
+            knns.save(knns_save_file, communicator);
+        }
+
     } catch (const mpi_exception& e) {
         detail::print("Exception thrown on rank {}: '{}' (error code: {})\n", comm_rank, e.what(), e.error_code());
         return EXIT_FAILURE;
