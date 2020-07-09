@@ -81,24 +81,21 @@ template <typename Knns>
 /**
  * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
  * @tparam Knn represents the calculated nearest neighbors
- * @tparam Data represents the used data
  * @param[in] knns the calculated and correct k-nearest-neighbors
  * @param[in] data the data set
  * @param[in] comm_rank the current MPI rank
  * @return the calculated error ratio
  */
-template <typename Knns, typename Data>
-[[nodiscard]] double error_ratio(Knns& knns, Data& data) {
+template <typename Knns, typename real_type, typename index_type>
+[[nodiscard]] double error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
-    static_assert(std::is_base_of_v<detail::data_base, Data>, "The second template parameter must by a 'data' type!");
 
+    const auto& data_ = knns.get_data();
+    const std::size_t size = knns.get_data().rank_size;
+    const std::size_t dims = knns.get_data().dims;
 
-    using index_type = typename Data::index_type;
-    using real_type = typename Data::real_type;
-
-    index_type* calculated_knns = knns.buffers.active();
-    index_type* correct_knns = knns.buffers.inactive();
-    auto acc_data = data.buffer.template get_access<sycl::access::mode::read>();
+    std::vector<index_type>& calculated_knns = knns.buffers.active();
+    std::vector<index_type>& correct_knns = knns.buffers.inactive();
 
     std::vector<real_type> dist(knns.k, 0.0);
     std::vector<real_type> ideal_dist(knns.k, 0.0);
@@ -107,12 +104,12 @@ template <typename Knns, typename Data>
     real_type mean_error_ratio = 0.0;
 
 
-    const auto distances_sorted = [&](const index_type point, auto& acc, std::vector<real_type>& dist_vec) {
+    const auto distances_sorted = [&](const index_type point, const std::vector<index_type>& vec, std::vector<real_type>& dist_vec) {
         std::fill(dist_vec.begin(), dist_vec.end(), 0.0);
         for (index_type nn = 0; nn < knns.k; ++nn) {
-            for (index_type dim = 0; dim < data.dims; ++dim) {
-                const real_type point_dim = acc_data[data.get_linear_id(point, dim)];
-                const real_type knn_dim = acc_data[data.get_linear_id(acc[knns.get_linear_id(point, nn)], dim)];
+            for (index_type dim = 0; dim < dims; ++dim) {
+                const real_type point_dim = data.active()[data_.get_linear_id(comm_rank, point, size, dim, dims)];
+                const real_type knn_dim = data.active()[data_.get_linear_id(comm_rank, vec[knns.get_linear_id(comm_rank, nn, dim, data_, knns.k)], size, dim, dims)];
                 dist_vec[nn] += (point_dim - knn_dim) * (point_dim - knn_dim);
             }
             dist_vec[nn] = std::sqrt(dist[nn]);
@@ -121,7 +118,7 @@ template <typename Knns, typename Data>
     };
 
 
-    for (index_type point = 0; point < data.size; ++point) {
+    for (index_type point = 0; point < data_.rank_size; ++point) {
         distances_sorted(point, calculated_knns, dist);
         distances_sorted(point, correct_knns, ideal_dist);
 
