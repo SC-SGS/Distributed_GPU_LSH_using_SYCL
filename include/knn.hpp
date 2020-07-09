@@ -60,7 +60,7 @@ public:
      * @pre @p point **must** be greater or equal than `0` and less than `data::dims`.
      */
     std::vector<index_type> get_knn_ids(const index_type point) {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.rank_size);
 
         std::vector<index_type> res(k);
         std::vector<index_type>& buffer = buffers.active();
@@ -80,7 +80,7 @@ public:
      */
     template <memory_layout knn_points_layout>
     std::vector<real_type> get_knn_points(const index_type point) {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.rank_size);
 
         std::vector<real_type> res(k * data_.dims);
         std::vector<index_type>& buffer = buffers.active();
@@ -90,7 +90,7 @@ public:
             const index_type knn_id = buffer[this->get_linear_id(comm_rank_, point, i, data_, k)];
             for (index_type dim = 0; dim < data_.dims; ++dim) {
                 // get the concrete data point value of the current dimension
-                const real_type knn_dim = acc_data[data_.get_linear_id(comm_rank_, knn_id, data_.size, dim, data_.dims)];
+                const real_type knn_dim = acc_data[data_.get_linear_id(comm_rank_, knn_id, data_.rank_size, dim, data_.dims)];
                 if constexpr (knn_points_layout == memory_layout::aos) {
                     // Array of Structs
                     res[i * data_.dims + dim] = knn_dim;
@@ -116,7 +116,7 @@ public:
         knn<new_layout, Options, Data> new_knn(k, data_, comm_, comm_rank_);
         std::vector<index_type>& buffer_this = buffers.active();
         std::vector<index_type>& buffer_new = new_knn.buffers.active();
-        for (index_type point = 0; point < data_.size(); ++point) {
+        for (index_type point = 0; point < data_.rank_size; ++point) {
             for (index_type nn = 0; nn < k; ++nn) {
                 // transform memory layout
                 buffer_new[new_knn.get_linear_id(comm_rank_, point, nn, data_, k)] =
@@ -143,14 +143,14 @@ public:
                                                             const index_type point, const index_type i,
                                                             [[maybe_unused]] const Data& data, [[maybe_unused]] const index_type k) noexcept
     {
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.size, "Out-of-bounce access!: 0 <= {} < {}", point, data.size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= i && i < k, "Out-of-bounce access!: 0 <= {} < {}", i, k);
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of k-nearest-neighbors to search for!: 0 < {}", k);
 
         if constexpr (layout == memory_layout::aos) {
             return point * k + i;
         } else {
-            return i * data.size + point;
+            return i * data.rank_size + point;
         }
     }
 
@@ -182,7 +182,7 @@ public:
         MPI_File file;
 
         MPI_File_open(communicator, file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
-        MPI_File_write_ordered(file, buffers.active(), buffers.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
+        MPI_File_write_ordered(file, buffers.active().data(), buffers.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
 
         MPI_File_close(&file);
         END_TIMING_MPI(save_knns, comm_rank_);
@@ -207,7 +207,7 @@ private:
      * @pre @p k **must** be greater than `0`.
      */
     knn(const index_type k, Data& data, const MPI_Comm& communicator, const int comm_rank)
-        : buffers(communicator, data.size, k), k(k), comm_rank_(comm_rank), comm_(communicator), data_(data)
+        : buffers(data.rank_size, k, communicator), k(k), comm_rank_(comm_rank), comm_(communicator), data_(data)
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
     }
