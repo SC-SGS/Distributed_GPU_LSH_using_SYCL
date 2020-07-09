@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-26
+ * @date 2020-07-09
  *
  * @brief File parser for parsing plain data files.
  */
@@ -42,12 +42,12 @@
  *
  * @note The file **must** be saved in **binary** form.
  */
-template <typename Options>
-class default_parser final : public file_parser<Options> {
+template <typename Options, typename type = typename Options::real_type>
+class default_parser final : public file_parser<Options, type> {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
 
     /// The type of the base @ref file_parser.
-    using base = file_parser<Options>;
+    using base = file_parser<Options, type>;
 public:
     /// The type of the underlying data as specified as in the provided @ref options class.
     using real_type = typename Options::real_type;
@@ -61,7 +61,7 @@ public:
      *
      * @throw std::invalid_argument if @p file doesn't exist
      */
-    default_parser(const std::string& file_name, const MPI_Comm& communicator) : file_parser<Options>(file_name, communicator) {
+    default_parser(const std::string& file_name, const MPI_Comm& communicator) : file_parser<Options, type>(file_name, communicator) {
         detail::mpi_print(base::comm_rank_, "Parsing a file using the default_parser together with MPI IO!\n");
     }
 
@@ -87,7 +87,7 @@ public:
         MPI_File_read_at(base::file_, sizeof(index_type), &dims, 1, detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
         return static_cast<index_type>(dims);
     }
-    void parse_content(real_type* buffer) const override {
+    void parse_content(type* buffer) const override {
         // calculate total_size, rank_size and dims AND perform sanity checks
         const index_type total_size = this->parse_total_size();
         const bool has_smaller_rank_size = static_cast<index_type>(base::comm_rank_) >= (total_size % base::comm_size_);
@@ -97,25 +97,25 @@ public:
         DEBUG_ASSERT_MPI(base::comm_rank_, 0 < rank_size, "Illegal rank size!: {}", rank_size);
         DEBUG_ASSERT_MPI(base::comm_rank_, 0 < dims, "Illegal number of dimensions!: {}", dims);
 
-        // check for correct real_type
+        // check for correct type
         MPI_Offset file_size;
         MPI_File_get_size(base::file_, &file_size);
         file_size -= 2 * sizeof(index_type);
-        assert((static_cast<std::size_t>(file_size) == total_size * dims * sizeof(real_type)));
+        assert((static_cast<std::size_t>(file_size) == total_size * dims * sizeof(type)));
 
         // calculate byte offsets
         constexpr index_type initial_offset = 2 * sizeof(index_type);     // for size and dims
         MPI_Offset rank_offset = ( total_size / base::comm_size_ * base::comm_rank_
-                + std::min<MPI_Offset>(base::comm_rank_, total_size % base::comm_size_) ) * dims * sizeof(real_type);
+                + std::min<MPI_Offset>(base::comm_rank_, total_size % base::comm_size_) ) * dims * sizeof(type);
 
         // read data
         MPI_Status status;
         MPI_File_read_at(base::file_, initial_offset + rank_offset, buffer, rank_size * dims,
-                detail::mpi_type_cast<real_type>(), &status);
+                detail::mpi_type_cast<type>(), &status);
 
         // check whether the correct number of values were read
         int read_count;
-        MPI_Get_count(&status, detail::mpi_type_cast<real_type>(), &read_count);
+        MPI_Get_count(&status, detail::mpi_type_cast<type>(), &read_count);
         assert((static_cast<index_type>(read_count) == rank_size * dims));
 
         // fill missing data point with copy of the first
