@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-18
+ * @date 2020-07-09
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -54,29 +54,45 @@ public:
     /// Hash functions used by this hash tables.
     hash_functions<layout, Options, Data> hash_function;
 
-
+    template <typename Knns>
+    void calculate_knn(const index_type k, Knns& knns) {
+        calculate_knn(k, data_.buffer, knns);
+    }
     template <typename Knns>
     void calculate_knn(const index_type k, mpi_buffers<real_type, index_type>& data_mpi_buffers, Knns& knns) {
+        START_TIMING(copy_data_to_device);
+        std::vector<real_type>& active_data_mpi_buffer = data_mpi_buffers.active();
+        sycl::buffer<real_type, 1> data_buffer(active_data_mpi_buffer.size());
+        auto acc = data_buffer.template get_access<sycl::access::mode::discard_write>();
+        for (std::size_t i = 0; i < active_data_mpi_buffer.size(); ++i) {
+            acc[i] = active_data_mpi_buffer[i];
+        }
+        END_TIMING_MPI(copy_data_to_device, comm_rank_);
+        calculate_knn(k, data_buffer, knns);
+    }
+    template <typename Knns>
+    void calculate_knn(const index_type k, sycl::buffer<real_type, 1>& data_buffer, Knns& knns) {
         // TODO 2020-06-23 18:54 marcel: implement correctly
-        if (k > data_.size) {
-            throw std::invalid_argument("k must not be greater than data.size!");
+        if (k > data_.rank_size) {
+            throw std::invalid_argument("k must not be greater than the data set size!");
         }
 
         START_TIMING(calculate_nearest_neighbors);
-
         queue_.submit([&](sycl::handler& cgh) {
-            sycl::buffer<index_type, 1> knn_buffers(knns.buffers.active(), knns.buffers.size * knns.buffers.dims);
+            sycl::buffer<index_type, 1> knn_buffers(knns.buffers.active().data(), knns.buffers.active().size());
 
-            auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data = data_buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_knns = knn_buffers.template get_access<sycl::access::mode::discard_write>(cgh);
+            auto acc_knns = knn_buffers.template get_access<sycl::access::mode::write>(cgh);
+            auto data = data_;
+            auto opt = opt_;
 
-            cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.size), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_calculate_knn>(sycl::range<>(data_.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
-                if (idx >= data_.size) return;
+                if (idx >= data.rank_size) return;
 
                 index_type* nearest_neighbors = new index_type[k];
                 real_type* distances = new real_type[k];
@@ -89,18 +105,22 @@ public:
                     distances[i] = max_distance;
                 }
 
-                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_bucket = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
+                for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+                    const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
 
-                    for (index_type bucket_element = acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket];
-                            bucket_element < acc_offsets[hash_table * (opt_.hash_table_size) + hash_bucket + 1];
+                    for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size) + hash_bucket];
+                            bucket_element < acc_offsets[hash_table * (opt.hash_table_size) + hash_bucket + 1];
                             ++bucket_element)
                     {
-                        const index_type point = acc_hash_tables[hash_table * data_.size + bucket_element];
+                        const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
                         real_type dist = 0.0;
-                        for (index_type dim = 0; dim < data_.dims; ++dim) {
-                            dist += (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(point, dim)])
-                                    * (acc_data[data_.get_linear_id(idx, dim)] - acc_data[data_.get_linear_id(point, dim)]);
+                        for (index_type dim = 0; dim < data.dims; ++dim) {
+                            const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
+                            const real_type x = acc_data[x_idx];
+                            const index_type y_idx = data.get_linear_id(comm_rank_, point, data.rank_size, dim, data.dims);
+                            const real_type y = acc_data[y_idx];
+
+                            dist += (x - y) * (x - y);
                         }
 
                         // updated nearest-neighbors
@@ -126,21 +146,20 @@ public:
 
                 // write back to result buffer
                 for (index_type i = 0; i < k; ++i) {
-                    acc_knns[Knns::get_linear_id(idx, data_.size, i, k)] = nearest_neighbors[i];
+                    acc_knns[Knns::get_linear_id(comm_rank_, idx, i, data, k)] = nearest_neighbors[i];
                 }
 
                 delete[] nearest_neighbors;
                 delete[] distances;
             });
         });
-
         END_TIMING_MPI_AND_BARRIER(calculate_nearest_neighbors, comm_rank_, queue_);
     }
 
 
     [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const hash_value_type hash_value) const noexcept {
         // TODO 2020-05-11 17:17 marcel: implement correctly
-        return hash_table * data_.size + static_cast<index_type>(hash_value);
+        return hash_table * data_.rank_size + static_cast<index_type>(hash_value);
     }
 
     /**

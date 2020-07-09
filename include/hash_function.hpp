@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-08
+ * @date 2020-07-09
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
