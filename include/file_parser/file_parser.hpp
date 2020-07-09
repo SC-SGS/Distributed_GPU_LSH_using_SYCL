@@ -30,9 +30,9 @@
  * @param[in] communicator the *MPI_Comm* communicator used for the distributed parsing
  * @return the specific file parser for parsing @p file (`[[nodiscard]]`)
  */
-template <typename Options>
+template <typename Options, typename type = typename Options::real_type>
 [[nodiscard]]
-inline std::unique_ptr<file_parser<Options>> make_file_parser(const std::string& file_name, const MPI_Comm& communicator) {
+inline std::unique_ptr<file_parser<Options, type>> make_file_parser(const std::string& file_name, const MPI_Comm& communicator) {
     std::filesystem::path path(file_name);
 
     // check if file exists
@@ -42,9 +42,9 @@ inline std::unique_ptr<file_parser<Options>> make_file_parser(const std::string&
 
     // create file parser based on file extension
     if (path.extension() == ".arff") {
-        return std::make_unique<arff_parser<Options>>(file_name, communicator);
+        return std::make_unique<arff_parser<Options, type>>(file_name, communicator);
     } else {
-        return std::make_unique<default_parser<Options>>(file_name, communicator);
+        return std::make_unique<default_parser<Options, type>>(file_name, communicator);
     }
 }
 

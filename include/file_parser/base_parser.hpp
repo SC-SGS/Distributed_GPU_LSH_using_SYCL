@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-26
+ * @date 2020-07-09
  *
  * @brief Base class for all file parsers.
  * @details Pure virtual.
@@ -26,7 +26,7 @@
  * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
  */
-template <typename Options>
+template <typename Options, typename type = typename Options::real_type>
 class file_parser {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by an 'options' type!");
 public:
@@ -82,7 +82,7 @@ public:
      * @brief Parse the content of the file.
      * @param[out] buffer to write the data to
      */
-    virtual void parse_content(real_type* buffer) const = 0;
+    virtual void parse_content(type* buffer) const = 0;
 
 protected:
     /// The size of the used MPI communicator.
