@@ -187,11 +187,10 @@ private:
             this->count_hash_values(hash_value_count);
 
             // calculate the offset values
-//            this->calculate_offsets(hash_value_count);
-            queue_.wait_and_throw();
+            this->calculate_offsets(hash_value_count);
         }
         // fill the hash tables based on the previously calculated offset values
-//        this->fill_hash_tables();
+        this->fill_hash_tables();
     }
 
 
@@ -231,17 +230,18 @@ private:
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::discard_write>(cgh);
+            auto opt = opt_;
 
             cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt_.num_hash_tables), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 // calculate constant offsets
-                const index_type hash_table_offset = idx * (opt_.hash_table_size + 1);
-                const index_type hash_value_count_offset = idx * opt_.hash_table_size;
+                const index_type hash_table_offset = idx * (opt.hash_table_size + 1);
+                const index_type hash_value_count_offset = idx * opt.hash_table_size;
                 // zero out first two offsets in each hash table
                 acc_offsets[hash_table_offset] = 0;
                 acc_offsets[hash_table_offset + 1] = 0;
-                for (index_type hash_value = 2; hash_value <= opt_.hash_table_size; ++hash_value) {
+                for (index_type hash_value = 2; hash_value <= opt.hash_table_size; ++hash_value) {
                     // calculate modified prefix sum
                     acc_offsets[hash_table_offset + hash_value] =
                             acc_offsets[hash_table_offset + hash_value - 1] +
@@ -261,13 +261,15 @@ private:
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::discard_write>(cgh);
+            auto opt = opt_;
+            auto data = data_;
 
-            cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data_.size), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data_.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
-                for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_function.hash(hash_table, idx, acc_data, acc_hash_functions);
-                    acc_hash_tables[hash_table * data_.size + acc_offsets[hash_table * (opt_.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
+                for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+                    const hash_value_type hash_value = hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                    acc_hash_tables[hash_table * data.rank_size + acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
                 }
             });
         });
