@@ -257,6 +257,17 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             knns.save(knns_save_file, communicator);
         }
 
+        if (parser.has_argv("evaluate_knn")) {
+            detail::mpi_print(comm_rank, "\n");
+            START_TIMING(parsing_correct_knns);
+            using index_type = typename options_type::index_type;
+            auto correct_knns_parser = make_file_parser<options_type, index_type>(parser.argv_as<std::string>("evaluate_knn"), communicator);
+            correct_knns_parser->parse_content(knns.buffers.inactive().data());
+            END_TIMING_MPI(parsing_correct_knns, comm_rank);
+            START_TIMING(evaluating);
+            END_TIMING_MPI(evaluating, comm_rank);
+        }
+
     } catch (const mpi_exception& e) {
         detail::print("Exception thrown on rank {}: '{}' (error code: {})\n", comm_rank, e.what(), e.error_code());
         return EXIT_FAILURE;
