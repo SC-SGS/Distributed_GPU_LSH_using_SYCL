@@ -62,23 +62,15 @@ public:
      * @tparam AccHashFunctions the type of the hash functions accessor
      * @param[in] comm_rank the current MPI rank
      * @param[in] hash_table the provided hash table
-     * @param[in] num_hash_tables the total number of hash tables
-     * @param[in] acc_data the data set accessor
      * @param[in] point the provided data point
-     * @param[in] rank_size the number of data points on the current MPI rank
-     * @param[in] dims the number of dimensions of each data point
+     * @param[in] acc_data the data set accessor
      * @param[in] acc_hash_functions the hash functions accessor
-     * @param[in] num_hash_functions the total number of hash functions
-     * @param[in] w constant used in the LSH hash function
-     * @param[in] hash_table_size the number of buckets per hash table
+     * @param[in] opt the used options
+     * @param[in] data the used data set
      * @return the hash value (`[[nodiscard]]`)
      *
      * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
      * @pre @p point **must** be greater or equal than `0` and less than @p size.
-     * @pre @p dims **must** be greator or eual than `0`.
-     * @pre @p num_hash_functions **must** be greator or eual than `0`.
-     * @pre @p w **must** be greator or eual than `0.0`.
-     * @pre @p hash_table_size **must** be greator or eual than `0`.
      */
     template <typename AccData, typename AccHashFunctions>
     [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
@@ -90,10 +82,6 @@ public:
                          "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
                          "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < data.dims, "Number of dimensions must be positive!: 0 < {}", data.dims);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_functions, "Number of hash function must be positive!: 0 < {}", opt.num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0.0 < opt.w, "w must be positive!: 0.0 < {}", opt.w);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.hash_table_size, "The hash table size must be positive!: 0 < {}", opt.hash_table_size);
 
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
@@ -143,31 +131,24 @@ public:
      * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
      * @param[in] hash_table the provided hash table
-     * @param[in] num_hash_tables the total number of hash tables
      * @param[in] hash_function the provided hash function
-     * @param[in] num_hash_functions the total number of hash functions
      * @param[in] dim the provided dimension
-     * @param[in] dims the total number of dimensions
+     * @param[in] opt the used options
+     * @param[in] data the used data set
      * @return the flattened index (`[[nodiscard]]`)
      *
-     * @pre @p num_hash_tables **must** be greater than `0`.
      * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
-     * @þre @p num_hash_functions **must be greater than `0`.
      * @pre @p hash_function **must** be greater or equal than `0` and less than @p num_hash_functions.
-     * @pre @p dims **must** be greater than `0`.
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
                                                             const index_type hash_table, const index_type hash_function, const index_type dim,
                                                             const Options& opt, const Data& data) noexcept
     {
-        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_tables, "Illegal total number of hash tables!: 0 < {}", opt.num_hash_tables);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
                          "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < opt.num_hash_functions, "Illegal total number of hash functions!: 0 < {}", opt.num_hash_functions);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
                          "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < data.dims, "Illegal number of total dimensions!: 0 < {}", data.dims);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
                          "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
 
