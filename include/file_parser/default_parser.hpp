@@ -90,7 +90,7 @@ public:
     void parse_content(type* buffer) const override {
         // calculate total_size, rank_size and dims AND perform sanity checks
         const index_type total_size = this->parse_total_size();
-        const bool has_smaller_rank_size = static_cast<index_type>(base::comm_rank_) >= (total_size % base::comm_size_);
+        const bool has_smaller_rank_size = (total_size % base::comm_size_ != 0) && static_cast<index_type>(base::comm_rank_) >= (total_size % base::comm_size_);
         const index_type rank_size = this->parse_rank_size() - static_cast<index_type>(has_smaller_rank_size);
         const index_type dims = this->parse_dims();
         DEBUG_ASSERT_MPI(base::comm_rank_, 0 < total_size, "Illegal total size!: {}", total_size);
