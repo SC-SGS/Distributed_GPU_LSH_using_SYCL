@@ -56,10 +56,14 @@ public:
 
     template <typename Knns>
     void calculate_knn(const index_type k, Knns& knns) {
+        static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
+
         calculate_knn(k, data_.buffer, knns);
     }
     template <typename Knns>
     void calculate_knn(const index_type k, mpi_buffers<real_type, index_type>& data_mpi_buffers, Knns& knns) {
+        static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
+
         START_TIMING(copy_data_to_device);
         std::vector<real_type>& active_data_mpi_buffer = data_mpi_buffers.active();
         sycl::buffer<real_type, 1> data_buffer(active_data_mpi_buffer.size());
@@ -72,6 +76,8 @@ public:
     }
     template <typename Knns>
     void calculate_knn(const index_type k, sycl::buffer<real_type, 1>& data_buffer, Knns& knns) {
+        static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
+
         // TODO 2020-06-23 18:54 marcel: implement correctly
         if (k > data_.rank_size) {
             throw std::invalid_argument("k must not be greater than the data set size!");
