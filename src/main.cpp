@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-08
+ * @date 2020-07-15
  *
  * @brief The main file containing the main logic.
  */
@@ -262,11 +262,20 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             START_TIMING(parsing_correct_knns);
             using index_type = typename options_type::index_type;
             auto correct_knns_parser = make_file_parser<options_type, index_type>(parser.argv_as<std::string>("evaluate_knn"), communicator);
+
+            DEBUG_ASSERT_MPI(comm_rank, data.total_size == correct_knns_parser->parse_total_size(),
+                    "Total sizes mismatch!: {} != {}", data.total_size, correct_knns_parser->parse_total_size());
+            DEBUG_ASSERT_MPI(comm_rank, data.rank_size == correct_knns_parser->parse_rank_size(),
+                    "Rank sizes mismatch!: {} != {}", data.rank_size, correct_knns_parser->parse_rank_size());
+            DEBUG_ASSERT_MPI(comm_rank, k == correct_knns_parser->parse_dims(),
+                    "Number of nearest-neighbors mismatch!: {} != {}", k, correct_knns_parser->parse_dims());
+
             correct_knns_parser->parse_content(knns.buffers.inactive().data());
             END_TIMING_MPI(parsing_correct_knns, comm_rank);
+
             START_TIMING(evaluating);
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
-            detail::mpi_print(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data_buffer, comm_rank)));
+            detail::mpi_print(comm_rank, "error ratio: {}\n", average(communicator, error_ratio(knns, data_buffer, communicator)));
             END_TIMING_MPI(evaluating, comm_rank);
         }
 
