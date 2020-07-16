@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-09
+ * @date 2020-07-16
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -114,8 +114,8 @@ public:
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
 
-                    for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size) + hash_bucket];
-                            bucket_element < acc_offsets[hash_table * (opt.hash_table_size) + hash_bucket + 1];
+                    for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
+                            bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
                             ++bucket_element)
                     {
                         const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
@@ -130,13 +130,14 @@ public:
                         }
 
                         // updated nearest-neighbors
-                        auto contains = [](const auto point, const index_type* neighbors, const index_type k) {
+                        const auto is_candidate = [](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
+                            if (point == idx) return false;
                             for (index_type i = 0; i < k; ++i) {
-                                if (neighbors[i] == point) return true;
+                                if (neighbors[i] == point) return false;
                             }
-                            return false;
+                            return true;
                         };
-                        if (dist < max_distance && !contains(point, nearest_neighbors, k)) {
+                        if (dist < max_distance && is_candidate(point, nearest_neighbors, k, idx)) {
                             nearest_neighbors[argmax] = point;
                             distances[argmax] = dist;
                             max_distance = dist;
