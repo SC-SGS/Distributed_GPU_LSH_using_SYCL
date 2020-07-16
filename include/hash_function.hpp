@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-09
+ * @date 2020-07-16
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -85,7 +85,7 @@ public:
 
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-            real_type hash = acc_hash_functions[hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + data.dims];
+            real_type hash = acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)];
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
@@ -99,7 +99,7 @@ public:
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
         }
-        return combined_hash %= opt.hash_table_size;
+        return combined_hash % opt.hash_table_size;
     }
 
     /**
