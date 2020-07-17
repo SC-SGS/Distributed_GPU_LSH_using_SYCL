@@ -112,8 +112,8 @@ public:
                     nearest_neighbors[i] = acc_knns[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
                     distances[i] = acc_knns_dist[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
                 }
-                real_type max_distance = std::numeric_limits<real_type>::max();
                 index_type argmax = 0;
+                real_type max_distance = distances[argmax];
                 for (index_type i = 0; i < k; ++i) {
                     if (distances[i] > max_distance) {
                         max_distance = distances[i];
