@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-15
+ * @date 2020-07-17
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -59,8 +59,8 @@ template <typename Knns>
     const index_type k = knns.k;
     real_type average_recall = 0.0;
 
-    std::vector<index_type>& calculated_knns = knns.buffers.active();
-    std::vector<index_type>& correct_knns = knns.buffers.inactive();
+    std::vector<index_type>& calculated_knns = knns.buffers_knn.active();
+    std::vector<index_type>& correct_knns = knns.buffers_knn.inactive();
     for (index_type point = 0; point < size; ++point) {
         index_type count = 0;
         for (index_type i = 0; i < k; ++i) {
@@ -74,6 +74,7 @@ template <typename Knns>
         }
         average_recall += count / static_cast<real_type>(k);
     }
+    std::cout << comm_rank << " -> " << (average_recall / size)  * 100 << std::endl;
     return (average_recall / size)  * 100;
 }
 
@@ -94,15 +95,15 @@ template <typename Knns, typename real_type, typename index_type>
     const index_type dims = data.dims;
     const index_type k = knns.k;
 
-    std::vector<index_type>& calculated_knns = knns.buffers.active();
+    std::vector<index_type>& calculated_knns = knns.buffers_knn.active();
     std::vector<double> calculated_knns_dist(calculated_knns.size(), 0.0);
-    std::vector<index_type>& correct_knns = knns.buffers.inactive();
+    std::vector<index_type>& correct_knns = knns.buffers_knn.inactive();
     std::vector<double> correct_knns_dist(correct_knns.size(), 0.0);
 
     int comm_size, comm_rank;
     MPI_Comm_size(communicator, &comm_size);
     MPI_Comm_rank(communicator, &comm_rank);
-
+// TODO 2020-07-17 15:03 marcel: should be more simple now with knns.buffers_dist
     for (int round = 0; round < comm_size; ++round) {
         detail::mpi_print(comm_rank, "Round {} of {}\n", round + 1, comm_size);
 
@@ -171,7 +172,8 @@ template <typename Knns, typename real_type, typename index_type>
         }
     }
 
-    return mean_error_ratio / mean_error_count;
+    // TODO 2020-07-16 17:12 marcel: what to return?
+    return std::abs((mean_error_ratio / mean_error_count) * 100 - 100);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_EVALUATION_HPP

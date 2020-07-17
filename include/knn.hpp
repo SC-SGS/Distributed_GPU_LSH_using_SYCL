@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-09
+ * @date 2020-07-17
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -46,7 +46,9 @@ public:
 
 
     /// The buffers containing the found knns.
-    mpi_buffers<index_type, index_type> buffers;
+    mpi_buffers<index_type, index_type> buffers_knn;
+    /// The buffers containing the distances to the found knns.
+    mpi_buffers<real_type, index_type> buffers_dist;
     /// The number of nearest neighbors to search for.
     const index_type k;
 
@@ -63,7 +65,17 @@ public:
         DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.rank_size);
 
         std::vector<index_type> res(k);
-        std::vector<index_type>& buffer = buffers.active();
+        std::vector<index_type>& buffer = buffers_knn.active();
+        for (index_type i = 0; i < k; ++i) {
+            res[i] = buffer[this->get_linear_id(comm_rank_, point, i, data_, k)];
+        }
+        return res;
+    }
+    std::vector<real_type> get_knn_dist(const index_type point) {
+        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data_.rank_size);
+
+        std::vector<real_type> res(k);
+        std::vector<real_type>& buffer = buffers_dist.active();
         for (index_type i = 0; i < k; ++i) {
             res[i] = buffer[this->get_linear_id(comm_rank_, point, i, data_, k)];
         }
@@ -81,13 +93,17 @@ public:
         static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
 
         knn<new_layout, Options, Data> new_knn(k, data_, comm_, comm_rank_);
-        std::vector<index_type>& buffer_this = buffers.active();
-        std::vector<index_type>& buffer_new = new_knn.buffers.active();
+        std::vector<index_type>& buffer_knn_this = buffers_knn.active();
+        std::vector<index_type>& buffer_knn_new = new_knn.buffers_knn.active();
+        std::vector<real_type>& buffer_dist_this = buffers_dist.active();
+        std::vector<real_type>& buffer_dist_new = new_knn.buffers_dist.active();
         for (index_type point = 0; point < data_.rank_size; ++point) {
             for (index_type nn = 0; nn < k; ++nn) {
                 // transform memory layout
-                buffer_new[new_knn.get_linear_id(comm_rank_, point, nn, data_, k)] =
-                        buffer_this[this->get_linear_id(comm_rank_, point, nn, data_, k)];
+                buffer_knn_new[new_knn.get_linear_id(comm_rank_, point, nn, data_, k)] =
+                        buffer_knn_this[this->get_linear_id(comm_rank_, point, nn, data_, k)];
+                buffer_dist_new[new_knn.get_linear_id(comm_rank_, point, nn, data_, k)] =
+                        buffer_dist_this[this->get_linear_id(comm_rank_, point, nn, data_, k)];
             }
         }
         return new_knn;
@@ -141,15 +157,12 @@ public:
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
     void save(const std::string& file_name, const MPI_Comm& communicator) {
-        if (!std::filesystem::exists(file_name)) {
-            throw std::invalid_argument("Can't write to '" + file_name + "'!");
-        }
-
+        // TODO 2020-07-17 14:25 marcel: svae dists
         START_TIMING(save_knns);
         MPI_File file;
 
         MPI_File_open(communicator, file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
-        MPI_File_write_ordered(file, buffers.active().data(), buffers.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
+        MPI_File_write_ordered(file, buffers_knn.active().data(), buffers_knn.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
 
         MPI_File_close(&file);
         END_TIMING_MPI(save_knns, comm_rank_);
@@ -174,9 +187,17 @@ private:
      * @pre @p k **must** be greater than `0`.
      */
     knn(const index_type k, Data& data, const MPI_Comm& communicator, const int comm_rank)
-        : buffers(data.rank_size, k, communicator), k(k), comm_rank_(comm_rank), comm_(communicator), data_(data)
+        : buffers_knn(data.rank_size, k, communicator), buffers_dist(data.rank_size, k, communicator),
+          k(k), comm_rank_(comm_rank), comm_(communicator), data_(data)
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
+
+        for (index_type point = 0; point < data.rank_size; ++point) {
+            for (index_type nn = 0; nn < k; ++nn) {
+                buffers_knn.active()[this->get_linear_id(comm_rank, point, nn, data, k)] = point + comm_rank * data.rank_size;
+                buffers_dist.active()[this->get_linear_id(comm_rank, point, nn, data, k)] = std::numeric_limits<real_type>::max();
+            }
+        }
     }
 
     /// The current MPI rank.

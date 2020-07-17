@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-16
+ * @date 2020-07-17
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -77,6 +77,7 @@ public:
     template <typename Knns>
     void calculate_knn(const index_type k, sycl::buffer<real_type, 1>& data_buffer, Knns& knns) {
         static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
+        static bool first_round = true; // TODO 2020-07-17 16:59 marcel: better
 
         // TODO 2020-06-23 18:54 marcel: implement correctly
         if (k > data_.rank_size) {
@@ -85,13 +86,16 @@ public:
 
         START_TIMING(calculate_nearest_neighbors);
         queue_.submit([&](sycl::handler& cgh) {
-            sycl::buffer<index_type, 1> knn_buffers(knns.buffers.active().data(), knns.buffers.active().size());
+            sycl::buffer<index_type, 1> knn_buffers(knns.buffers_knn.active().data(), knns.buffers_knn.active().size());
+            sycl::buffer<real_type, 1> knn_buffers_dist(knns.buffers_dist.active().data(), knns.buffers_dist.active().size());
 
-            auto acc_data = data_buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data_owned = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_knns = knn_buffers.template get_access<sycl::access::mode::write>(cgh);
+            auto acc_knns_dist = knn_buffers_dist.template get_access<sycl::access::mode::read_write>(cgh);
             auto data = data_;
             auto opt = opt_;
 
@@ -102,36 +106,43 @@ public:
 
                 index_type* nearest_neighbors = new index_type[k];
                 real_type* distances = new real_type[k];
-                real_type max_distance = std::numeric_limits<real_type>::max();
-                index_type argmax = 0;
 
                 // initialize arrays
                 for (index_type i = 0; i < k; ++i) {
-                    nearest_neighbors[i] = idx;
-                    distances[i] = max_distance;
+                    nearest_neighbors[i] = acc_knns[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
+                    distances[i] = acc_knns_dist[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
+                }
+                real_type max_distance = std::numeric_limits<real_type>::max();
+                index_type argmax = 0;
+                for (index_type i = 0; i < k; ++i) {
+                    if (distances[i] > max_distance) {
+                        max_distance = distances[i];
+                        argmax = i;
+                    }
                 }
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                    const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data);
 
                     for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
                             bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
                             ++bucket_element)
                     {
                         const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
+                        const index_type point_idx = point % data.rank_size;
                         real_type dist = 0.0;
                         for (index_type dim = 0; dim < data.dims; ++dim) {
                             const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
-                            const real_type x = acc_data[x_idx];
-                            const index_type y_idx = data.get_linear_id(comm_rank_, point, data.rank_size, dim, data.dims);
-                            const real_type y = acc_data[y_idx];
+                            const real_type x = acc_data_received[x_idx];
+                            const index_type y_idx = data.get_linear_id(comm_rank_, point_idx, data.rank_size, dim, data.dims);
+                            const real_type y = acc_data_owned[y_idx];
 
                             dist += (x - y) * (x - y);
                         }
 
                         // updated nearest-neighbors
-                        const auto is_candidate = [](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
-                            if (point == idx) return false;
+                        const auto is_candidate = [=](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
+                            if (first_round && point_idx == idx) return false;
                             for (index_type i = 0; i < k; ++i) {
                                 if (neighbors[i] == point) return false;
                             }
@@ -154,6 +165,7 @@ public:
                 // write back to result buffer
                 for (index_type i = 0; i < k; ++i) {
                     acc_knns[Knns::get_linear_id(comm_rank_, idx, i, data, k)] = nearest_neighbors[i];
+                    acc_knns_dist[Knns::get_linear_id(comm_rank_, idx, i, data, k)] = distances[i];
                 }
 
                 delete[] nearest_neighbors;
@@ -161,6 +173,8 @@ public:
             });
         });
         END_TIMING_MPI_AND_BARRIER(calculate_nearest_neighbors, comm_rank_, queue_);
+
+        first_round = false;
     }
 
 
@@ -289,13 +303,15 @@ private:
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::discard_write>(cgh);
             auto opt = opt_;
             auto data = data_;
+            auto comm_rank = comm_rank_;
 
             cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data_.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
-                    acc_hash_tables[hash_table * data.rank_size + acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)] = idx;
+                    const hash_value_type hash_value = hash_function.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                    acc_hash_tables[hash_table * data.rank_size + acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)]
+                        = idx + comm_rank * data.rank_size;
                 }
             });
         });
