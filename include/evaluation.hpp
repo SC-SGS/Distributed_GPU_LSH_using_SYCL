@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-17
+ * @date 2020-07-23
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -18,25 +18,39 @@
 
 #include <config.hpp>
 #include <data.hpp>
+#include <detail/mpi_type.hpp>
 #include <knn.hpp>
 
 
 /**
+ * @brief Sums the given @p values over all MPI ranks.
+ * @tparam real_type the type of the @p value
+ * @param[in] communicator the MPI_Comm communicator
+ * @param[in] value the value to sum
+ * @return the sum value
+ */
+template <typename real_type>
+[[nodiscard]] real_type sum(const MPI_Comm& communicator, real_type value) {
+    real_type sums = 0.0;
+    MPI_Allreduce(&value, &sums, 1, detail::mpi_type_cast<real_type>(), MPI_SUM, communicator);
+    return sums;
+}
+
+/**
  * @brief Averages the given @p values over all MPI ranks.
- * @param communicator the MPI_Comm communicator
- * @param value the value to average
+ * @tparam real_type the type of the @p value
+ * @param[in] communicator the MPI_Comm communicator
+ * @param[in] value the value to average
  * @return the average value
  */
-[[nodiscard]] double average(const MPI_Comm& communicator, double value) {
-    double sum = 0.0;
-    MPI_Reduce(&value, &sum, 1, MPI_DOUBLE, MPI_SUM, 0, communicator);
+template <typename real_type>
+[[nodiscard]] real_type average(const MPI_Comm& communicator, real_type value) {
+    real_type sums = sum(communicator, value);
 
     int comm_size;
     MPI_Comm_size(communicator, &comm_size);
-    double avg = sum / comm_size;
-    MPI_Bcast(&avg, 1, MPI_DOUBLE, 0, communicator);
 
-    return avg;
+    return sums / comm_size;
 }
 
 
@@ -48,7 +62,7 @@
  * @return the calculated recall
  */
 template <typename Knns>
-[[nodiscard]] double recall(Knns& knns, const int comm_rank) {
+[[nodiscard]] typename Knns::real_type recall(Knns& knns, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
     using index_type = typename Knns::index_type;
@@ -74,75 +88,32 @@ template <typename Knns>
         }
         average_recall += count / static_cast<real_type>(k);
     }
-    std::cout << comm_rank << " -> " << (average_recall / size)  * 100 << std::endl;
+    
     return (average_recall / size)  * 100;
 }
 
 /**
  * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
  * @tparam Knn represents the calculated nearest neighbors
+ * @tparam real_type a floating point type
+ * @tparam index_type an integer type
  * @param[in] knns the calculated and correct k-nearest-neighbors
  * @param[in] data_buffer the data set
- * @param[in] communicator the used MPI communicator
+ * @param[in] comm_rank the current MPI rank
  * @return the calculated error ratio
  */
 template <typename Knns, typename real_type, typename index_type>
-[[nodiscard]] double error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const MPI_Comm& communicator) {
+[[nodiscard]] std::pair<real_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
     const auto& data = knns.get_data();
     const index_type rank_size = data.rank_size;
-    const index_type dims = data.dims;
     const index_type k = knns.k;
 
-    std::vector<index_type>& calculated_knns = knns.buffers_knn.active();
-    std::vector<double> calculated_knns_dist(calculated_knns.size(), 0.0);
-    std::vector<index_type>& correct_knns = knns.buffers_knn.inactive();
-    std::vector<double> correct_knns_dist(correct_knns.size(), 0.0);
+    std::vector<real_type>& calculated_knns_dist = knns.buffers_dist.active();
+    std::vector<real_type>& correct_knns_dist = knns.buffers_dist.inactive();
 
-    int comm_size, comm_rank;
-    MPI_Comm_size(communicator, &comm_size);
-    MPI_Comm_rank(communicator, &comm_rank);
-// TODO 2020-07-17 15:03 marcel: should be more simple now with knns.buffers_dist
-    for (int round = 0; round < comm_size; ++round) {
-        detail::mpi_print(comm_rank, "Round {} of {}\n", round + 1, comm_size);
-
-        const int data_rank = (comm_rank + round) % comm_size;
-        int correct_rank_size = data.total_size / comm_size;
-        if ((data.total_size % comm_size) != 0 && data_rank < (static_cast<int>(data.total_size) % comm_size)) ++correct_rank_size;
-        const index_type data_id_lower = data.total_size / comm_size * data_rank + std::min<index_type>(data_rank, data.total_size % comm_size);
-        const index_type data_id_upper = data_id_lower + correct_rank_size;
-
-        for (index_type nn = 0; nn < calculated_knns.size(); ++nn) {
-            // check if data point is currently available
-            if (calculated_knns[nn] >= data_id_lower && calculated_knns[nn] < data_id_upper) {
-                const index_type point = nn / k;
-                for (index_type dim = 0; dim < dims; ++dim) {
-                    const real_type point_dim = data_buffer.active()[data.get_linear_id(comm_rank, point, rank_size, dim, dims)];
-                    const real_type knn_dim = data_buffer.active()[data.get_linear_id(comm_rank, calculated_knns[nn] % rank_size, rank_size, dim, dims)];
-                    calculated_knns_dist[nn] += (point_dim - knn_dim) * (point_dim - knn_dim);
-                }
-                calculated_knns_dist[nn] = std::sqrt(calculated_knns_dist[nn]);
-            }
-
-            if (correct_knns[nn] >= data_id_lower && correct_knns[nn] < data_id_upper) {
-                const index_type point = nn / k;
-                for (index_type dim = 0; dim < dims; ++dim) {
-                    const real_type point_dim = data_buffer.active()[data.get_linear_id(comm_rank, point, rank_size, dim, dims)];
-                    const real_type knn_dim = data_buffer.active()[data.get_linear_id(comm_rank, correct_knns[nn] % rank_size, rank_size, dim, dims)];
-                    correct_knns_dist[nn] += (point_dim - knn_dim) * (point_dim - knn_dim);
-                }
-                correct_knns_dist[nn] = std::sqrt(correct_knns_dist[nn]);
-            }
-        }
-
-        // send data to next rank
-        data_buffer.send_receive();
-
-        // wait until ALL communication has finished
-        MPI_Barrier(communicator);
-    }
-
+    index_type num_not_found = 0;
     index_type mean_error_count = 0;
     real_type mean_error_ratio = 0.0;
 
@@ -152,10 +123,17 @@ template <typename Knns, typename real_type, typename index_type>
     for (index_type point = 0; point < rank_size; ++point) {
         for (index_type nn = 0; nn < k; ++nn) {
             calculated_knns_dist_sorted[nn] = calculated_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
+            if (calculated_knns_dist_sorted[nn] == std::numeric_limits<real_type>::max()) {
+                calculated_knns_dist_sorted[nn] = 0.0;
+                ++num_not_found;
+            } else {
+                calculated_knns_dist_sorted[nn] = std::sqrt(calculated_knns_dist_sorted[nn]);
+            }
             correct_knns_dist_sorted[nn] = correct_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
         }
         std::sort(calculated_knns_dist_sorted.begin(), calculated_knns_dist_sorted.end());
         std::sort(correct_knns_dist_sorted.begin(), correct_knns_dist_sorted.end());
+
 
         // TODO 2020-06-04 18:01 marcel: penalty
         index_type error_count = 0;
@@ -173,7 +151,8 @@ template <typename Knns, typename real_type, typename index_type>
     }
 
     // TODO 2020-07-16 17:12 marcel: what to return?
-    return std::abs((mean_error_ratio / mean_error_count) * 100 - 100);
+    real_type error_ratio_percent = std::abs((mean_error_ratio / mean_error_count) * 100 - 100);
+    return std::make_pair(error_ratio_percent, num_not_found);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_EVALUATION_HPP

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-17
+ * @date 2020-07-23
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */

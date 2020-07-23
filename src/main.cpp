@@ -1,11 +1,12 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-17
+ * @date 2020-07-23
  *
  * @brief The main file containing the main logic.
  */
 
+#include <filesystem>
 #include <iostream>
 #include <stdlib.h>
 #include <utility>
@@ -253,24 +254,6 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
         END_TIMING_MPI_AND_BARRIER(all, comm_rank, queue);
 
-        for (std::size_t point = 0; point < 8; ++point) {
-            for (std::size_t nn = 0; nn < k; ++nn) {
-                detail::mpi_print(comm_rank, "[{}, {}] ", knns.buffers_knn.active()[point * k + nn], knns.buffers_dist.active()[point * k + nn]);
-            }
-            detail::mpi_print(comm_rank, "\n");
-        }
-        /*
-[50562, 0.000530255] [18208, 0.000279326] [34458, 0.000721558] [30804, 0.00177835] [28431, 0.00155698]
-[30201, 6.97147e-05] [33629, 1.59607e-05] [56571, 9.97804e-05] [16840, 7.23658e-05] [56118, 0.00011018]
-[15567, 8.1806e-05] [57295, 2.80667e-05] [59220, 7.81289e-05] [39637, 0.000103213] [55751, 8.04217e-05]
-[32494, 8.1956e-05] [18453, 3.13131e-05] [19862, 8.44286e-05] [58029, 4.64596e-05] [58755, 5.37011e-05]
-[34249, 0.00030124] [43371, 0.000242906] [33473, 0.000318604] [5048, 0.000156061] [1936, 0.000109989]
-[44002, 2.0034e-05] [58517, 6.5368e-05] [13360, 6.54961e-05] [24875, 3.86522e-05] [31984, 6.95511e-05]
-[28694, 0.000111962] [1603, 0.000168646] [7526, 0.000128219] [40384, 0.000180222] [42856, 0.00010805]
-[20635, 0.000111625] [37780, 0.00012271] [28074, 6.33715e-05] [3873, 7.8214e-05] [23084, 4.45506e-05]
-
-         */
-
         // save the calculated k-nearest-neighbours
         if (parser.has_argv("save_knn")) {
             auto knns_save_file = parser.argv_as<std::string>("save_knn");
@@ -293,11 +276,26 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
                     "Number of nearest-neighbors mismatch!: {} != {}", k, correct_knns_parser->parse_dims());
 
             correct_knns_parser->parse_content(knns.buffers_knn.inactive().data());
+            
+            std::filesystem::path p(parser.argv_as<std::string>("evaluate_knn"));
+            std::string dist_file_name = p.stem().string() + "_dist" + p.extension().string();
+            auto correct_knns_dist_parser = make_file_parser<options_type>(p.replace_filename(dist_file_name).string(), communicator);
+
+            DEBUG_ASSERT_MPI(comm_rank, data.total_size == correct_knns_dist_parser->parse_total_size(),
+                             "Total sizes mismatch!: {} != {}", data.total_size, correct_knns_dist_parser->parse_total_size());
+            DEBUG_ASSERT_MPI(comm_rank, data.rank_size == correct_knns_dist_parser->parse_rank_size(),
+                             "Rank sizes mismatch!: {} != {}", data.rank_size, correct_knns_dist_parser->parse_rank_size());
+            DEBUG_ASSERT_MPI(comm_rank, k == correct_knns_dist_parser->parse_dims(),
+                             "Number of nearest-neighbors mismatch!: {} != {}", k, correct_knns_dist_parser->parse_dims());
+
+            correct_knns_dist_parser->parse_content(knns.buffers_dist.inactive().data());
             END_TIMING_MPI(parsing_correct_knns, comm_rank);
 
             START_TIMING(evaluating);
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
-            detail::mpi_print(comm_rank, "error ratio: {} %\n", average(communicator, error_ratio(knns, data_buffer, communicator)));
+            const auto [error_ration_percent, num_not_found] = error_ratio(knns, data_buffer, comm_rank);
+            detail::mpi_print(comm_rank, "error ratio: {} % ({} not found)\n",
+                    average(communicator, error_ration_percent), sum(communicator, num_not_found));
             END_TIMING_MPI(evaluating, comm_rank);
         }
 
