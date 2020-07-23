@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-09
+ * @date 2020-07-21
  *
  * @brief File parser for parsing plain data files.
  */
@@ -62,7 +62,7 @@ public:
      * @throw std::invalid_argument if @p file doesn't exist
      */
     default_parser(const std::string& file_name, const MPI_Comm& communicator) : file_parser<Options, type>(file_name, communicator) {
-        detail::mpi_print(base::comm_rank_, "Parsing a file using the default_parser together with MPI IO!\n");
+        detail::mpi_print(base::comm_rank_, "Parsing a file ('{}') using the default_parser together with MPI IO!\n", file_name.c_str());
     }
 
     [[nodiscard]] index_type parse_total_size() const override {
