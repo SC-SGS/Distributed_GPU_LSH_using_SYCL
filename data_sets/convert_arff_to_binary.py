@@ -1,5 +1,5 @@
 # @author Marcel Breyer
-# @date 2020-06-17
+# @date 2020-07-23
 # @brief Python3 script for converting a .arff file in text format to a file in binary format.
 
 
@@ -8,12 +8,12 @@ from scipy.io import arff
 import numpy as np
 import sys
 
-
 def size_in_bytes(numpy_type):
     return np.dtype(numpy_type).itemsize
 
 
 real_type = np.float32
+# real_type = np.uint32
 size_type = np.uint32
 
 
@@ -31,7 +31,7 @@ if args.output_file.endswith('.arff'):
 # read .arff file and convert it to the custom binary format
 data = arff.loadarff(args.input_file)[0]
 data = np.array(data.tolist(), dtype=real_type)
-
+# data = data[..., :-1]
 
 # write data points to file in binary format
 with open(args.output_file, 'wb') as file:
