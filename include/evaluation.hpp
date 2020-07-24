@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-23
+ * @date 2020-07-24
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -14,6 +14,7 @@
 #include <istream>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <config.hpp>
@@ -100,10 +101,11 @@ template <typename Knns>
  * @param[in] knns the calculated and correct k-nearest-neighbors
  * @param[in] data_buffer the data set
  * @param[in] comm_rank the current MPI rank
- * @return the calculated error ratio
+ * @return the calculated error ratio, the number of points for which only less than `k` nearest-neighbors could be found and the total
+ *         number of nearest-neighbors that couldn't be found
  */
 template <typename Knns, typename real_type, typename index_type>
-[[nodiscard]] std::pair<real_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank) {
+[[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
     const auto& data = knns.get_data();
@@ -113,7 +115,8 @@ template <typename Knns, typename real_type, typename index_type>
     std::vector<real_type>& calculated_knns_dist = knns.buffers_dist.active();
     std::vector<real_type>& correct_knns_dist = knns.buffers_dist.inactive();
 
-    index_type num_not_found = 0;
+    index_type num_points_not_found = 0;
+    index_type num_knn_not_found = 0;
     index_type mean_error_count = 0;
     real_type mean_error_ratio = 0.0;
 
@@ -123,19 +126,19 @@ template <typename Knns, typename real_type, typename index_type>
     for (index_type point = 0; point < rank_size; ++point) {
         for (index_type nn = 0; nn < k; ++nn) {
             calculated_knns_dist_sorted[nn] = calculated_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
-            if (calculated_knns_dist_sorted[nn] == std::numeric_limits<real_type>::max()) {
-                calculated_knns_dist_sorted[nn] = 0.0;
-                ++num_not_found;
-            } else {
-                calculated_knns_dist_sorted[nn] = std::sqrt(calculated_knns_dist_sorted[nn]);
-            }
             correct_knns_dist_sorted[nn] = correct_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
         }
+        auto count = std::count(calculated_knns_dist_sorted.cbegin(), calculated_knns_dist_sorted.cend(), std::numeric_limits<real_type>::max());
+        if (count != 0) {
+            ++num_points_not_found;
+            num_knn_not_found += count;
+            continue;
+        }
+        std::transform(calculated_knns_dist_sorted.begin(), calculated_knns_dist_sorted.end(), calculated_knns_dist_sorted.begin(),
+                   [](const real_type val) { return std::sqrt(val); });
         std::sort(calculated_knns_dist_sorted.begin(), calculated_knns_dist_sorted.end());
         std::sort(correct_knns_dist_sorted.begin(), correct_knns_dist_sorted.end());
 
-
-        // TODO 2020-06-04 18:01 marcel: penalty
         index_type error_count = 0;
         real_type error_ratio = 0.0;
         for (index_type nn = 0; nn < k; ++nn) {
@@ -150,9 +153,8 @@ template <typename Knns, typename real_type, typename index_type>
         }
     }
 
-    // TODO 2020-07-16 17:12 marcel: what to return?
     real_type error_ratio_percent = std::abs((mean_error_ratio / mean_error_count) * 100 - 100);
-    return std::make_pair(error_ratio_percent, num_not_found);
+    return std::make_tuple(error_ratio_percent, num_points_not_found, num_knn_not_found);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_EVALUATION_HPP
