@@ -30,7 +30,7 @@ endif ()
 
 
 # find boost
-find_package(Boost 1.72 REQUIRED)
+find_package(Boost 1.72 REQUIRED PATHS /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/boost-1.72.0-zex4jeneghfjf4xvolu2lzqor7urievz)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
