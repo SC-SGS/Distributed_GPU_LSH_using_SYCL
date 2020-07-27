@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-06-25
  *
  * @brief Implements a conversion function from std::string to numeric types.
  */
@@ -15,6 +15,7 @@
 #include <string>
 #include <type_traits>
 
+#include <config.hpp>
 
 namespace detail {
 
@@ -26,7 +27,7 @@ namespace detail {
      *
      * @throw std::invalid_argument if @p str can't get parsed to type `T`.
      */
-    template <typename T, std::enable_if_t<std::is_arithmetic_v<std::remove_reference_t<T>>, int> = 0>
+    template <typename T, REQUIRES(std::is_arithmetic_v<std::remove_reference_t<T>>)>
     [[nodiscard]] inline T convert_to(const std::string& str) {
         using decayed_type = std::decay_t<T>;
 
@@ -71,6 +72,5 @@ namespace detail {
     }
 
 }
-
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CONVERT_HPP

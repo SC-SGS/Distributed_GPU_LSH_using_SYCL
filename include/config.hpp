@@ -1,15 +1,13 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-18
+ * @date 2020-06-25
  *
  * @brief Contains global constants, typedefs and enums.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
 #define DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP
-
-#include <array>
 
 #include <CL/sycl.hpp>
 
@@ -28,9 +26,8 @@ enum class memory_layout {
 };
 
 
-/// The MPI rank(s) on which the @ref detail::mpi_print information should be printed.
-constexpr std::array print_rank_values = { 0 };
-constexpr decltype(print_rank_values)* print_rank = &print_rank_values;
+/// Shorthand macro for std::enable_if
+#define REQUIRES(cond) std::enable_if_t<(cond), int> = 0
 
 
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_CONFIG_HPP

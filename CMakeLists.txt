@@ -30,7 +30,7 @@ endif ()
 
 
 # find boost
-find_package(Boost 1.72 REQUIRED)
+find_package(Boost 1.72 REQUIRED PATHS /import/sgs.local/scratch/breyerml/spack/opt/spack/linux-ubuntu16.04-skylake/gcc-9.2.0/boost-1.73.0-4nouf7a5y7ze3ppc53rcrfhkvmy4dhm4)
 if (Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif ()
@@ -113,12 +113,11 @@ message(STATUS "CMAKE_BUILD_TYPE is: ${CMAKE_BUILD_TYPE}")
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
 if ($ENV{CLION_IDE})
-    include_directories({PROJECT_SOURCE_DIR}/include)
-    include_directories(${PROJECT_SOURCE_DIR}/third_party/googletest-src/googletest/include)
-    include_directories(/home/marcel/Programs/mpi/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
-
     file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/test/*.cpp)
     add_executable(test_prog ${SOURCES})
+
+    target_include_directories(test_prog PRIVATE ${PROJECT_SOURCE_DIR}/third_party/googletest-src/googletest/include)
+    target_include_directories(test_prog PRIVATE /home/marcel/Programs/mpi/include)
+    target_include_directories(test_prog PRIVATE /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
+    target_include_directories(test_prog PRIVATE /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
 endif ()
