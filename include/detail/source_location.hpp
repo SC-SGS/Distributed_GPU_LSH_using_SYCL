@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-06-26
  *
  * @brief Custom implementation for the [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location) class.
  * @details Includes a better function name (if supported) and the MPI rank.
@@ -56,7 +56,7 @@ namespace detail {
         }
         /**
          * @brief Constructs a new source_location with the respective information about the current call side including the MPI rank.
-         * @param[in] rank the MPI rank
+         * @param[in] comm_rank the MPI rank
          * @param[in] func the function name (including its signature if supported via the macro `PRETTY_FUNC_NAME__`)
          * @param[in] file the file name (absolute path)
          * @param[in] line the line number
@@ -66,14 +66,14 @@ namespace detail {
          * @attention @p column is always (independent of the call side position) default initialized to 0!
          */
         static source_location current(
-                const int rank,
+                const int comm_rank,
                 const char* func = __builtin_FUNCTION(),
                 const char* file = __builtin_FILE(),
                 const int line = __builtin_LINE(),
                 const int column = 0
         ) noexcept {
             source_location loc;
-            loc.rank_ = rank;
+            loc.comm_rank_ = comm_rank;
             loc.file_ = file;
             loc.func_ = func;
             loc.line_ = line;
@@ -108,14 +108,14 @@ namespace detail {
          * @details Returns `-1` if no MPI rank has been specified.
          * @return the MPI rank (`[[nodiscard]]`)
          */
-        [[nodiscard]] constexpr int rank() const noexcept { return rank_; }
+        [[nodiscard]] constexpr int rank() const noexcept { return comm_rank_; }
 
     private:
         const char* file_ = "unknown";
         const char* func_ = "unknown";
         int line_ = 0;
         int column_ = 0;
-        int rank_ = -1;
+        int comm_rank_ = -1;
     };
 
 }

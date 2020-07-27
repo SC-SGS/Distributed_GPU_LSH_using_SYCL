@@ -17,7 +17,8 @@ def size_in_bytes(numpy_type):
     return np.dtype(numpy_type).itemsize
 
 
-real_type = np.float32
+# real_type = np.float32
+real_type = np.uint32
 size_type = np.uint32
 
 
@@ -37,6 +38,7 @@ args = parser.parse_args()
 # generate data points
 if args.debug:
     data = np.arange(args.size * args.dims, dtype=real_type)
+    data = np.array([x % args.size for x in data])
 else:
     data = sklearn.datasets.make_blobs(n_samples=args.size, n_features=args.dims, centers=args.num_cluster, \
                                        cluster_std=args.cluster_std, shuffle=True, random_state=1)[0].astype(real_type)
@@ -63,11 +65,11 @@ else:
 
 
 # draw data points if dims == 2 || dims == 3
-if args.dims == 2:
-    plt.scatter(data[:, 0], data[:, 1], s=10)
-    plt.show()
-elif args.dims == 3:
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(data[:, 0], data[:, 1], data[:, 2], s=10)
-    plt.show()
+# if args.dims == 2:
+#     plt.scatter(data[:, 0], data[:, 1], s=10)
+#     plt.show()
+# elif args.dims == 3:
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     ax.scatter(data[:, 0], data[:, 1], data[:, 2], s=10)
+#     plt.show()

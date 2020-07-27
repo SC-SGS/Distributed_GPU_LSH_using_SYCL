@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-06-25
  *
  * @brief Implements a custom exception class, which retrieves its what message from the MPI error code.
  */
@@ -27,7 +27,7 @@ public:
      */
     mpi_exception(const MPI_Comm& communicator, const int error_code) : error_code_(error_code) {
         // get current rank
-        MPI_Comm_rank(communicator, &rank_);
+        MPI_Comm_rank(communicator, &comm_rank_);
         // retrieve error message
         int error_msg_length;
         MPI_Error_string(error_code, error_msg_, &error_msg_length);
@@ -38,7 +38,7 @@ public:
      * @brief Returns the MPI rank on which the error occurred.
      * @return the rank (`[[nodiscard]]`)
      */
-    [[nodiscard]] int rank() const noexcept { return rank_; }
+    [[nodiscard]] int rank() const noexcept { return comm_rank_; }
     /**
      * @brief Returns the MPI error code.
      * @return the error code (`[[nodiscard]]`)
@@ -52,7 +52,7 @@ public:
 
 private:
     /// The MPI rank on which the error occurred.
-    int rank_;
+    int comm_rank_;
     /// The MPI error code that occurred.
     const int error_code_;
     /// The MPI error string associated with @ref error_code_.

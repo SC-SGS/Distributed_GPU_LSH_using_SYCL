@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-18
+ * @date 2020-07-16
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -9,18 +9,18 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
 
-#include <cmath>
-#include <random>
-#include <type_traits>
-#include <vector>
-
-#include <mpi.h>
-
 #include <config.hpp>
 #include <data.hpp>
 #include <detail/mpi_type.hpp>
 #include <detail/timing.hpp>
 #include <options.hpp>
+
+#include <mpi.h>
+
+#include <cmath>
+#include <random>
+#include <type_traits>
+#include <vector>
 
 
 namespace detail {
@@ -48,6 +48,8 @@ public:
     using index_type = typename Options::index_type;
     /// The used type of a hash value.
     using hash_value_type = typename Options::hash_value_type;
+    /// The type of the provided @ref data class.
+    using data_type = Data;
 
 
     /// The SYCL buffer holding all hash functions: `buffer.get_count() == options::num_hash_tables * options::num_hash_functions * (data::dims + 1)`.
@@ -57,53 +59,60 @@ public:
     /**
      * @brief Calculates the hash value of the data point @p point in hash table @p hash_table.
      * @tparam AccData the type of data set accessor
-     * @tparam AccHashFunction the type of the hash functions accessor
+     * @tparam AccHashFunctions the type of the hash functions accessor
+     * @param[in] comm_rank the current MPI rank
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
      * @param[in] acc_data the data set accessor
-     * @param[in] acc_hash_function the hash functions accessor
+     * @param[in] acc_hash_functions the hash functions accessor
+     * @param[in] opt the used options
+     * @param[in] data the used data set
      * @return the hash value (`[[nodiscard]]`)
      *
-     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`
-     * @pre @p point **must** be greater or equal than `0` and less than `data::size`
+     * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
+     * @pre @p point **must** be greater or equal than `0` and less than @p size.
      */
-    template <typename AccData, typename AccHashFunction>
-    [[nodiscard]] hash_value_type hash(const index_type hash_table, const index_type point,
-            AccData& acc_data, AccHashFunction& acc_hash_function)
+    template <typename AccData, typename AccHashFunctions>
+    [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
+                                                        const index_type hash_table, const index_type point,
+                                                        AccData& acc_data, AccHashFunctions& acc_hash_functions,
+                                                        const Options& opt, const Data& data)
     {
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= hash_table && hash_table < opt_.num_hash_tables,
-                "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt_.num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank_, 0 <= point && point < data_.size,
-                "Out-of-bounce access!: 0 <= {} < {}", point, data_.size);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
+                         "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
 
-        hash_value_type combined_hash = opt_.num_hash_functions;
-        for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
-            real_type hash = acc_hash_function[this->get_linear_id(hash_table, hash_function, data_.dims)];
-            for (index_type dim = 0; dim < data_.dims; ++dim) {
-                hash += acc_data[data_.get_linear_id(point, dim)] * acc_hash_function[this->get_linear_id(hash_table, hash_function, dim)];
+        hash_value_type combined_hash = opt.num_hash_functions;
+        for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+            real_type hash = acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)];
+            for (index_type dim = 0; dim < data.dims; ++dim) {
+                hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
+                        acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
-            combined_hash ^= static_cast<hash_value_type>(hash / opt_.w)
-                    + static_cast<hash_value_type>(0x9e3779b9)
-                    + (combined_hash << static_cast<hash_value_type>(6))
-                    + (combined_hash >> static_cast<hash_value_type>(2));
+            combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
+                             + static_cast<hash_value_type>(0x9e3779b9)
+                             + (combined_hash << static_cast<hash_value_type>(6))
+                             + (combined_hash >> static_cast<hash_value_type>(2));
         }
+        // TODO 2020-07-08 14:34 marcel: sycl::abs?
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
         }
-        return combined_hash %= opt_.hash_table_size;
+        return combined_hash % opt.hash_table_size;
     }
 
     /**
      * @brief Returns the current hash functions with `new_layout`.
-     * @details If `new_layout == layout` a compiler warning is issued.
+     * @details If `new_layout == layout` a compiler error is issued.
      * @tparam new_layout the layout of the hash functions
      * @return the hash functions with the `new_layout` (`[[nodiscard]]`)
      */
     template <memory_layout new_layout>
-    [[nodiscard]] hash_functions<new_layout, Options, Data> get_as()
-//            __attribute__((diagnose_if(new_layout == layout, "new_layout == layout (simple copy)", "warning")))
-    {
-        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, false);
+    [[nodiscard]] hash_functions<new_layout, Options, Data> get_as() {
+        static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
+
+        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
@@ -120,57 +129,35 @@ public:
 
     /**
      * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
-     * @param[in] hash_table the provided hash table
-     * @param[in] hash_function the provided hash function
-     * @param[in] dim the provided dimension
-     * @return the flattened index (`[[nodiscard]]`)
-     *
-     * @pre @p hash_table **must** be greater or equal than `0` and less than `options::num_hash_tables`.
-     * @pre @p hash_function **must** be greater or equal than `0` and less than `options::num_hash_functions`.
-     * @pre @p dim **must** be greater or equal than `0` and less than `data::dims + 1`.
-     */
-    [[nodiscard]] constexpr index_type get_linear_id(const index_type hash_table, const index_type hash_function, const index_type dim) const noexcept {
-        return hash_functions::get_linear_id(comm_rank_, hash_table, opt_.num_hash_tables, hash_function, opt_.num_hash_functions, dim, data_.dims);
-    }
-    /**
-     * @brief Converts a three-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
      * @param[in] hash_table the provided hash table
-     * @param[in] num_hash_tables the total number of hash tables
      * @param[in] hash_function the provided hash function
-     * @param[in] num_hash_functions the total number of hash functions
      * @param[in] dim the provided dimension
-     * @param[in] dims the total number of dimensions
+     * @param[in] opt the used options
+     * @param[in] data the used data set
      * @return the flattened index (`[[nodiscard]]`)
      *
-     * @pre @p num_hash_tables **must** be greater than `0`.
      * @pre @p hash_table **must** be greater or equal than `0` and less than @p num_hash_tables.
-     * @þre @p num_hash_functions **must be greater than `0`.
      * @pre @p hash_function **must** be greater or equal than `0` and less than @p num_hash_functions.
-     * @pre @p dims **must** be greater than `0`.
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
-                                                            const index_type hash_table, const index_type num_hash_tables,
-                                                            const index_type hash_function, const index_type num_hash_functions,
-                                                            const index_type dim, const index_type dims) noexcept
+                                                            const index_type hash_table, const index_type hash_function, const index_type dim,
+                                                            const Options& opt, const Data& data) noexcept
     {
-        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_tables, "Illegal total number of hash tables!: 0 < {}", num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < num_hash_tables,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < num_hash_functions, "Illegal total number of hash functions!: 0 < {}", num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < num_hash_functions,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, num_hash_functions);
-        DEBUG_ASSERT_MPI(comm_rank, 0 < dims, "Illegal number of total dimensions!: 0 < {}", dims);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < dims + 1,
-                         "Out-of-bounce access!: 0 <= {} < {}", dim, dims + 1);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
+                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
-            return hash_table * num_hash_functions * (dims + 1) + hash_function * (dims + 1) + dim;
+            return hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + dim;
         } else {
             // Struct of Arrays
-            return hash_table * num_hash_functions * (dims + 1) + dim * num_hash_functions + hash_function;
+            return hash_table * opt.num_hash_functions * (data.dims + 1) + dim * opt.num_hash_functions + hash_function;
         }
     }
 
@@ -207,7 +194,23 @@ private:
      * @param[in] comm_rank the current MPI rank
      */
     hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
-        : buffer(tmp_buffer.begin(), tmp_buffer.end()), comm_rank_(comm_rank), opt_(opt), data_(data) { }
+        : buffer(tmp_buffer.size()), comm_rank_(comm_rank), opt_(opt), data_(data)
+    {
+        auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
+        for (std::size_t i = 0; i < tmp_buffer.size(); ++i) {
+            acc[i] = tmp_buffer[i];
+        }
+    }
+
+    /**
+     * @brief Construct an empty hash functions buffer.
+     * @param[in] opt the @ref options object representing the currently set options
+     * @param[in] data the @ref data object representing the used data set
+     * @param[in] size the size of the empty buffer
+     * @param[in] comm_rank the current MPI rank
+     */
+    hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
+        : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
     /// The current MPI rank.
     const int comm_rank_;
@@ -218,8 +221,6 @@ private:
 
 };
 
-#include <numeric>
-#include <getopt.h>
 
 /**
  * @brief Factory function for creating a new @ref hash_functions object.
@@ -257,10 +258,10 @@ template <memory_layout layout, typename Data>
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 for (index_type dim = 0; dim < data.dims; ++dim) {
-                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, dim, data.dims)]
+                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)]
                         = std::abs(rnd_normal_dist(rnd_normal_gen));
                 }
-                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, opt.num_hash_tables, hash_function, opt.num_hash_functions, data.dims, data.dims)]
+                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)]
                     = rnd_uniform_dist(rnd_uniform_gen);
             }
         }
