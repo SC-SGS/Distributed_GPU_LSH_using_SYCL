@@ -194,6 +194,8 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         // set CUDA_VISIBLE_DEVICES
         setup_cuda_devices(communicator);
 
+        
+        START_TIMING(all);
 
         // create data object
         START_TIMING(parsing_data);
@@ -215,7 +217,6 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-        START_TIMING(all);
 
         // create a SYCL queue for each device
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
