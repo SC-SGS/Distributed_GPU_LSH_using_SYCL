@@ -22,6 +22,7 @@
 #include <exceptions/mpi_exception.hpp>
 #include <exceptions/mpi_file_exception.hpp>
 #include <hash_function.hpp>
+#include <entropy_hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
 #include <mpi_buffer.hpp>
@@ -230,9 +231,11 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
+//        [[maybe_unused]] auto entropy_functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
+
         // create hash tables
         START_TIMING(creating_hash_tables);
-        auto functions = make_hash_functions<memory_layout::aos>(data, communicator);
+        auto functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
         auto tables = make_hash_tables(queue, functions, communicator);
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
@@ -287,7 +290,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
                     "Number of nearest-neighbors mismatch!: {} != {}", k, correct_knns_parser->parse_dims());
 
             correct_knns_parser->parse_content(knns.buffers_knn.inactive().data());
-            
+
             std::filesystem::path p(parser.argv_as<std::string>("evaluate_knn"));
             std::string dist_file_name = p.stem().string() + "_dist" + p.extension().string();
             auto correct_knns_dist_parser = make_file_parser<options_type>(p.replace_filename(dist_file_name).string(), communicator);
@@ -305,8 +308,12 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             START_TIMING(evaluating);
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
             const auto [error_ration_percent, num_points_not_found, num_knn_not_found] = error_ratio(knns, data_buffer, comm_rank);
-            detail::mpi_print(comm_rank, "error ratio: {} % (for {} points a total of {} nearest-neighbors couldn't be found)\n",
-                    average(communicator, error_ration_percent), sum(communicator, num_points_not_found), sum(communicator, num_knn_not_found));
+            if (num_points_not_found != 0) {
+                detail::mpi_print(comm_rank, "error ratio: {} % (for {} points a total of {} nearest-neighbors couldn't be found)\n",
+                        average(communicator, error_ration_percent), sum(communicator, num_points_not_found), sum(communicator, num_knn_not_found));
+            } else {
+                detail::mpi_print(comm_rank, "error ratio: {} %\n", average(communicator, error_ration_percent));
+            }
             END_TIMING_MPI(evaluating, comm_rank);
         }
 

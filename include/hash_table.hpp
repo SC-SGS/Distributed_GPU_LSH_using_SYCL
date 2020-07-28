@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-23
+ * @date 2020-07-28
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -52,7 +52,7 @@ public:
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
-    hash_functions<layout, Options, Data> hash_function;
+    entropy_hash_functions<layout, Options, Data> hash_function;
 
     template <typename Knns>
     void calculate_knn(const index_type k, Knns& knns) {
@@ -202,7 +202,7 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Options_, typename Data_>
-    friend auto make_hash_tables(sycl::queue&, hash_functions<layout_, Options_, Data_>, const MPI_Comm&);
+    friend auto make_hash_tables(sycl::queue&, entropy_hash_functions<layout_, Options_, Data_>, const MPI_Comm&);
 
 
     /**
@@ -213,7 +213,7 @@ private:
      * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
      * @param[in] comm_rank the current MPI rank
      */
-    hash_tables(sycl::queue& queue, const Options& opt, Data& data, hash_functions<layout, Options, Data> hash_functions, const int comm_rank)
+    hash_tables(sycl::queue& queue, const Options& opt, Data& data, entropy_hash_functions<layout, Options, Data> hash_functions, const int comm_rank)
             : buffer(opt.num_hash_tables * data.rank_size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
               hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
@@ -246,15 +246,16 @@ private:
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto opt = opt_;
             auto data = data_;
+            auto comm_rank = comm_rank_;
 
-            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data_.rank_size), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_count_hash_values>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 if (idx >= data.rank_size) return;
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_value =
-                            hash_function.hash(comm_rank_, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                            hash_function.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
                     acc_hash_value_count[hash_table * opt.hash_table_size + hash_value].fetch_add(1);
                 }
             });
@@ -272,7 +273,7 @@ private:
             auto acc_offsets = offsets.template get_access<sycl::access::mode::discard_write>(cgh);
             auto opt = opt_;
 
-            cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt_.num_hash_tables), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_calculate_offsets>(sycl::range<>(opt.num_hash_tables), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 // calculate constant offsets
@@ -305,7 +306,7 @@ private:
             auto data = data_;
             auto comm_rank = comm_rank_;
 
-            cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data_.rank_size), [=](sycl::item<> item) {
+            cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
@@ -340,7 +341,7 @@ private:
  * @return the newly constructed @ref hash_tables object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, hash_functions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
+[[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, entropy_hash_functions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
     int comm_rank;
     MPI_Comm_rank(communicator, &comm_rank);
     return hash_tables<layout, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank);
