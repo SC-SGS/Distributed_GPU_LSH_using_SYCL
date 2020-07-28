@@ -81,30 +81,30 @@ public:
                                                         AccData& acc_data, AccHashFunctions& acc_hash_functions,
                                                         const Options& opt, const Data& data)
     {
-//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
-//                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
-//        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
-//                         "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
-//
-//        hash_value_type combined_hash = opt.num_hash_functions;
-//        for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-//            real_type hash = 0.0;
-//            for (index_type dim = 0; dim < data.dims; ++dim) {
-//                hash += acc_data[data.get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
-//                        acc_hash_functions[hash_function * (data.dims + opt.num_cut_off_points) + dim];
-//            }
-//            hash_value_type i = 0;
-//            while (acc_hash_functions[hash_function * (data.dims + opt.num_cut_off_points) + data.dims + i] < hash) { ++i; }
-//            combined_hash ^= static_cast<hash_value_type>(i)
-//                             + static_cast<hash_value_type>(0x9e3779b9)
-//                             + (combined_hash << static_cast<hash_value_type>(6))
-//                             + (combined_hash >> static_cast<hash_value_type>(2));
-//        }
-//        if constexpr (std::is_signed_v<hash_value_type>) {
-//            combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
-//        }
-//        return combined_hash %= opt.hash_table_size;
-        return 0;
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
+                         "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
+
+        hash_value_type combined_hash = opt.num_hash_functions;
+        for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+            real_type hash = 0.0;
+            const index_type idx = hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points) + hash_function * (data.dims + opt.num_cut_off_points);
+            for (index_type dim = 0; dim < data.dims; ++dim) {
+                hash += acc_data[data.get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
+                        acc_hash_functions[idx + dim];
+            }
+            hash_value_type i = 0;
+            while (i < opt.num_cut_off_points && acc_hash_functions[idx + data.dims + i] < hash) { ++i; }
+            combined_hash ^= static_cast<hash_value_type>(i)
+                             + static_cast<hash_value_type>(0x9e3779b9)
+                             + (combined_hash << static_cast<hash_value_type>(6))
+                             + (combined_hash >> static_cast<hash_value_type>(2));
+        }
+        if constexpr (std::is_signed_v<hash_value_type>) {
+            combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
+        }
+        return combined_hash %= opt.hash_table_size;
     }
 
     /**
@@ -281,8 +281,7 @@ template <memory_layout layout, typename Data>
             hash_functions_pool[hash_function * data.dims + dim] = std::abs(rnd_normal_dist(rnd_normal_gen));
         }
     }
-
-
+    
     // calculate cut-off points
     {
         sycl::queue queue(sycl::default_selector{});
