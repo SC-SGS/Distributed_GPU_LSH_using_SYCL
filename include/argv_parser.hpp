@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-09
+ * @date 2020-07-28
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -45,6 +45,7 @@ class argv_parser {
             { "k", "the number of nearest-neighbors to search for (required)" },
             { "save_knn", "save the calculate nearest-neighbors to path" },
             { "evaluate_knn", "read the correct nearest-neighbors and evaluate computed nearest-neighbors" },
+            { "hash_pool_size", "number of hash functions in the hash pool" },
             { "num_hash_tables", "number of hash tables to create" },
             { "hash_table_size", "size of each hash table (must be a prime)" },
             { "num_hash_functions", "number of hash functions per hash table" },

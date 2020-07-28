@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-27
+ * @date 2020-07-28
  *
  * @brief The main file containing the main logic.
  */
@@ -147,6 +147,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         }
 
         // change options values through factory functions using the provided values
+        if (parser.has_argv("hash_pool_size")) {
+            options_factory.set_hash_pool_size(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().hash_pool_size)>>("hash_pool_size"));
+        }
         if (parser.has_argv("num_hash_tables")) {
             options_factory.set_num_hash_tables(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_tables)>>("num_hash_tables"));
@@ -192,7 +196,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
 
         // set CUDA_VISIBLE_DEVICES
-        setup_cuda_devices(communicator);
+//        setup_cuda_devices(communicator);
 
         
         START_TIMING(all);

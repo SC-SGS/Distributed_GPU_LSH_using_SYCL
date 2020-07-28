@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-07-28
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -85,7 +85,9 @@ public:
 
             // try to read all options given in file
             while(in >> opt >> value) {
-                if (opt == "num_hash_tables") {
+                if (opt == "hash_pool_size") {
+                    this->set_hash_pool_size(detail::convert_to<index_type>(value));
+                } else if (opt == "num_hash_tables") {
                     this->set_num_hash_tables(detail::convert_to<index_type>(value));
                 } else if (opt == "hash_table_size") {
                     this->set_hash_table_size(detail::convert_to<hash_value_type>(value));
@@ -103,6 +105,18 @@ public:
             }
         }
 
+        /**
+         * @brief Set the new number of hash functions in the hash pool.
+         * @param factory_hash_pool_size the number of hash functions in the hash pool.
+         * @return `*this`
+         *
+         * @pre @p factory_hash_pool_size **must** be greater than `0`.
+         */
+        factory& set_hash_pool_size(const index_type factory_hash_pool_size) {
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_hash_pool_size, "Illegal number of hash functions in hash pool!: 0 < {}", factory_hash_pool_size);
+            hash_pool_size_ = factory_hash_pool_size;
+            return *this;
+        }
         /**
          * @brief Set the new number of hash tables to create.
          * @param[in] factory_num_hash_tables number of hash tables
@@ -181,6 +195,7 @@ public:
         }
 #endif
         // TODO 2020-04-30 15:31 marcel: set meaningful defaults
+        index_type hash_pool_size_ = static_cast<index_type>(10);
         index_type num_hash_tables_ = static_cast<index_type>(2);
         hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
         index_type num_hash_functions_ = static_cast<index_type>(4);
@@ -195,10 +210,13 @@ public:
      * @param[in] fact a options factory
      */
     options(options::factory fact)
-            : num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
+            : hash_pool_size(fact.hash_pool_size_),
+              num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
               num_hash_functions(fact.num_hash_functions_), w(fact.w_) { }
 
 
+    /// The number of hash functions int the hash pool.
+    const index_type hash_pool_size;
     /// The number of hash tables to create.
     const index_type num_hash_tables;
     /// The size of each hash table (should be a prime).
@@ -235,6 +253,7 @@ public:
         out << "real_type '" << boost::typeindex::type_id<real_type>().pretty_name() << "'\n";
         out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
         out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
+        out << "hash_pool_size " << opt.hash_pool_size << '\n';
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
@@ -243,6 +262,5 @@ public:
         return out;
     }
 };
-
 
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_OPTIONS_HPP
