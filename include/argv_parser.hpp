@@ -46,6 +46,7 @@ class argv_parser {
             { "save_knn", "save the calculate nearest-neighbors to path" },
             { "evaluate_knn", "read the correct nearest-neighbors and evaluate computed nearest-neighbors" },
             { "hash_pool_size", "number of hash functions in the hash pool" },
+            { "num_cut_off_points", "number of cut-off points for the entropy-based hash functions" },
             { "num_hash_tables", "number of hash tables to create" },
             { "hash_table_size", "size of each hash table (must be a prime)" },
             { "num_hash_functions", "number of hash functions per hash table" },

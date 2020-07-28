@@ -151,6 +151,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             options_factory.set_hash_pool_size(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().hash_pool_size)>>("hash_pool_size"));
         }
+        if (parser.has_argv("num_cut_off_points")) {
+            options_factory.set_num_cut_off_points(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_cut_off_points)>>("num_cut_off_points"));
+        }
         if (parser.has_argv("num_hash_tables")) {
             options_factory.set_num_hash_tables(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_tables)>>("num_hash_tables"));
