@@ -172,7 +172,7 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Data_>
-    friend auto make_random_projections_hash_functions(Data_&, const MPI_Comm&);
+    friend auto make_random_projection_hash_functions(Data_&, const MPI_Comm&);
     /// Befriend hash_functions class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
     friend class random_projection_hash_functions;
