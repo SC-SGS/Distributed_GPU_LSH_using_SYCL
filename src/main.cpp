@@ -21,8 +21,7 @@
 #include <evaluation.hpp>
 #include <exceptions/mpi_exception.hpp>
 #include <exceptions/mpi_file_exception.hpp>
-#include <random_projection_hash_function.hpp>
-#include <entropy_based_hash_function.hpp>
+#include <hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
 #include <mpi_buffer.hpp>
@@ -209,7 +208,6 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         // create data object
         START_TIMING(parsing_data);
         auto [data, data_buffer] = make_data<memory_layout::aos>(opt, data_file, communicator);
-//        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, 150, 5, communicator);
         detail::mpi_print(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
         END_TIMING_MPI(parsing_data, comm_rank);
 
@@ -231,12 +229,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
-//        [[maybe_unused]] auto entropy_functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
 
         // create hash tables
         START_TIMING(creating_hash_tables);
-//        auto functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
-        auto functions = make_hash_functions<memory_layout::aos>(data, communicator);
+        auto functions = make_hash_functions<memory_layout::aos>(data, communicator, options_type::hash_functions_type);
         auto tables = make_hash_tables(queue, functions, communicator);
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
