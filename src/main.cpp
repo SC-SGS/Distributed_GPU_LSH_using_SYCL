@@ -64,7 +64,6 @@ void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
  * @brief For every GPU on a node one MPI process should be spawned
  * -> set CUDA_VISIBLE_DEVICES to the MPI rank of the MPI process on the current node.
  * @param[in] communicator the MPI_Comm communicator
- * @param[in] num_cuda_devices the number of available CUDA devices on the current node
  */
 void setup_cuda_devices(const MPI_Comm& communicator) {
     int comm_size, comm_rank;

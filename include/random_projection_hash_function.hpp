@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-07-29
  *
- * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
+ * @brief Implements the @ref random_projection_hash_functions class representing the used LSH hash functions.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_RANDOM_PROJECTION_HASH_FUNCTION_HPP
@@ -154,12 +154,12 @@ public:
     }
 
     /**
-     * @brief Returns the @ref options object which has been used to create this @ref hash_functions object.
+     * @brief Returns the @ref options object which has been used to create this @ref random_projection_hash_functions object.
      * @return the @ref options object (`[[nodiscard]]`)
      */
     [[nodiscard]] const Options& get_options() const noexcept { return opt_; }
     /**
-     * @brief Returns the @ref data object which has been used to create this @ref hash_functions object.
+     * @brief Returns the @ref data object which has been used to create this @ref random_projection_hash_functions object.
      * @return the @ref data object (`[[nodiscard]]`)
      */
     [[nodiscard]] Data& get_data() const noexcept { return data_; }
@@ -215,15 +215,15 @@ private:
 
 
 /**
- * @brief Factory function for creating a new @ref hash_functions object.
+ * @brief Factory function for creating a new @ref random_projection_hash_functions object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
  * @param[in] data the used data object
  * @param[in] communicator the *MPI_Comm* communicator used to distribute the hash functions created on MPI rank 0
- * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
+ * @return the newly constructed hash functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data>
-[[nodiscard]] inline auto make_random_projections_hash_functions(Data& data, const MPI_Comm& communicator) {
+[[nodiscard]] inline auto make_random_projection_hash_functions(Data& data, const MPI_Comm& communicator) {
     using options_type = typename Data::options_type;
     using real_type = typename options_type::real_type;
     using index_type = typename options_type::index_type;

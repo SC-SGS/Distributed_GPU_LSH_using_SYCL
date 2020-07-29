@@ -202,7 +202,7 @@ private:
      * @param[inout] queue the SYCL command queue
      * @param[in] opt the @ref options object representing the currently set options
      * @param[in] data the @ref data object representing the used data set
-     * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
+     * @param[in] hash_functions the hash functions object representing the used LSH hash functions
      * @param[in] comm_rank the current MPI rank
      */
     hash_tables(sycl::queue& queue, const Options& opt, Data& data, HashFunctions<layout, Options, Data> hash_functions, const int comm_rank)
@@ -337,7 +337,7 @@ private:
  * @tparam Options the @ref options type
  * @tparam Data the @ref data type
  * @param[inout] queue the SYCL command queue
- * @param[in] hash_functions the used @ref hash_functions for this hash tables
+ * @param[in] hash_functions the used hash functions for this hash tables
  * @param[in] communicator the *MPI_Comm* communicator
  * @return the newly constructed @ref hash_tables object (`[[nodiscard]]`)
  */

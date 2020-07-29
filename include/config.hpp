@@ -24,7 +24,8 @@ namespace detail {
      */
     class data_base {};
     /**
-     * @brief Empty base class for the @ref hash_functions class. Only for static_asserts.
+     * @brief Empty base class for the hash functions classes @ref entropy_based_hash_functions or @ref random_projection_hash_functions.
+     * Only for static_asserts.
      */
     class hash_functions_base {};
     /**

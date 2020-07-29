@@ -32,7 +32,7 @@ template <memory_layout layout, typename Data>
 
 template <memory_layout layout, typename Data>
 [[nodiscard]] inline auto make_hash_functions(Data& data, const MPI_Comm& communicator, hash_functions::RandomProjection) {
-    return make_random_projections_hash_functions<layout, Data>(data, communicator);
+    return make_random_projection_hash_functions<layout, Data>(data, communicator);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP

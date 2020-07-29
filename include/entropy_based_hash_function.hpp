@@ -43,12 +43,9 @@ public:
     /// The type of the provided @ref data class.
     using data_type = Data;
 
-
-    /// Pool of all possible hash functions.
-//    std::vector<real_type> hash_functions_pool;
+    
     /// The SYCL buffer holding all used hash functions: `buffer.get_count() == options::num_hash_tables * options::num_hash_functions * (data::dims + 1)`.
-    sycl::buffer<real_type, 1> buffer;
-//    sycl::buffer<real_type, 1> cut_off_points;
+    sycl::buffer<real_type, 1> buffer
 
 
     /**
@@ -142,34 +139,34 @@ public:
      * @pre @p hash_function **must** be greater or equal than `0` and less than @p num_hash_functions.
      * @pre @p dim **must** be greater or equal than `0` and less than @p dims + 1.
      */
-//    [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
-//                                                            const index_type hash_table, const index_type hash_function, const index_type dim,
-//                                                            const Options& opt, const Data& data) noexcept
-//    {
-////        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
-////                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
-////        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
-////                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
-////        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
-////                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
-////
-////        if constexpr (layout == memory_layout::aos) {
-////            // Array of Structs
-////            return hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + dim;
-////        } else {
-////            // Struct of Arrays
-////            return hash_table * opt.num_hash_functions * (data.dims + 1) + dim * opt.num_hash_functions + hash_function;
-////        }
-//        return 0;
-//    }
+    [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
+                                                            const index_type hash_table, const index_type hash_function, const index_type dim,
+                                                            const Options& opt, const Data& data) noexcept
+    {
+//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+//                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
+//                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
+//        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
+//                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
+//
+//        if constexpr (layout == memory_layout::aos) {
+//            // Array of Structs
+//            return hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + dim;
+//        } else {
+//            // Struct of Arrays
+//            return hash_table * opt.num_hash_functions * (data.dims + 1) + dim * opt.num_hash_functions + hash_function;
+//        }
+        return 0;
+    }
 
     /**
-     * @brief Returns the @ref options object which has been used to create this @ref hash_functions object.
+     * @brief Returns the @ref options object which has been used to create this @ref entropy_based_hash_functions object.
      * @return the @ref options object (`[[nodiscard]]`)
      */
     [[nodiscard]] const Options& get_options() const noexcept { return opt_; }
     /**
-     * @brief Returns the @ref data object which has been used to create this @ref hash_functions object.
+     * @brief Returns the @ref data object which has been used to create this @ref entropy_based_hash_functions object.
      * @return the @ref data object (`[[nodiscard]]`)
      */
     [[nodiscard]] Data& get_data() const noexcept { return data_; }
@@ -192,7 +189,8 @@ private:
      * @brief Construct new hash functions.
      * @param[in] opt the @ref options object representing the currently set options
      * @param[in] data the @ref data object representing the used data set
-     * @param[in] tmp_buffer the hash functions to initialize the sycl::buffer with
+     * @param[in] hash_functions_pool a pool of hash functions that can be used
+     * @param[in] cut_off_points_pool the cut off points corresponding to the hash functions in the pool
      * @param[in] comm_rank the current MPI rank
      */
     entropy_based_hash_functions(const Options& opt, Data& data, std::vector<real_type>& hash_functions_pool, std::vector<real_type>& cut_off_points_pool, const int comm_rank)
@@ -238,12 +236,12 @@ private:
 
 
 /**
- * @brief Factory function for creating a new @ref hash_functions object.
+ * @brief Factory function for creating a new @ref entropy_based_hash_functions object.
  * @tparam layout the @ref memory_layout type
  * @tparam Data the @ref data type
  * @param[in] data the used data object
  * @param[in] communicator the *MPI_Comm* communicator used to distribute the hash functions created on MPI rank 0
- * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
+ * @return the newly constructed @ref entropy_based_hash_functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data>
 [[nodiscard]] inline auto make_entropy_based_hash_functions(Data& data, const MPI_Comm& communicator) {
