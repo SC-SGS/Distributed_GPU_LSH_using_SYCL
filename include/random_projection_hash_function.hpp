@@ -172,10 +172,10 @@ public:
 private:
     /// Befriend factory function.
     template <memory_layout layout_, typename Data_>
-    friend auto make_hash_functions(Data_&, const MPI_Comm&);
+    friend auto make_random_projections_hash_functions(Data_&, const MPI_Comm&);
     /// Befriend hash_functions class (including the one with another @ref memory_layout).
     template <memory_layout, typename, typename>
-    friend class hash_functions;
+    friend class random_projection_hash_functions;
 
 
     /**
@@ -223,7 +223,7 @@ private:
  * @return the newly constructed @ref hash_functions object (`[[nodiscard]]`)
  */
 template <memory_layout layout, typename Data>
-[[nodiscard]] inline auto make_hash_functions(Data& data, const MPI_Comm& communicator) {
+[[nodiscard]] inline auto make_random_projections_hash_functions(Data& data, const MPI_Comm& communicator) {
     using options_type = typename Data::options_type;
     using real_type = typename options_type::real_type;
     using index_type = typename options_type::index_type;
