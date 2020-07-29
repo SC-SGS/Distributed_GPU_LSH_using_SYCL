@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-28
+ * @date 2020-07-29
  *
  * @brief Implements the @ref entropy_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -300,7 +300,7 @@ template <memory_layout layout, typename Data>
                     cgh.parallel_for<class fill_unsorted>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
                         const index_type idx = item.get_linear_id();
 
-                        index_type value = 0.0;
+                        real_type value = 0.0;
                         for (index_type dim = 0; dim < data.dims; ++dim) {
                             value += acc_data[data.get_linear_id(comm_rank, idx, data.rank_size, dim, data.dims)] * acc_hf[hash_function * data.dims + dim];
                         }
@@ -312,8 +312,9 @@ template <memory_layout layout, typename Data>
             std::sort(hash_values.begin(), hash_values.end());
             // calculate cut-off points
             std::vector<real_type> cut_off_points(opt.num_cut_off_points, 0.0);
+            const index_type jump = data.rank_size / opt.num_cut_off_points;
             for (index_type i = 0; i < opt.num_cut_off_points - 1; ++i) {
-                cut_off_points[i] = hash_values[(i + 1) * (data.rank_size / opt.num_cut_off_points)];
+                cut_off_points[i] = hash_values[(i + 1) * jump];
             }
             cut_off_points.back() = hash_values.back();
             std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
