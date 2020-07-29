@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-07-29
  *
- * @brief Implements the @ref entropy_hash_functions class representing the used entropy-based LSH hash functions
+ * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HASH_FUNCTION_HPP
@@ -30,7 +30,7 @@
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class entropy_hash_functions : detail::hash_functions_base {
+class entropy_based_hash_functions : detail::hash_functions_base {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
     static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:
@@ -106,10 +106,10 @@ public:
      * @return the hash functions with the `new_layout` (`[[nodiscard]]`)
      */
     template <memory_layout new_layout>
-    [[nodiscard]] entropy_hash_functions<new_layout, Options, Data> get_as() {
+    [[nodiscard]] entropy_based_hash_functions<new_layout, Options, Data> get_as() {
 //        static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
 //
-//        entropy_hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
+//        entropy_based_hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
 //        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
 //        auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
 //        std::vector<real_type>& pool_new = new_hash_functions.hash_functions_pool;
@@ -195,7 +195,7 @@ private:
      * @param[in] tmp_buffer the hash functions to initialize the sycl::buffer with
      * @param[in] comm_rank the current MPI rank
      */
-    entropy_hash_functions(const Options& opt, Data& data, std::vector<real_type>& hash_functions_pool, std::vector<real_type>& cut_off_points_pool, const int comm_rank)
+    entropy_based_hash_functions(const Options& opt, Data& data, std::vector<real_type>& hash_functions_pool, std::vector<real_type>& cut_off_points_pool, const int comm_rank)
         : buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + opt.num_cut_off_points)), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
         std::mt19937 rnd_uniform_gen;
@@ -224,7 +224,7 @@ private:
      * @param[in] size the size of the empty buffer
      * @param[in] comm_rank the current MPI rank
      */
-    entropy_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
+    entropy_based_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
         : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { } // TODO 2020-07-28 14:13 marcel: 
 
     /// The current MPI rank.
@@ -250,7 +250,7 @@ template <memory_layout layout, typename Data>
     using options_type = typename Data::options_type;
     using real_type = typename options_type::real_type;
     using index_type = typename options_type::index_type;
-    using hash_functions_type = entropy_hash_functions<layout, options_type, Data>;
+    using hash_functions_type = entropy_based_hash_functions<layout, options_type, Data>;
 
     START_TIMING(creating_hash_functions);
     int comm_rank, comm_size;

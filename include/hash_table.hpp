@@ -16,6 +16,7 @@
 #include <data.hpp>
 #include <detail/print.hpp>
 #include <random_projection_hash_function.hpp>
+#include <entropy_based_hash_function.hpp>
 #include <knn.hpp>
 #include <options.hpp>
 

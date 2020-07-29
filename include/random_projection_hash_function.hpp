@@ -30,7 +30,7 @@
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class hash_functions : detail::hash_functions_base {
+class random_projection_hash_functions : detail::hash_functions_base {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
     static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:
@@ -101,10 +101,10 @@ public:
      * @return the hash functions with the `new_layout` (`[[nodiscard]]`)
      */
     template <memory_layout new_layout>
-    [[nodiscard]] hash_functions<new_layout, Options, Data> get_as() {
+    [[nodiscard]] random_projection_hash_functions<new_layout, Options, Data> get_as() {
         static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
 
-        hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
+        random_projection_hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
         auto acc_this = buffer.template get_access<sycl::access::mode::read>();
         auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
         for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
@@ -185,7 +185,7 @@ private:
      * @param[in] tmp_buffer the hash functions to initialize the sycl::buffer with
      * @param[in] comm_rank the current MPI rank
      */
-    hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
+    random_projection_hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
         : buffer(tmp_buffer.size()), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
@@ -201,7 +201,7 @@ private:
      * @param[in] size the size of the empty buffer
      * @param[in] comm_rank the current MPI rank
      */
-    hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
+    random_projection_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
         : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
     /// The current MPI rank.
@@ -227,7 +227,7 @@ template <memory_layout layout, typename Data>
     using options_type = typename Data::options_type;
     using real_type = typename options_type::real_type;
     using index_type = typename options_type::index_type;
-    using hash_functions_type = hash_functions<layout, options_type, Data>;
+    using hash_functions_type = random_projection_hash_functions<layout, options_type, Data>;
 
     START_TIMING(creating_hash_functions);
     int comm_rank;
