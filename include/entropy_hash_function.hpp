@@ -23,14 +23,6 @@
 #include <vector>
 
 
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref entropy_hash_functions class. Only for static_asserts.
-     */
-    class entropy_hash_functions_base {};
-}
-
-
 /**
  * @brief Class representing the entropy-based LSH hash functions.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
@@ -38,7 +30,7 @@ namespace detail {
  * @tparam Data represents the used data
  */
 template <memory_layout layout, typename Options, typename Data>
-class entropy_hash_functions : detail::entropy_hash_functions_base {
+class entropy_hash_functions : detail::hash_functions_base {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
     static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
 public:

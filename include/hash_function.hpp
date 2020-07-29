@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-16
+ * @date 2020-07-29
  *
  * @brief Implements the @ref hash_functions class representing the used LSH hash functions.
  */
@@ -21,14 +21,6 @@
 #include <random>
 #include <type_traits>
 #include <vector>
-
-
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref hash_functions class. Only for static_asserts.
-     */
-    class hash_functions_base {};
-}
 
 
 /**

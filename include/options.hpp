@@ -25,14 +25,6 @@
 #include <detail/convert.hpp>
 
 
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref options class. Only for static_asserts.
-     */
-    class options_base {};
-}
-
-
 /**
  * @brief Class containing all hyperparameters to change the behaviour of the algorithm.
  * @tparam real_t a floating point type

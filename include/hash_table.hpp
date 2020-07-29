@@ -20,14 +20,6 @@
 #include <options.hpp>
 
 
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref hash_tables class. Only for static_asserts.
-     */
-    class hash_tables_base {};
-}
-
-
 /**
  * @brief Class representing the hash tables used in the LSH algorithm.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
@@ -224,6 +216,16 @@ private:
             // TODO 2020-05-11 17:28 marcel: implement optimizations
             // count the occurrence of each hash value
             this->count_hash_values(hash_value_count);
+
+            // write distribution to file
+//            std::ofstream out("../evaluation/entropy_bucket_distribution_2.txt");
+//            auto acc = hash_value_count.template get_access<sycl::access::mode::read>();
+//            for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
+//                for (index_type i = 0; i < opt_.hash_table_size - 1; ++i) {
+//                    out << acc[hash_table * opt_.hash_table_size + i] << ',';
+//                }
+//                out << acc[hash_table * opt_.hash_table_size + opt_.hash_table_size - 1] << std::endl;
+//            }
 
             // calculate the offset values
             this->calculate_offsets(hash_value_count);

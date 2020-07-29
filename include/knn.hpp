@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-17
+ * @date 2020-07-29
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -18,14 +18,6 @@
 #include <data.hpp>
 #include <mpi_buffer.hpp>
 #include <options.hpp>
-
-
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref knn class. Only for static_asserts.
-     */
-    class knn_base {};
-}
 
 
 /**
