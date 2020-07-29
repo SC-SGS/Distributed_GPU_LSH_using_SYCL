@@ -21,8 +21,8 @@
 #include <evaluation.hpp>
 #include <exceptions/mpi_exception.hpp>
 #include <exceptions/mpi_file_exception.hpp>
-#include <hash_function.hpp>
-#include <entropy_hash_function.hpp>
+#include <random_projection_hash_function.hpp>
+#include <entropy_based_hash_function.hpp>
 #include <hash_table.hpp>
 #include <knn.hpp>
 #include <mpi_buffer.hpp>

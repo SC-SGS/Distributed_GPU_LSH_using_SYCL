@@ -6,8 +6,8 @@
  * @brief Implements the @ref entropy_hash_functions class representing the used entropy-based LSH hash functions
  */
 
-#ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_HASH_FUNCTION_HPP
-#define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_HASH_FUNCTION_HPP
+#ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HASH_FUNCTION_HPP
+#define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HASH_FUNCTION_HPP
 
 #include <config.hpp>
 #include <data.hpp>
@@ -318,4 +318,4 @@ template <memory_layout layout, typename Data>
     return hash_functions_type(data.get_options(), data, hash_functions_pool, cut_off_points_pool, comm_rank);
 }
 
-#endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_HASH_FUNCTION_HPP
+#endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HASH_FUNCTION_HPP
