@@ -45,7 +45,7 @@ public:
 
     
     /// The SYCL buffer holding all used hash functions: `buffer.get_count() == options::num_hash_tables * options::num_hash_functions * (data::dims + 1)`.
-    sycl::buffer<real_type, 1> buffer
+    sycl::buffer<real_type, 1> buffer;
 
 
     /**
