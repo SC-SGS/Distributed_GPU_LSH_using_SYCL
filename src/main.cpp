@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-28
+ * @date 2020-07-29
  *
  * @brief The main file containing the main logic.
  */
@@ -235,7 +235,8 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
         // create hash tables
         START_TIMING(creating_hash_tables);
-        auto functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
+//        auto functions = make_entropy_hash_functions<memory_layout::aos>(data, communicator);
+        auto functions = make_hash_functions<memory_layout::aos>(data, communicator);
         auto tables = make_hash_tables(queue, functions, communicator);
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 

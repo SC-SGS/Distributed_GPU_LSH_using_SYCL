@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-28
+ * @date 2020-07-29
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -34,7 +34,7 @@ namespace detail {
  * @tparam Options represents various constant options to alter the algorithm's behaviour
  * @tparam Data represents the used data
  */
-template <memory_layout layout, typename Options, typename Data>
+template <memory_layout layout, template<memory_layout, typename, typename> typename HashFunctions, typename Options, typename Data>
 class hash_tables : detail::hash_tables_base {
     static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must by a 'options' type!");
     static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must by a 'data' type!");
@@ -52,7 +52,7 @@ public:
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
-    entropy_hash_functions<layout, Options, Data> hash_function;
+    HashFunctions<layout, Options, Data> hash_function;
 
     template <typename Knns>
     void calculate_knn(const index_type k, Knns& knns) {
@@ -201,8 +201,8 @@ public:
 
 private:
     /// Befriend factory function.
-    template <memory_layout layout_, typename Options_, typename Data_>
-    friend auto make_hash_tables(sycl::queue&, entropy_hash_functions<layout_, Options_, Data_>, const MPI_Comm&);
+    template <memory_layout layout_, template<memory_layout, typename, typename> typename HashFunctions_, typename Options_, typename Data_>
+    friend auto make_hash_tables(sycl::queue&, HashFunctions_<layout_, Options_, Data_>, const MPI_Comm&);
 
 
     /**
@@ -213,14 +213,13 @@ private:
      * @param[in] hash_functions the @ref hash_functions object representing the used LSH hash functions
      * @param[in] comm_rank the current MPI rank
      */
-    hash_tables(sycl::queue& queue, const Options& opt, Data& data, entropy_hash_functions<layout, Options, Data> hash_functions, const int comm_rank)
+    hash_tables(sycl::queue& queue, const Options& opt, Data& data, HashFunctions<layout, Options, Data> hash_functions, const int comm_rank)
             : buffer(opt.num_hash_tables * data.rank_size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
               hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
         {
             // create temporary buffer to count the occurrence of each hash value
-            std::vector<index_type> vec(opt_.num_hash_tables * opt_.hash_table_size, index_type{0});
-            sycl::buffer hash_value_count(vec.data(), sycl::range<>(vec.size()));
+            sycl::buffer<index_type, 1> hash_value_count(opt_.num_hash_tables * opt_.hash_table_size);
 
             // TODO 2020-05-11 17:28 marcel: implement optimizations
             // count the occurrence of each hash value
@@ -340,11 +339,11 @@ private:
  * @param[in] communicator the *MPI_Comm* communicator
  * @return the newly constructed @ref hash_tables object (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, entropy_hash_functions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
+template <memory_layout layout, template<memory_layout, typename, typename> typename HashFunctions, typename Options, typename Data>
+[[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, HashFunctions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
     int comm_rank;
     MPI_Comm_rank(communicator, &comm_rank);
-    return hash_tables<layout, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank);
+    return hash_tables<layout, HashFunctions, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank);
 }
 
 
