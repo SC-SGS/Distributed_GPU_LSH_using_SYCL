@@ -246,7 +246,7 @@ public:
     // ---------------------------------------------------------------------------------------------------------- //
 
     /// The type of the hash functions.
-    static constexpr auto hash_functions_type = hash_functions::entropy_based;
+    static constexpr auto hash_functions_type = hash_functions::random_projection;
 
 
     /**
