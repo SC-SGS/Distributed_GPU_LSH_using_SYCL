@@ -22,18 +22,22 @@
 /**
  * @brief Class to parse command line arguments.
  * @details The supported command line options are:
- * | command line argument | description                                                                                  |
- * |:----------------------|:---------------------------------------------------------------------------------------------|
- * | help                  | Prints the help screen.                                                                      |
- * | options               | Path to the options file to load.                                                            |
- * | save_options          | Path to the file to save the currently used options to.                                      |
- * | data                  | Path to the data file to load (**required**).                                                |
- * | k                     | The number of nearest-neighbors to search for (**required**).                                |
- * | save_knn              | Path to the file to save the found k-nearest-neighbors to.                                   |
- * | num_hash_tables       | The number of used hash tables.                                                              |
- * | hash_table_size       | The size of each hash table.                                                                 |
- * | num_hash_functions    | The number of hash functions to calculate the hash values with.                              |
- * | w                     | A constant used in the hash functions calculation: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$. |
+ * | command line argument | description                                                                                         |
+ * |:----------------------|:----------------------------------------------------------------------------------------------------|
+ * | help                  | Prints the help screen.                                                                             |
+ * | options               | Path to the options file to load.                                                                   |
+ * | save_options          | Path to the file to save the currently used options to.                                             |
+ * | data                  | Path to the data file to load (**required**).                                                       |
+ * | k                     | The number of nearest-neighbors to search for (**required**).                                       |
+ * | save_knn              | Path to the file to save the found k-nearest-neighbors to.                                          |
+ * | evaluate_knn          | Perform evaluation of the calculated k-nearest-neighbors using the given file as reference.         |
+ * | hash_pool_size        | The total number of hash tables to generate (currently only used in entropy-based hash functtions). |
+ * | num_cut_off_points    | The number of cut-off points to calculate for the entropy-based hash functions.                     |
+ * | num_hash_tables       | The number of used hash tables.                                                                     |
+ * | hash_table_size       | The size of each hash table.                                                                        |
+ * | num_hash_functions    | The number of hash functions to calculate the hash values with.                                     |
+ * | num_multi_probes      | The number of multi-probes to perform in multi-probe LSH per hash table.                            |
+ * | w                     | A constant used in the hash functions calculation: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.        |
  */
 class argv_parser {
     /// A list of all legal command line options including their description.
