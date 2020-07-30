@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-#include <hash_function.hpp>
+#include <random_projection_hash_function.hpp>
 
 
 template <typename HashFunctions>

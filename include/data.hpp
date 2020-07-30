@@ -24,14 +24,6 @@
 #include <stdexcept>
 
 
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref data class. Only for static_asserts.
-     */
-    class data_base {};
-}
-
-
 /**
  * @brief Class representing a data set.
  * @tparam layout determines whether the data is saved as *Array of Structs* or *Struct of Arrays*

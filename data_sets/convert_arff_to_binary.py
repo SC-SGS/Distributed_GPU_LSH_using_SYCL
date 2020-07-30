@@ -1,5 +1,5 @@
 # @author Marcel Breyer
-# @date 2020-07-23
+# @date 2020-07-29
 # @brief Python3 script for converting a .arff file in text format to a file in binary format.
 
 
@@ -7,6 +7,7 @@ import argparse
 from scipy.io import arff
 import numpy as np
 import sys
+
 
 def size_in_bytes(numpy_type):
     return np.dtype(numpy_type).itemsize
@@ -19,7 +20,7 @@ size_type = np.uint32
 
 # setup command line arguments parser
 parser = argparse.ArgumentParser()
-parser.add_argument("--input_file", help="the '.arff# file to convert to binary", type=str, required=True)
+parser.add_argument("--input_file", help="the '.arff' file to convert to binary", type=str, required=True)
 parser.add_argument("--output_file", help="the file to write the binary representation to", type=str, required=True)
 args = parser.parse_args()
 

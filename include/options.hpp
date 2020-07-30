@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-07-29
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -23,14 +23,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
-
-
-namespace detail {
-    /**
-     * @brief Empty base class for the @ref options class. Only for static_asserts.
-     */
-    class options_base {};
-}
+#include <hash_function.hpp>
 
 
 /**
@@ -46,6 +39,10 @@ struct options : detail::options_base {
     static_assert(std::is_integral_v<index_t>, "The second template parameter must be an integral type!");
     static_assert(std::is_integral_v<hash_value_t>, "The third template parameter must be an integral type!");
 public:
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                                type options                                                //
+    // ---------------------------------------------------------------------------------------------------------- //
+
     /// The used floating point type.
     using real_type = real_t;
     /// The used integer type.
@@ -85,7 +82,11 @@ public:
 
             // try to read all options given in file
             while(in >> opt >> value) {
-                if (opt == "num_hash_tables") {
+                if (opt == "hash_pool_size") {
+                    this->set_hash_pool_size(detail::convert_to<index_type>(value));
+                } else if (opt == "num_cut_off_points") {
+                    this->set_num_cut_off_points(detail::convert_to<index_type>(value));
+                } else if (opt == "num_hash_tables") {
                     this->set_num_hash_tables(detail::convert_to<index_type>(value));
                 } else if (opt == "hash_table_size") {
                     this->set_hash_table_size(detail::convert_to<hash_value_type>(value));
@@ -93,7 +94,7 @@ public:
                     this->set_num_hash_functions(detail::convert_to<index_type>(value));
                 } else if (opt == "w") {
                     this->set_w(detail::convert_to<real_type>(value));
-                } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type") {
+                } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type" || opt == "hash_functions_type") {
                     in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 } else {
                     const std::string msg = std::string("Invalid option '").append(opt).append(" ")
@@ -103,6 +104,28 @@ public:
             }
         }
 
+        /**
+         * @brief Set the new number of hash functions in the hash pool.
+         * @param[in] factory_hash_pool_size the number of hash functions in the hash pool
+         * @return `*this`
+         *
+         * @pre @p factory_hash_pool_size **must** be greater than `0`.
+         */
+        factory& set_hash_pool_size(const index_type factory_hash_pool_size) {
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_hash_pool_size, "Illegal number of hash functions in hash pool!: 0 < {}", factory_hash_pool_size);
+            hash_pool_size_ = factory_hash_pool_size;
+            return *this;
+        }
+        /**
+         * @brief Set the new number of cut-of points.
+         * @param[in] factory_num_cut_off_points the number of cut-off points used in the entropy-based hash functions
+         * @return `*this`
+         */
+        factory& set_num_cut_off_points(const index_type factory_num_cut_off_points) {
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_cut_off_points, "Illegal number of cut-off points!: 0 < {}", factory_num_cut_off_points);
+            num_cut_off_points_ = factory_num_cut_off_points;
+            return *this;
+        }
         /**
          * @brief Set the new number of hash tables to create.
          * @param[in] factory_num_hash_tables number of hash tables
@@ -181,6 +204,8 @@ public:
         }
 #endif
         // TODO 2020-04-30 15:31 marcel: set meaningful defaults
+        index_type hash_pool_size_ = static_cast<index_type>(10);
+        index_type num_cut_off_points_ = static_cast<index_type>(10);
         index_type num_hash_tables_ = static_cast<index_type>(2);
         hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
         index_type num_hash_functions_ = static_cast<index_type>(4);
@@ -195,10 +220,18 @@ public:
      * @param[in] fact a options factory
      */
     options(options::factory fact)
-            : num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
+            : hash_pool_size(fact.hash_pool_size_), num_cut_off_points(fact.num_cut_off_points_),
+              num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
               num_hash_functions(fact.num_hash_functions_), w(fact.w_) { }
 
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                              runtime options                                               //
+    // ---------------------------------------------------------------------------------------------------------- //
 
+    /// The number of hash functions int the hash pool.
+    const index_type hash_pool_size;
+    /// The number of cut-off points used in the entropy-based hash functions.
+    const index_type num_cut_off_points;
     /// The number of hash tables to create.
     const index_type num_hash_tables;
     /// The size of each hash table (should be a prime).
@@ -207,6 +240,13 @@ public:
     const index_type num_hash_functions;
     /// A constant used in the hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
     const real_type w;
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                            compile time options                                            //
+    // ---------------------------------------------------------------------------------------------------------- //
+
+    /// The type of the hash functions.
+    static constexpr auto hash_functions_type = hash_functions::random_projection;
 
 
     /**
@@ -235,6 +275,9 @@ public:
         out << "real_type '" << boost::typeindex::type_id<real_type>().pretty_name() << "'\n";
         out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
         out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
+        out << "hash_functions_type '" << options::hash_functions_type << "'\n";
+        out << "hash_pool_size " << opt.hash_pool_size << '\n';
+        out << "num_cut_off_points " << opt.num_cut_off_points << '\n';
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
@@ -243,6 +286,5 @@ public:
         return out;
     }
 };
-
 
 #endif //DISTRIBUTED_GPU_LSH_USING_SYCL_OPTIONS_HPP

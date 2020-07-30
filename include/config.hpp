@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-07-29
  *
  * @brief Contains global constants, typedefs and enums.
  */
@@ -14,7 +14,29 @@
 
 namespace sycl = cl::sycl;
 /// Namespace containing helper classes and functions.
-namespace detail { }
+namespace detail {
+    /**
+     * @brief Empty base class for the @ref options class. Only for static_asserts.
+     */
+    class options_base {};
+    /**
+     * @brief Empty base class for the @ref data class. Only for static_asserts.
+     */
+    class data_base {};
+    /**
+     * @brief Empty base class for the hash functions classes @ref entropy_based_hash_functions or @ref random_projection_hash_functions.
+     * Only for static_asserts.
+     */
+    class hash_functions_base {};
+    /**
+     * @brief Empty base class for the @ref hash_tables class. Only for static_asserts.
+     */
+    class hash_tables_base {};
+    /**
+     * @brief Empty base class for the @ref knn class. Only for static_asserts.
+     */
+    class knn_base {};
+}
 
 
 /// The memory layout.

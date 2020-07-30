@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-27
+ * @date 2020-07-30
  *
  * @brief The main file containing the main logic.
  */
@@ -64,7 +64,6 @@ void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
  * @brief For every GPU on a node one MPI process should be spawned
  * -> set CUDA_VISIBLE_DEVICES to the MPI rank of the MPI process on the current node.
  * @param[in] communicator the MPI_Comm communicator
- * @param[in] num_cuda_devices the number of available CUDA devices on the current node
  */
 void setup_cuda_devices(const MPI_Comm& communicator) {
     int comm_size, comm_rank;
@@ -100,6 +99,14 @@ void setup_cuda_devices(const MPI_Comm& communicator) {
         throw std::invalid_argument("Can't use more MPI processes per node than available GPUs per node!");
     }
 }
+
+std::string append_to_file_name(const std::string& file_name, const std::string& append) {
+    std::filesystem::path p(file_name);
+    std::string new_file_name = p.stem().string() + append + p.extension().string();
+    return p.replace_filename(new_file_name).string();
+}
+
+
 
 
 int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
@@ -147,6 +154,14 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         }
 
         // change options values through factory functions using the provided values
+        if (parser.has_argv("hash_pool_size")) {
+            options_factory.set_hash_pool_size(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().hash_pool_size)>>("hash_pool_size"));
+        }
+        if (parser.has_argv("num_cut_off_points")) {
+            options_factory.set_num_cut_off_points(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_cut_off_points)>>("num_cut_off_points"));
+        }
         if (parser.has_argv("num_hash_tables")) {
             options_factory.set_num_hash_tables(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_tables)>>("num_hash_tables"));
@@ -192,7 +207,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
 
         // set CUDA_VISIBLE_DEVICES
-        setup_cuda_devices(communicator);
+//        setup_cuda_devices(communicator);
 
         
         START_TIMING(all);
@@ -200,7 +215,6 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         // create data object
         START_TIMING(parsing_data);
         auto [data, data_buffer] = make_data<memory_layout::aos>(opt, data_file, communicator);
-//        auto [data, data_buffers] = make_data<memory_layout::aos>(opt, 150, 5, communicator);
         detail::mpi_print(comm_rank, "\nUsed data set: \n{}\n\n", detail::to_string(data).c_str());
         END_TIMING_MPI(parsing_data, comm_rank);
 
@@ -222,9 +236,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
         detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
 
+
         // create hash tables
         START_TIMING(creating_hash_tables);
-        auto functions = make_hash_functions<memory_layout::aos>(data, communicator);
+        auto functions = make_hash_functions<memory_layout::aos>(data, communicator, options_type::hash_functions_type);
         auto tables = make_hash_tables(queue, functions, communicator);
         END_TIMING_MPI_AND_BARRIER(creating_hash_tables, comm_rank, queue);
 
@@ -260,9 +275,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         // save the calculated k-nearest-neighbours
         if (parser.has_argv("save_knn")) {
             auto knns_save_file = parser.argv_as<std::string>("save_knn");
+            std::string dists_save_file = append_to_file_name(knns_save_file, "_dist");
 
-            detail::mpi_print(comm_rank, "\nSaving knns to: '{}'\n", knns_save_file.c_str());
-            knns.save(knns_save_file, communicator);
+            detail::mpi_print(comm_rank, "\nSaving knns to '{}' and knn distances to '{}'\n", knns_save_file.c_str(), dists_save_file.c_str());
+            knns.save(knns_save_file, dists_save_file, communicator);
         }
 
         if (parser.has_argv("evaluate_knn")) {
@@ -279,10 +295,9 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
                     "Number of nearest-neighbors mismatch!: {} != {}", k, correct_knns_parser->parse_dims());
 
             correct_knns_parser->parse_content(knns.buffers_knn.inactive().data());
-            
-            std::filesystem::path p(parser.argv_as<std::string>("evaluate_knn"));
-            std::string dist_file_name = p.stem().string() + "_dist" + p.extension().string();
-            auto correct_knns_dist_parser = make_file_parser<options_type>(p.replace_filename(dist_file_name).string(), communicator);
+
+            std::string dist_file_name = append_to_file_name(parser.argv_as<std::string>("evaluate_knn"), "_dist");
+            auto correct_knns_dist_parser = make_file_parser<options_type>(dist_file_name, communicator);
 
             DEBUG_ASSERT_MPI(comm_rank, data.total_size == correct_knns_dist_parser->parse_total_size(),
                              "Total sizes mismatch!: {} != {}", data.total_size, correct_knns_dist_parser->parse_total_size());
@@ -297,8 +312,12 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             START_TIMING(evaluating);
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
             const auto [error_ration_percent, num_points_not_found, num_knn_not_found] = error_ratio(knns, data_buffer, comm_rank);
-            detail::mpi_print(comm_rank, "error ratio: {} % (for {} points a total of {} nearest-neighbors couldn't be found)\n",
-                    average(communicator, error_ration_percent), sum(communicator, num_points_not_found), sum(communicator, num_knn_not_found));
+            if (num_points_not_found != 0) {
+                detail::mpi_print(comm_rank, "error ratio: {} % (for {} points a total of {} nearest-neighbors couldn't be found)\n",
+                        average(communicator, error_ration_percent), sum(communicator, num_points_not_found), sum(communicator, num_knn_not_found));
+            } else {
+                detail::mpi_print(comm_rank, "error ratio: {} %\n", average(communicator, error_ration_percent));
+            }
             END_TIMING_MPI(evaluating, comm_rank);
         }
 
