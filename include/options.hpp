@@ -100,9 +100,9 @@ public:
                 } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type" || opt == "hash_functions_type") {
                     in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 } else {
-                    const std::string msg = std::string("Invalid option '").append(opt).append(" ")
-                            .append(value).append("' in file '").append(file).append("'.");
-                    throw std::invalid_argument(msg);
+                    std::stringstream ss;
+                    ss << "Invalid option '" << opt << " " << "' in file '" << file << "'.";
+                    throw std::invalid_argument(ss.str());
                 }
             }
         }
