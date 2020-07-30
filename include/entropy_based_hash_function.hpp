@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-30
  *
  * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -21,6 +21,56 @@
 #include <random>
 #include <type_traits>
 #include <vector>
+
+
+template <typename real_type>
+void pairwise_exchange(std::vector<real_type>& a, const int sendrank, const int recvrank, const MPI_Comm& communicator) {
+    int comm_rank;
+    MPI_Comm_rank(communicator, &comm_rank);
+
+    std::vector<real_type> remote(a.size());
+    std::vector<real_type> all(2 * a.size());
+    constexpr int merge_tag = 1;
+    constexpr int sorted_tag = 2;
+
+    if (comm_rank == sendrank) {
+        MPI_Send(a.data(), a.size(), detail::mpi_type_cast<real_type>(), recvrank, merge_tag, communicator);
+        MPI_Recv(a.data(), a.size(), detail::mpi_type_cast<real_type>(), recvrank, sorted_tag, communicator, MPI_STATUS_IGNORE);
+    } else {
+        MPI_Recv(remote.data(), remote.size(), detail::mpi_type_cast<real_type>(), sendrank, merge_tag, communicator, MPI_STATUS_IGNORE);
+        std::copy(a.begin(), a.end(), all.begin());
+        std::copy(remote.begin(), remote.end(), all.begin() + a.size());
+
+        std::sort(all.begin(), all.end());
+
+        std::size_t theirstart = sendrank > comm_rank ? a.size() : 0;
+        std::size_t mystart = sendrank > comm_rank ? 0 : a.size();
+        MPI_Send(all.data() + theirstart, a.size(), detail::mpi_type_cast<real_type>(), sendrank, sorted_tag, communicator);
+        std::copy(all.begin() + mystart, all.begin() + mystart + a.size(), a.begin());
+    }
+}
+
+// https://stackoverflow.com/questions/23633916/how-does-mpi-odd-even-sort-work
+template <typename real_type>
+void odd_even_sort(std::vector<real_type>& a, const MPI_Comm& communicator) {
+    int comm_size, comm_rank;
+    MPI_Comm_size(communicator, &comm_size);
+    MPI_Comm_rank(communicator, &comm_rank);
+
+    // sort local vector
+    std::sort(a.begin(), a.end());
+
+    // odd-even
+    for (std::size_t i = 1; i <= static_cast<std::size_t>(comm_size); ++i) {
+        if ((i + comm_rank) % 2 == 0) {
+            if (comm_rank < comm_size - 1) {
+                pairwise_exchange(a, comm_rank, comm_rank + 1, communicator);
+            }
+        } else if (comm_rank > 0) {
+            pairwise_exchange(a, comm_rank - 1, comm_rank, communicator);
+        }
+    }
+}
 
 
 /**
@@ -215,15 +265,6 @@ private:
         }
     }
 
-    /**
-     * @brief Construct an empty hash functions buffer.
-     * @param[in] opt the @ref options object representing the currently set options
-     * @param[in] data the @ref data object representing the used data set
-     * @param[in] size the size of the empty buffer
-     * @param[in] comm_rank the current MPI rank
-     */
-    entropy_based_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
-        : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { } // TODO 2020-07-28 14:13 marcel: 
 
     /// The current MPI rank.
     const int comm_rank_;
@@ -254,12 +295,8 @@ template <memory_layout layout, typename Data>
     int comm_rank, comm_size;
     MPI_Comm_rank(communicator, &comm_rank);
     MPI_Comm_size(communicator, &comm_size);
-    if (comm_size != 1) {
-        throw std::logic_error("CURRENTLY ONLY SUPPORTED FOR A SINGLE MPI PROCESS!!!");
-    }
-
+    
     options_type opt = data.get_options();
-
 
     // create hash functions pool
     std::vector<real_type> hash_functions_pool(opt.hash_pool_size * data.dims);
@@ -298,15 +335,31 @@ template <memory_layout layout, typename Data>
                     });
                 });
             }
-            // sort vector
-            std::sort(hash_values.begin(), hash_values.end());
+            // distributed sort vector
+            odd_even_sort(hash_values, communicator);
+
             // calculate cut-off points
             std::vector<real_type> cut_off_points(opt.num_cut_off_points, 0.0);
-            const index_type jump = data.rank_size / opt.num_cut_off_points;
+
+            // calculate cut-off points indices
+            std::vector<index_type> cut_off_points_idx(opt.num_cut_off_points);
+            const index_type jump = data.total_size / opt.num_cut_off_points;
             for (index_type i = 0; i < opt.num_cut_off_points - 1; ++i) {
-                cut_off_points[i] = hash_values[(i + 1) * jump];
+                cut_off_points_idx[i] = (i + 1) * jump;
             }
-            cut_off_points.back() = hash_values.back();
+            cut_off_points_idx.back() = data.total_size - 1;
+
+            // fill cut-off points which are located on the current rank
+            for (index_type i = 0; i < opt.num_cut_off_points; ++i) {
+                // check if index belongs to current rank
+                if (cut_off_points_idx[i] >= data.rank_size * comm_rank && cut_off_points_idx[i] < data.rank_size * (comm_rank + 1)) {
+                    cut_off_points[i] = hash_values[cut_off_points_idx[i] % data.rank_size];
+                }
+            }
+
+            // combine to final cut-off points on all ranks
+            MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), detail::mpi_type_cast<real_type>(), MPI_SUM, communicator);
+            
             std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
         }
     }
