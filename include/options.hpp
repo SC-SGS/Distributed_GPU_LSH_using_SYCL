@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-30
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -25,6 +25,7 @@
 #include <detail/convert.hpp>
 #include <hash_function.hpp>
 
+// TODO 2020-07-30 15:48 marcel: maybe change DEBUG assertions to actual exceptions
 
 /**
  * @brief Class containing all hyperparameters to change the behaviour of the algorithm.
@@ -92,6 +93,8 @@ public:
                     this->set_hash_table_size(detail::convert_to<hash_value_type>(value));
                 } else if (opt == "num_hash_functions") {
                     this->set_num_hash_functions(detail::convert_to<index_type>(value));
+                } else if (opt == "num_multi_probes") {
+                    this->set_num_multi_probes(detail::convert_to<index_type>(value));
                 } else if (opt == "w") {
                     this->set_w(detail::convert_to<real_type>(value));
                 } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type" || opt == "hash_functions_type") {
@@ -166,6 +169,18 @@ public:
             return *this;
         }
         /**
+         * @brief Set the new number of multi-probes to perform per hash table.
+         * @param[in] factory_num_multi_probes number of multi-probes
+         * @return `*this`
+         *
+         * @pre @p factory_num_multi_probes **must** be greater than `0`.
+         */
+        factory& set_num_multi_probes(const index_type factory_num_multi_probes) {
+            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_multi_probes, "Illegal number of multi-probes!: 0 < {}", factory_num_multi_probes);
+            num_multi_probes_ = factory_num_multi_probes;
+            return *this;
+        }
+        /**
          * @brief Set the new w value used in the hash value calculation: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
          * @param[in] factory_w constant value for the hash value calculation
          * @return `*this`
@@ -209,6 +224,7 @@ public:
         index_type num_hash_tables_ = static_cast<index_type>(2);
         hash_value_type hash_table_size_ = static_cast<hash_value_type>(105613);
         index_type num_hash_functions_ = static_cast<index_type>(4);
+        index_type num_multi_probes_ = static_cast<index_type>(6);
         real_type w_ = static_cast<real_type>(1.0);
 
         int comm_rank_;
@@ -222,7 +238,10 @@ public:
     options(options::factory fact)
             : hash_pool_size(fact.hash_pool_size_), num_cut_off_points(fact.num_cut_off_points_),
               num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
-              num_hash_functions(fact.num_hash_functions_), w(fact.w_) { }
+              num_hash_functions(fact.num_hash_functions_), num_multi_probes(fact.num_multi_probes_), w(fact.w_)
+    {
+        DEBUG_ASSERT_MPI(comm_rank_, 0.0 < factory_w, "Illegal 'w' value!: 0.0 < {}", factory_w);
+    }
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                              runtime options                                               //
@@ -238,6 +257,8 @@ public:
     const hash_value_type hash_table_size;
     /// The number of hash functions per hash table.
     const index_type num_hash_functions;
+    /// The number of multi-probes to perform per hash table.
+    const index_type num_multi_probes;
     /// A constant used in the hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
     const real_type w;
 
@@ -281,6 +302,7 @@ public:
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
         out << "hash_table_size " << opt.hash_table_size << '\n';
         out << "num_hash_functions " << opt.num_hash_functions << '\n';
+        out << "num_multi_probes " << opt.num_multi_probes << '\n';
         out << "w " << opt.w;
 
         return out;

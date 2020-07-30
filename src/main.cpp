@@ -174,6 +174,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             options_factory.set_num_hash_functions(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_hash_functions)>>("num_hash_functions"));
         }
+        if (parser.has_argv("num_multi_probes")) {
+            options_factory.set_num_multi_probes(
+                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().num_multi_probes)>>("num_multi_probes"));
+        }
         if (parser.has_argv("w")) {
             options_factory.set_w(
                     parser.argv_as<std::remove_cv_t<decltype(std::declval<options_type>().w)>>("w"));

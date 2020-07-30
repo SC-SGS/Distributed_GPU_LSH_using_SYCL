@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-28
+ * @date 2020-07-30
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -50,6 +50,7 @@ class argv_parser {
             { "num_hash_tables", "number of hash tables to create" },
             { "hash_table_size", "size of each hash table (must be a prime)" },
             { "num_hash_functions", "number of hash functions per hash table" },
+            { "num_multi_probes", "number of multi-probe steps to perform" },
             { "w", "constant used in the hash functions" }
     };
 
