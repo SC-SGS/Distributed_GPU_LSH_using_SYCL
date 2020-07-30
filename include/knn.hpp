@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-30
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -148,14 +148,16 @@ public:
      *
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
-    void save(const std::string& file_name, const MPI_Comm& communicator) {
-        // TODO 2020-07-17 14:25 marcel: svae dists
+    void save(const std::string& knn_file_name, const std::string& dist_file_name, const MPI_Comm& communicator) {
         START_TIMING(save_knns);
         MPI_File file;
 
-        MPI_File_open(communicator, file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
+        MPI_File_open(communicator, knn_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
         MPI_File_write_ordered(file, buffers_knn.active().data(), buffers_knn.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
+        MPI_File_close(&file);
 
+        MPI_File_open(communicator, dist_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
+        MPI_File_write_ordered(file, buffers_dist.active().data(), buffers_dist.active().size(), detail::mpi_type_cast<real_type>(), MPI_STATUS_IGNORE);
         MPI_File_close(&file);
         END_TIMING_MPI(save_knns, comm_rank_);
     }

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-30
  *
  * @brief The main file containing the main logic.
  */
@@ -99,6 +99,14 @@ void setup_cuda_devices(const MPI_Comm& communicator) {
         throw std::invalid_argument("Can't use more MPI processes per node than available GPUs per node!");
     }
 }
+
+std::string append_to_file_name(const std::string& file_name, const std::string& append) {
+    std::filesystem::path p(file_name);
+    std::string new_file_name = p.stem().string() + append + p.extension().string();
+    return p.replace_filename(new_file_name).string();
+}
+
+
 
 
 int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
@@ -267,9 +275,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         // save the calculated k-nearest-neighbours
         if (parser.has_argv("save_knn")) {
             auto knns_save_file = parser.argv_as<std::string>("save_knn");
+            std::string dists_save_file = append_to_file_name(knns_save_file, "_dist");
 
-            detail::mpi_print(comm_rank, "\nSaving knns to: '{}'\n", knns_save_file.c_str());
-            knns.save(knns_save_file, communicator);
+            detail::mpi_print(comm_rank, "\nSaving knns to '{}' and knn distances to '{}'\n", knns_save_file.c_str(), dists_save_file.c_str());
+            knns.save(knns_save_file, dists_save_file, communicator);
         }
 
         if (parser.has_argv("evaluate_knn")) {
@@ -287,9 +296,8 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
             correct_knns_parser->parse_content(knns.buffers_knn.inactive().data());
 
-            std::filesystem::path p(parser.argv_as<std::string>("evaluate_knn"));
-            std::string dist_file_name = p.stem().string() + "_dist" + p.extension().string();
-            auto correct_knns_dist_parser = make_file_parser<options_type>(p.replace_filename(dist_file_name).string(), communicator);
+            std::string dist_file_name = append_to_file_name(parser.argv_as<std::string>("evaluate_knn"), "_dist");
+            auto correct_knns_dist_parser = make_file_parser<options_type>(dist_file_name, communicator);
 
             DEBUG_ASSERT_MPI(comm_rank, data.total_size == correct_knns_dist_parser->parse_total_size(),
                              "Total sizes mismatch!: {} != {}", data.total_size, correct_knns_dist_parser->parse_total_size());
