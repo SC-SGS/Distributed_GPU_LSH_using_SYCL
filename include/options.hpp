@@ -21,11 +21,9 @@
 #include <boost/type_index.hpp>
 
 #include <config.hpp>
-#include <detail/assert.hpp>
 #include <detail/convert.hpp>
 #include <hash_function.hpp>
 
-// TODO 2020-07-30 15:48 marcel: maybe change DEBUG assertions to actual exceptions
 
 /**
  * @brief Class containing all hyperparameters to change the behaviour of the algorithm.
@@ -113,9 +111,13 @@ public:
          * @return `*this`
          *
          * @pre @p factory_hash_pool_size **must** be greater than `0`.
+         *
+         * @throws std::invalid_argument if @p factory_hash_pool_size isn't greater than `0`
          */
         factory& set_hash_pool_size(const index_type factory_hash_pool_size) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_hash_pool_size, "Illegal number of hash functions in hash pool!: 0 < {}", factory_hash_pool_size);
+            if (factory_hash_pool_size <= 0) {
+                throw std::invalid_argument("The number of hash functions in the hash pool must be greater than 0!");
+            }
             hash_pool_size_ = factory_hash_pool_size;
             return *this;
         }
@@ -123,9 +125,15 @@ public:
          * @brief Set the new number of cut-of points.
          * @param[in] factory_num_cut_off_points the number of cut-off points used in the entropy-based hash functions
          * @return `*this`
+         *
+         * @pre @p factory_num_cut_off_points **must** be greater than `0`
+         *
+         * @throws std::invalid_argument if @p factory_num_cut_off_points isn't greater than `0`
          */
         factory& set_num_cut_off_points(const index_type factory_num_cut_off_points) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_cut_off_points, "Illegal number of cut-off points!: 0 < {}", factory_num_cut_off_points);
+            if (factory_num_cut_off_points <= 0) {
+                throw std::invalid_argument("The number of cut-off points used by the entropy-based hash functions must be greater than 0!");
+            }
             num_cut_off_points_ = factory_num_cut_off_points;
             return *this;
         }
@@ -135,9 +143,13 @@ public:
          * @return `*this`
          *
          * @pre @p factory_num_hash_tables **must** be greater than `0`.
+         *
+         * @throws std::invalid_argument if @p factory_num_hash_tables isn't greater than `0`
          */
         factory& set_num_hash_tables(const index_type factory_num_hash_tables) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_hash_tables, "Illegal number of hash tables!: 0 < {}", factory_num_hash_tables);
+            if (factory_num_hash_tables <= 0) {
+                throw std::invalid_argument("The number of hash tables must be greater than 0!");
+            }
             num_hash_tables_ = factory_num_hash_tables;
             return *this;
         }
@@ -149,10 +161,16 @@ public:
          *
          * @pre @p factory_hash_table_size **must** be greater than `0`.
          * @pre @p factory_hash_table_size **must** be a prime number.
+         *
+         * @throws std::invalid_argument if @p factory_hash_table_size isn't greater than `0` or isn't a prime number
          */
         factory& set_hash_table_size(const hash_value_type factory_hash_table_size) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_hash_table_size, "Illegal hash_table_size!: 0 < {}", factory_hash_table_size);
-            DEBUG_ASSERT_MPI(comm_rank_, this->is_prime(factory_hash_table_size), "{} is not a prime!", factory_hash_table_size);
+            if (factory_hash_table_size <= 0) {
+                throw std::invalid_argument("The size of a hash table must be greater than 0!");
+            }
+            if (!this->is_prime(factory_hash_table_size)) {
+                throw std::invalid_argument("The size of a hash table must be a prime number!");
+            }
             hash_table_size_ = factory_hash_table_size;
             return *this;
         }
@@ -162,9 +180,13 @@ public:
          * @return `*this`
          *
          * @pre @p factory_num_hash_functions **must** be greater than `0`.
+         *
+         * @throws std::invalid_argument if @p factory_num_hash_functions isn't greater than `0`
          */
         factory& set_num_hash_functions(const index_type factory_num_hash_functions) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_hash_functions, "Illegal number of hash functions!: 0 < {}", factory_num_hash_functions);
+            if (factory_num_hash_functions <= 0) {
+                throw std::invalid_argument("The number of hash functions per hash table must be greater than 0!");
+            }
             num_hash_functions_ = factory_num_hash_functions;
             return *this;
         }
@@ -174,9 +196,13 @@ public:
          * @return `*this`
          *
          * @pre @p factory_num_multi_probes **must** be greater than `0`.
+         *
+         * @throws std::invalid_argument if @p factory_num_multi_probes isn't greater than `0`
          */
         factory& set_num_multi_probes(const index_type factory_num_multi_probes) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0 < factory_num_multi_probes, "Illegal number of multi-probes!: 0 < {}", factory_num_multi_probes);
+            if (factory_num_multi_probes <= 0) {
+                throw std::invalid_argument("The number of multi-probes per hash table must be greater than 0!");
+            }
             num_multi_probes_ = factory_num_multi_probes;
             return *this;
         }
@@ -186,9 +212,13 @@ public:
          * @return `*this`
          *
          * @pre @p factory_w **must** be greater than `0.0`.
+         *
+         * @throws std::invalid_argument if @p factory_w isn't greater than `0.0`
          */
         factory& set_w(const real_type factory_w) {
-            DEBUG_ASSERT_MPI(comm_rank_, 0.0 < factory_w, "Illegal 'w' value!: 0.0 < {}", factory_w);
+            if (factory_w <= 0.0) {
+                throw std::invalid_argument("The value of w must be greater than 0.0!");
+            }
             w_ = factory_w;
             return *this;
         }
@@ -240,7 +270,10 @@ public:
               num_hash_tables(fact.num_hash_tables_), hash_table_size(fact.hash_table_size_),
               num_hash_functions(fact.num_hash_functions_), num_multi_probes(fact.num_multi_probes_), w(fact.w_)
     {
-        DEBUG_ASSERT_MPI(comm_rank_, 0.0 < factory_w, "Illegal 'w' value!: 0.0 < {}", factory_w);
+        // TODO 2020-07-30 16:48 marcel: meaningful restriction?
+        if (num_multi_probes > num_hash_functions) {
+            throw std::invalid_argument("The number of multi-probes can't be greater than the number of hash functions!");
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------- //
