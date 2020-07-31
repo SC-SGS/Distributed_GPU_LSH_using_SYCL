@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-31
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -98,6 +98,7 @@ public:
 
                 index_type* nearest_neighbors = new index_type[k];
                 real_type* distances = new real_type[k];
+                
 
                 // initialize arrays
                 for (index_type i = 0; i < k; ++i) {
@@ -114,40 +115,46 @@ public:
                 }
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data);
+                    int probes = 0;
+                    if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
+                        probes = static_cast<int>(opt.num_hash_functions);
+                    }
+                    for (int i = -1; i < probes; ++i) {
+                        const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data, i);
 
-                    for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
-                            bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
-                            ++bucket_element)
-                    {
-                        const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
-                        const index_type point_idx = point % data.rank_size;
-                        real_type dist = 0.0;
-                        for (index_type dim = 0; dim < data.dims; ++dim) {
-                            const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
-                            const real_type x = acc_data_received[x_idx];
-                            const index_type y_idx = data.get_linear_id(comm_rank_, point_idx, data.rank_size, dim, data.dims);
-                            const real_type y = acc_data_owned[y_idx];
+                        for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
+                             bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
+                             ++bucket_element)
+                        {
+                            const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
+                            const index_type point_idx = point % data.rank_size;
+                            real_type dist = 0.0;
+                            for (index_type dim = 0; dim < data.dims; ++dim) {
+                                const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
+                                const real_type x = acc_data_received[x_idx];
+                                const index_type y_idx = data.get_linear_id(comm_rank_, point_idx, data.rank_size, dim, data.dims);
+                                const real_type y = acc_data_owned[y_idx];
 
-                            dist += (x - y) * (x - y);
-                        }
-
-                        // updated nearest-neighbors
-                        const auto is_candidate = [=](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
-                            if (first_round && point_idx == idx) return false;
-                            for (index_type i = 0; i < k; ++i) {
-                                if (neighbors[i] == point) return false;
+                                dist += (x - y) * (x - y);
                             }
-                            return true;
-                        };
-                        if (dist < max_distance && is_candidate(point, nearest_neighbors, k, idx)) {
-                            nearest_neighbors[argmax] = point;
-                            distances[argmax] = dist;
-                            max_distance = dist;
-                            for (index_type i = 0; i < k; ++i) {
-                                if (distances[i] > max_distance) {
-                                    max_distance = distances[i];
-                                    argmax = i;
+
+                            // updated nearest-neighbors
+                            const auto is_candidate = [=](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
+                                if (first_round && point_idx == idx) return false;
+                                for (index_type i = 0; i < k; ++i) {
+                                    if (neighbors[i] == point) return false;
+                                }
+                                return true;
+                            };
+                            if (dist < max_distance && is_candidate(point, nearest_neighbors, k, idx)) {
+                                nearest_neighbors[argmax] = point;
+                                distances[argmax] = dist;
+                                max_distance = dist;
+                                for (index_type i = 0; i < k; ++i) {
+                                    if (distances[i] > max_distance) {
+                                        max_distance = distances[i];
+                                        argmax = i;
+                                    }
                                 }
                             }
                         }

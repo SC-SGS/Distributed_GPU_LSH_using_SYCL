@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-31
  *
  * @brief Implements the @ref random_projection_hash_functions class representing the used LSH hash functions.
  */
@@ -68,7 +68,7 @@ public:
     [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
                                                         const index_type hash_table, const index_type point,
                                                         AccData& acc_data, AccHashFunctions& acc_hash_functions,
-                                                        const Options& opt, const Data& data)
+                                                        const Options& opt, const Data& data, const index_type pert = -1)
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
                          "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
@@ -82,7 +82,13 @@ public:
                 hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
-            combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
+            hash_value_type bucket = static_cast<hash_value_type>(hash / opt.w);
+            if (hash_function == pert) {
+                hash_value_type next_bucket = bucket + 1;
+                real_type middle = (next_bucket - bucket) / 2.0 * opt.w;
+                bucket = hash < middle ? bucket - 1 : bucket + 1;
+            }
+            combined_hash ^= bucket
                              + static_cast<hash_value_type>(0x9e3779b9)
                              + (combined_hash << static_cast<hash_value_type>(6))
                              + (combined_hash >> static_cast<hash_value_type>(2));
