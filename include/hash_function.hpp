@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-07-31
  *
  * @brief Implements the factory functions for the hash functions classes.
  */
@@ -31,24 +31,52 @@ struct hash_functions {
      */
     static struct RandomProjection{} random_projection;
 };
-
 /**
  * @brief Stream insertion operator overload for the @ref hash_functions::EntropyBased tag.
  * @param[in] out the output stream
- * @return `out`
+ * @return the output stream
  */
 std::ostream& operator<<(std::ostream& out, hash_functions::EntropyBased) {
-    out << "entropy_based";
-    return out;
+    return out << "entropy_based";
 }
 /**
  * @brief Stream insertion operator overload for the @ref hash_functions::RandomProjection tag.
  * @param[in] out the output stream
- * @return `out`
+ * @return the output stream
  */
 std::ostream& operator<<(std::ostream& out, hash_functions::RandomProjection) {
-    out << "random_projections";
-    return out;
+    return out << "random_projections";
+}
+
+
+/**
+ * @brief Struct to encapsulate all possible hash functions probing tags.
+ */
+struct probing {
+    /**
+     * @brief Tag for the LSH using single (normal) probing.
+     */
+    static struct Single{} single;
+    /**
+     * @brief Tag for the LSH using multi-probing.
+     */
+    static struct Multiple{} multiple;
+};
+/**
+ * @brief Stream insertion operator overload for the @ref probing::Single tag.
+ * @param[in] out the output stream
+ * @return the output stream
+ */
+std::ostream& operator<<(std::ostream& out, probing::Single) {
+    return out << "single";
+}
+/**
+ * @brief Stream insertion operator overload for the @ref probing::Multiple tag.
+ * @param[in] out the output stream
+ * @return the output stream
+ */
+std::ostream& operator<<(std::ostream& out, probing::Multiple) {
+    return out << "multiple";
 }
 
 

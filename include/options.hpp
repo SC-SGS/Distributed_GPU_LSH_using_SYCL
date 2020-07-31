@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-30
+ * @date 2020-07-31
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -95,7 +95,9 @@ public:
                     this->set_num_multi_probes(detail::convert_to<index_type>(value));
                 } else if (opt == "w") {
                     this->set_w(detail::convert_to<real_type>(value));
-                } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type" || opt == "hash_functions_type") {
+                } else if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type"
+                        || opt == "hash_functions_type" || opt == "probing_type")
+                {
                     in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 } else {
                     std::stringstream ss;
@@ -271,8 +273,10 @@ public:
               num_hash_functions(fact.num_hash_functions_), num_multi_probes(fact.num_multi_probes_), w(fact.w_)
     {
         // TODO 2020-07-30 16:48 marcel: meaningful restriction?
-        if (num_multi_probes > num_hash_functions) {
-            throw std::invalid_argument("The number of multi-probes can't be greater than the number of hash functions!");
+        if constexpr (std::is_same_v<decltype(probing_type), decltype(probing::multiple)>) {
+            if (num_multi_probes > num_hash_functions) {
+                throw std::invalid_argument("The number of multi-probes can't be greater than the number of hash functions!");
+            }
         }
     }
 
@@ -301,6 +305,8 @@ public:
 
     /// The type of the hash functions.
     static constexpr auto hash_functions_type = hash_functions::random_projection;
+    /// Specifies whether multi-probe LSH should be used.
+    static constexpr auto probing_type = probing::single;
 
 
     /**
@@ -330,6 +336,7 @@ public:
         out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
         out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
         out << "hash_functions_type '" << options::hash_functions_type << "'\n";
+        out << "probing_type '" << options::probing_type << "'\n";
         out << "hash_pool_size " << opt.hash_pool_size << '\n';
         out << "num_cut_off_points " << opt.num_cut_off_points << '\n';
         out << "num_hash_tables " << opt.num_hash_tables << '\n';
