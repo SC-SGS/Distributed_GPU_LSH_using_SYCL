@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-30
+ * @date 2020-07-31
  *
  * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -41,7 +41,7 @@ void pairwise_exchange(std::vector<real_type>& a, const int sendrank, const int 
         std::copy(a.begin(), a.end(), all.begin());
         std::copy(remote.begin(), remote.end(), all.begin() + a.size());
 
-        std::sort(all.begin(), all.end());
+        std::inplace_merge(all.begin(), all.begin() + a.size(), all.end());
 
         std::size_t theirstart = sendrank > comm_rank ? a.size() : 0;
         std::size_t mystart = sendrank > comm_rank ? 0 : a.size();
