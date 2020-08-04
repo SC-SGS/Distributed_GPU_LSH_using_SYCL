@@ -54,11 +54,12 @@ public:
     /// Hash functions used by this hash tables.
     HashFunctions<layout, Options, Data> hash_functions;
 
-
+    
     template <typename AccOffsets, typename AccHashTables, typename AccDataReceived, typename AccDataOwned>
-    void execute(const bool first_round, real_type& max_distance, index_type* nearest_neighbors, const index_type k, index_type& argmax, real_type* distances,
-            const index_type hash_table, const hash_value_type hash_bucket, const index_type idx, const Data& data, const Options& opt, const int comm_rank,
-            AccOffsets& acc_offsets, AccHashTables& acc_hash_tables, AccDataReceived& acc_data_received, AccDataOwned& acc_data_owned)
+    void execute(const int comm_rank, const bool first_round, index_type* nearest_neighbors, real_type* distances, real_type& max_distance, index_type& argmax,
+            const index_type k, const index_type hash_table, const hash_value_type hash_bucket, const index_type idx,
+            AccOffsets& acc_offsets, AccHashTables& acc_hash_tables, AccDataReceived& acc_data_received, AccDataOwned& acc_data_owned,
+            const Data& data, const Options& opt)
     {
         for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
              bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
@@ -175,8 +176,8 @@ public:
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data);
-                    execute(first_round, max_distance, nearest_neighbors, k, argmax, distances, hash_table, hash_bucket, idx, data, opt,
-                            comm_rank_, acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned);
+                    execute(comm_rank_, first_round, nearest_neighbors, distances, max_distance, argmax, k, hash_table, hash_bucket, idx,
+                            acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned, data, opt);
 
                     if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
                         for (index_type i = 0; i < opt.num_multi_probes; ++i) {
@@ -216,8 +217,8 @@ public:
                         for (index_type probe = 0; probe < opt.num_multi_probes; ++probe) {
                             const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received,
                                     acc_hash_functions, opt, data, probes[probe].idx, probes[probe].delta);
-                            execute(first_round, max_distance, nearest_neighbors, k, argmax, distances, hash_table, hash_bucket, idx, data, opt,
-                                    comm_rank_, acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned);
+                            execute(comm_rank_, first_round, nearest_neighbors, distances, max_distance, argmax, k, hash_table, hash_bucket, idx,
+                                    acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned, data, opt);
                         }
                     }
                 }
