@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-31
+ * @date 2020-08-04
  *
  * @brief Implements the @ref random_projection_hash_functions class representing the used LSH hash functions.
  */
@@ -68,7 +68,7 @@ public:
     [[nodiscard]] static constexpr hash_value_type hash([[maybe_unused]] const int comm_rank,
                                                         const index_type hash_table, const index_type point,
                                                         AccData& acc_data, AccHashFunctions& acc_hash_functions,
-                                                        const Options& opt, const Data& data, const index_type pert = -1)
+                                                        const Options& opt, const Data& data, const index_type idx = 0, const int delta = 0)
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
                          "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
@@ -82,13 +82,8 @@ public:
                 hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
-            hash_value_type bucket = static_cast<hash_value_type>(hash / opt.w);
-            if (hash_function == pert) {
-                hash_value_type next_bucket = bucket + 1;
-                real_type middle = (next_bucket - bucket) / 2.0 * opt.w;
-                bucket = hash < middle ? bucket - 1 : bucket + 1;
-            }
-            combined_hash ^= bucket
+            auto slot = static_cast<hash_value_type>(hash / opt.w);
+            combined_hash ^= (hash_function == idx ? slot + delta : slot)
                              + static_cast<hash_value_type>(0x9e3779b9)
                              + (combined_hash << static_cast<hash_value_type>(6))
                              + (combined_hash >> static_cast<hash_value_type>(2));
@@ -183,7 +178,6 @@ private:
     template <memory_layout, typename, typename>
     friend class random_projection_hash_functions;
 
-
     /**
      * @brief Construct new hash functions.
      * @param[in] opt the @ref options object representing the currently set options
@@ -198,17 +192,66 @@ private:
         for (std::size_t i = 0; i < tmp_buffer.size(); ++i) {
             acc[i] = tmp_buffer[i];
         }
+//
+//        sycl::queue queue(sycl::default_selector{});
+//        queue.submit([&](sycl::handler& cgh) {
+//            auto acc_probing_sequence = probing_sequence.template get_access<sycl::access::mode::discard_write>(cgh);
+//            auto acc_data = data.buffer.template get_access<sycl::access::mode::read>(cgh);
+//            auto acc_hash_functions = data.buffer.template get_access<sycl::access::mode::read>(cgh);
+//            auto data = data_;
+//            auto opt = opt_;
+//            auto comm_rank = comm_rank_;
+//
+//            cgh.parallel_for<class calculate_probing_sequence>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
+//                const index_type idx = item.get_linear_id();
+//
+//                auto* probes = new pair_type[opt.num_multi_probes];
+//                auto* dists = new real_type[opt.num_multi_probes];
+//
+//                for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+//                    dists[i] = std::numeric_limits<real_type>::max();
+//                }
+//
+//                index_type argmax = 0;
+//                real_type max = dists[argmax];
+//
+//                const auto update_probing_sequence = [&](const real_type slot_dist, const index_type hash_function, const signed_type delta) {
+//                    if (max > slot_dist) {
+//                        probes[argmax] = pair_type(hash_function, delta);
+//                        dists[argmax] = slot_dist;
+//                        max = slot_dist;
+//                        for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+//                            if (dists[i] > max) {
+//                                max = dists[i];
+//                                argmax = i;
+//                            }
+//                        }
+//                    }
+//                };
+//
+//                // calculate distances
+//                for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+//                    real_type hash = acc_hash_functions[get_linear_id(comm_rank, 0, hash_function, data.dims, opt, data)];
+//                    for (index_type dim = 0; dim < data.dims; ++dim) {
+//                        hash += acc_data[data_type::get_linear_id(comm_rank, idx, data.rank_size, dim, data.dims)] *
+//                                acc_hash_functions[get_linear_id(comm_rank, 0, hash_function, dim, opt, data)];
+//                    }
+//
+//                    const auto slot = static_cast<index_type>(hash / opt.w);
+//                    update_probing_sequence(hash - slot * opt.w, hash_function, -1);
+//                    update_probing_sequence(opt.w - (hash - slot * opt.w), hash_function, +1);
+//                }
+//
+//                for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+//                    acc_probing_sequence[idx * opt.num_multi_probes + i] = probes[i];
+//                }
+//
+//                delete[] probes;
+//                delete[] dists;
+//            });
+//        });
     }
 
-    /**
-     * @brief Construct an empty hash functions buffer.
-     * @param[in] opt the @ref options object representing the currently set options
-     * @param[in] data the @ref data object representing the used data set
-     * @param[in] size the size of the empty buffer
-     * @param[in] comm_rank the current MPI rank
-     */
-    random_projection_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
-        : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
     /// The current MPI rank.
     const int comm_rank_;

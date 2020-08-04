@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-31
+ * @date 2020-08-04
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -19,6 +19,14 @@
 #include <knn.hpp>
 #include <options.hpp>
 
+
+struct pair_type {
+    pair_type() = default;
+    pair_type(const std::uint32_t idx, const std::int32_t delta) : idx(idx), delta(delta) { }
+
+    std::uint32_t idx = 0;
+    std::int32_t delta = 0.0;
+};
 
 /**
  * @brief Class representing the hash tables used in the LSH algorithm.
@@ -44,7 +52,13 @@ public:
     /// The SYCL buffer holding the hash bucket offsets: `offsets.get_count() == options::num_hash_tables * (options::hash_table_size + 1)`.
     sycl::buffer<index_type, 1> offsets;
     /// Hash functions used by this hash tables.
-    HashFunctions<layout, Options, Data> hash_function;
+    HashFunctions<layout, Options, Data> hash_functions;
+
+
+    void execute() {
+        
+    }
+
 
     template <typename Knns>
     void calculate_knn(const index_type k, Knns& knns) {
@@ -83,7 +97,7 @@ public:
 
             auto acc_data_owned = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_functions.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_knns = knn_buffers.template get_access<sycl::access::mode::write>(cgh);
@@ -96,8 +110,11 @@ public:
 
                 if (idx >= data.rank_size) return;
 
-                index_type* nearest_neighbors = new index_type[k];
-                real_type* distances = new real_type[k];
+                auto* nearest_neighbors = new index_type[k];
+                auto* distances = new real_type[k];
+
+                auto* probes = new pair_type[opt.num_multi_probes];
+                auto* probe_distances = new real_type[opt.num_multi_probes];
                 
 
                 // initialize arrays
@@ -115,12 +132,47 @@ public:
                 }
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    int probes = 0;
-                    if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
-                        probes = static_cast<int>(opt.num_hash_functions);
+                    for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+                        probe_distances[i] = std::numeric_limits<real_type>::max();
                     }
-                    for (int i = -1; i < probes; ++i) {
-                        const hash_value_type hash_bucket = hash_function.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data, i);
+
+                    index_type probe_argmax = 0;
+                    real_type probe_max = probe_distances[probe_argmax];
+
+                    const auto update_probing_sequence = [&](const real_type slot_dist, const index_type hf, const std::uint32_t delta) {
+                        if (probe_max > slot_dist) {
+                            probes[probe_argmax] = pair_type(hf, delta);
+                            probe_distances[probe_argmax] = slot_dist;
+                            probe_max = slot_dist;
+                            for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+                                if (probe_distances[i] > probe_max) {
+                                    probe_max = probe_distances[i];
+                                    probe_argmax = i;
+                                }
+                            }
+                        }
+                    };
+
+                    // calculate distances
+                    for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                        real_type hash = acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, data.dims, opt, data)];
+                        for (index_type dim = 0; dim < data.dims; ++dim) {
+                            hash += acc_data_received[data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims)] *
+                                    acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, dim, opt, data)];
+                        }
+
+                        const auto slot = static_cast<index_type>(hash / opt.w);
+                        update_probing_sequence(hash - slot * opt.w, hash_function, -1);
+                        update_probing_sequence(opt.w - (hash - slot * opt.w), hash_function, +1);
+                    }
+
+//                    if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
+//                        probes = static_cast<int>(opt.num_hash_functions);
+//                    }
+                    for (int probe = -1; probe < static_cast<int>(opt.num_multi_probes); ++probe) {
+                        const auto probe_value = probe == -1 ? pair_type{0, 0} : probes[probe];
+                        const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received,
+                                acc_hash_functions, opt, data, probe_value.idx, probe_value.delta);
 
                         for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
                              bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
@@ -169,6 +221,8 @@ public:
 
                 delete[] nearest_neighbors;
                 delete[] distances;
+                delete[] probes;
+                delete[] probe_distances;
             });
         });
         END_TIMING_MPI_AND_BARRIER(calculate_nearest_neighbors, comm_rank_, queue_);
@@ -214,7 +268,7 @@ private:
      */
     hash_tables(sycl::queue& queue, const Options& opt, Data& data, HashFunctions<layout, Options, Data> hash_functions, const int comm_rank)
             : buffer(opt.num_hash_tables * data.rank_size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
-              hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
+              hash_functions(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
         {
             // create temporary buffer to count the occurrence of each hash value
@@ -250,7 +304,7 @@ private:
         START_TIMING(count_hash_values);
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_hash_value_count = hash_value_count.template get_access<sycl::access::mode::atomic>(cgh);
-            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_functions.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto opt = opt_;
             auto data = data_;
@@ -263,7 +317,7 @@ private:
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_value =
-                            hash_function.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                            hash_functions.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
                     acc_hash_value_count[hash_table * opt.hash_table_size + hash_value].fetch_add(1);
                 }
             });
@@ -307,7 +361,7 @@ private:
         START_TIMING(fill_hash_tables);
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
-            auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_functions.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets.template get_access<sycl::access::mode::atomic>(cgh);
             auto acc_hash_tables = buffer.template get_access<sycl::access::mode::discard_write>(cgh);
             auto opt = opt_;
@@ -318,7 +372,7 @@ private:
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    const hash_value_type hash_value = hash_function.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
+                    const hash_value_type hash_value = hash_functions.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
                     acc_hash_tables[hash_table * data.rank_size + acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)]
                         = idx + comm_rank * data.rank_size;
                 }
