@@ -55,8 +55,47 @@ public:
     HashFunctions<layout, Options, Data> hash_functions;
 
 
-    void execute() {
-        
+    template <typename AccOffsets, typename AccHashTables, typename AccDataReceived, typename AccDataOwned>
+    void execute(const bool first_round, real_type& max_distance, index_type* nearest_neighbors, const index_type k, index_type& argmax, real_type* distances,
+            const index_type hash_table, const hash_value_type hash_bucket, const index_type idx, const Data& data, const Options& opt, const int comm_rank,
+            AccOffsets& acc_offsets, AccHashTables& acc_hash_tables, AccDataReceived& acc_data_received, AccDataOwned& acc_data_owned)
+    {
+        for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
+             bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
+             ++bucket_element)
+        {
+            const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
+            const index_type point_idx = point % data.rank_size;
+            real_type dist = 0.0;
+            for (index_type dim = 0; dim < data.dims; ++dim) {
+                const index_type x_idx = data.get_linear_id(comm_rank, idx, data.rank_size, dim, data.dims);
+                const real_type x = acc_data_received[x_idx];
+                const index_type y_idx = data.get_linear_id(comm_rank, point_idx, data.rank_size, dim, data.dims);
+                const real_type y = acc_data_owned[y_idx];
+
+                dist += (x - y) * (x - y);
+            }
+
+            // updated nearest-neighbors
+            const auto is_candidate = [=](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
+                if (first_round && point_idx == idx) return false;
+                for (index_type i = 0; i < k; ++i) {
+                    if (neighbors[i] == point) return false;
+                }
+                return true;
+            };
+            if (dist < max_distance && is_candidate(point, nearest_neighbors, k, idx)) {
+                nearest_neighbors[argmax] = point;
+                distances[argmax] = dist;
+                max_distance = dist;
+                for (index_type i = 0; i < k; ++i) {
+                    if (distances[i] > max_distance) {
+                        max_distance = distances[i];
+                        argmax = i;
+                    }
+                }
+            }
+        }
     }
 
 
@@ -113,9 +152,12 @@ public:
                 auto* nearest_neighbors = new index_type[k];
                 auto* distances = new real_type[k];
 
-                auto* probes = new pair_type[opt.num_multi_probes];
-                auto* probe_distances = new real_type[opt.num_multi_probes];
-                
+                pair_type* probes = nullptr;
+                real_type* probe_distances = nullptr;
+                if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
+                    probes = new pair_type[opt.num_multi_probes];
+                    probe_distances = new real_type[opt.num_multi_probes];
+                }
 
                 // initialize arrays
                 for (index_type i = 0; i < k; ++i) {
@@ -132,83 +174,50 @@ public:
                 }
 
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                    for (index_type i = 0; i < opt.num_multi_probes; ++i) {
-                        probe_distances[i] = std::numeric_limits<real_type>::max();
-                    }
+                    const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received, acc_hash_functions, opt, data);
+                    execute(first_round, max_distance, nearest_neighbors, k, argmax, distances, hash_table, hash_bucket, idx, data, opt,
+                            comm_rank_, acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned);
 
-                    index_type probe_argmax = 0;
-                    real_type probe_max = probe_distances[probe_argmax];
-
-                    const auto update_probing_sequence = [&](const real_type slot_dist, const index_type hf, const std::uint32_t delta) {
-                        if (probe_max > slot_dist) {
-                            probes[probe_argmax] = pair_type(hf, delta);
-                            probe_distances[probe_argmax] = slot_dist;
-                            probe_max = slot_dist;
-                            for (index_type i = 0; i < opt.num_multi_probes; ++i) {
-                                if (probe_distances[i] > probe_max) {
-                                    probe_max = probe_distances[i];
-                                    probe_argmax = i;
-                                }
-                            }
-                        }
-                    };
-
-                    // calculate distances
-                    for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-                        real_type hash = acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, data.dims, opt, data)];
-                        for (index_type dim = 0; dim < data.dims; ++dim) {
-                            hash += acc_data_received[data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims)] *
-                                    acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, dim, opt, data)];
+                    if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
+                        for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+                            probe_distances[i] = std::numeric_limits<real_type>::max();
                         }
 
-                        const auto slot = static_cast<index_type>(hash / opt.w);
-                        update_probing_sequence(hash - slot * opt.w, hash_function, -1);
-                        update_probing_sequence(opt.w - (hash - slot * opt.w), hash_function, +1);
-                    }
+                        index_type probe_argmax = 0;
+                        real_type probe_max = probe_distances[probe_argmax];
 
-//                    if constexpr (std::is_same_v<std::remove_cv_t<decltype(opt.probing_type)>, probing::Multiple>) {
-//                        probes = static_cast<int>(opt.num_hash_functions);
-//                    }
-                    for (int probe = -1; probe < static_cast<int>(opt.num_multi_probes); ++probe) {
-                        const auto probe_value = probe == -1 ? pair_type{0, 0} : probes[probe];
-                        const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received,
-                                acc_hash_functions, opt, data, probe_value.idx, probe_value.delta);
-
-                        for (index_type bucket_element = acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket];
-                             bucket_element < acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_bucket + 1];
-                             ++bucket_element)
-                        {
-                            const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
-                            const index_type point_idx = point % data.rank_size;
-                            real_type dist = 0.0;
-                            for (index_type dim = 0; dim < data.dims; ++dim) {
-                                const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
-                                const real_type x = acc_data_received[x_idx];
-                                const index_type y_idx = data.get_linear_id(comm_rank_, point_idx, data.rank_size, dim, data.dims);
-                                const real_type y = acc_data_owned[y_idx];
-
-                                dist += (x - y) * (x - y);
-                            }
-
-                            // updated nearest-neighbors
-                            const auto is_candidate = [=](const auto point, const index_type* neighbors, const index_type k, const index_type idx) {
-                                if (first_round && point_idx == idx) return false;
-                                for (index_type i = 0; i < k; ++i) {
-                                    if (neighbors[i] == point) return false;
-                                }
-                                return true;
-                            };
-                            if (dist < max_distance && is_candidate(point, nearest_neighbors, k, idx)) {
-                                nearest_neighbors[argmax] = point;
-                                distances[argmax] = dist;
-                                max_distance = dist;
-                                for (index_type i = 0; i < k; ++i) {
-                                    if (distances[i] > max_distance) {
-                                        max_distance = distances[i];
-                                        argmax = i;
+                        const auto update_probing_sequence = [&](const real_type slot_dist, const index_type hf, const std::uint32_t delta) {
+                            if (probe_max > slot_dist) {
+                                probes[probe_argmax] = pair_type(hf, delta);
+                                probe_distances[probe_argmax] = slot_dist;
+                                probe_max = slot_dist;
+                                for (index_type i = 0; i < opt.num_multi_probes; ++i) {
+                                    if (probe_distances[i] > probe_max) {
+                                        probe_max = probe_distances[i];
+                                        probe_argmax = i;
                                     }
                                 }
                             }
+                        };
+
+                        // calculate distances
+                        for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                            real_type hash = acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, data.dims, opt, data)];
+                            for (index_type dim = 0; dim < data.dims; ++dim) {
+                                hash += acc_data_received[data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims)] *
+                                        acc_hash_functions[hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, dim, opt, data)];
+                            }
+
+                            const auto slot = static_cast<index_type>(hash / opt.w);
+                            update_probing_sequence(hash - slot * opt.w, hash_function, -1);
+                            update_probing_sequence(opt.w - (hash - slot * opt.w), hash_function, +1);
+                        }
+
+                        for (index_type probe = 0; probe < opt.num_multi_probes; ++probe) {
+                            const hash_value_type hash_bucket = hash_functions.hash(comm_rank_, hash_table, idx, acc_data_received,
+                                    acc_hash_functions, opt, data, probes[probe].idx, probes[probe].delta);
+                            execute(first_round, max_distance, nearest_neighbors, k, argmax, distances, hash_table, hash_bucket, idx, data, opt,
+                                    comm_rank_, acc_offsets, acc_hash_tables, acc_data_received, acc_data_owned);
                         }
                     }
                 }
