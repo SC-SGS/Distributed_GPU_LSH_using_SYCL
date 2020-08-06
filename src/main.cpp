@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-30
+ * @date 2020-08-06
  *
  * @brief The main file containing the main logic.
  */
@@ -313,10 +313,10 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", average(communicator, recall(knns, comm_rank)));
             const auto [error_ration_percent, num_points_not_found, num_knn_not_found] = error_ratio(knns, data_buffer, comm_rank);
             if (num_points_not_found != 0) {
-                detail::mpi_print(comm_rank, "error ratio: {} % (for {} points a total of {} nearest-neighbors couldn't be found)\n",
+                detail::mpi_print(comm_rank, "error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n",
                         average(communicator, error_ration_percent), sum(communicator, num_points_not_found), sum(communicator, num_knn_not_found));
             } else {
-                detail::mpi_print(comm_rank, "error ratio: {} %\n", average(communicator, error_ration_percent));
+                detail::mpi_print(comm_rank, "error ratio: {} \n", average(communicator, error_ration_percent));
             }
             END_TIMING_MPI(evaluating, comm_rank);
         }

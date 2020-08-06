@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-24
+ * @date 2020-08-06
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -152,9 +152,8 @@ template <typename Knns, typename real_type, typename index_type>
             mean_error_ratio += error_ratio / error_count;
         }
     }
-
-    real_type error_ratio_percent = std::abs((mean_error_ratio / mean_error_count) * 100 - 100);
-    return std::make_tuple(error_ratio_percent, num_points_not_found, num_knn_not_found);
+    
+    return std::make_tuple(mean_error_ratio / mean_error_count, num_points_not_found, num_knn_not_found);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_EVALUATION_HPP
