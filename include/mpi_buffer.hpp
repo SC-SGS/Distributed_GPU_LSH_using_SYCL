@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-08
+ * @date 2020-08-06
  *
  * @brief Implements buffers for the MPI communication.
  */
@@ -21,9 +21,13 @@
  * @brief Buffers for the MPI communication. Used to hide the communication costs behind the calculation costs.
  * @tparam T buffer data type
  */
-template <typename value_type, typename size_type = std::size_t>
+template <typename T, typename size_type = std::size_t>
 class mpi_buffers {
 public:
+    /// The used value type.
+    using value_type = T;
+
+
     /// The number of data points per MPI rank.
     const size_type rank_size;
     /// The dimension of each data point.
