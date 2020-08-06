@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-30
+ * @date 2020-08-06
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -115,17 +115,17 @@ public:
      * @pre @p k **must** be greater than `0`
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
-                                                            const index_type point, const index_type i,
+                                                            const index_type point, const index_type nn,
                                                             [[maybe_unused]] const Data& data, [[maybe_unused]] const index_type k) noexcept
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size, "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= i && i < k, "Out-of-bounce access!: 0 <= {} < {}", i, k);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= nn && nn < k, "Out-of-bounce access!: 0 <= {} < {}", nn, k);
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of k-nearest-neighbors to search for!: 0 < {}", k);
 
         if constexpr (layout == memory_layout::aos) {
-            return point * k + i;
+            return point * k + nn;
         } else {
-            return i * data.rank_size + point;
+            return nn * data.rank_size + point;
         }
     }
 
