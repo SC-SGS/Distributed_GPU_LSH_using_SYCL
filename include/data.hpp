@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-08
+ * @date 2020-08-06
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -265,15 +265,15 @@ template <memory_layout layout, typename Options>
     // assumed that data is always read in Array of Structs format
     // -> convert to Struct of Arrays if requested
     if constexpr (layout == memory_layout::soa) {
-        using active_data_type = data<memory_layout::soa, Options>;
-        using inactive_data_type = data<memory_layout::aos, Options>;
+        using new_data_type = data<memory_layout::soa, Options>;
+        using old_data_type = data<memory_layout::aos, Options>;
 
         const std::vector<real_type>& active = buffers.active();
         std::vector<real_type>& inactive = buffers.inactive();
         for (index_type point = 0; point < buffers.rank_size; ++point) {
             for (index_type dim = 0; dim < buffers.dims; ++dim) {
-                inactive[inactive_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)] =
-                        active[active_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)];
+                inactive[new_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)] =
+                        active[old_data_type::get_linear_id(comm_rank, point, buffers.rank_size, dim, buffers.dims)];
             }
         }
         // IMPORTANT: swap active buffers (now buffer_1_ is active and buffer_0_ is inactive)
