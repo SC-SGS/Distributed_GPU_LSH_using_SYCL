@@ -1,5 +1,5 @@
 # @author Marcel Breyer
-# @date 2020-06-16
+# @date 2020-08-06
 # @brief Python3 script for generating data sets.
 
 
@@ -37,8 +37,8 @@ args = parser.parse_args()
 
 # generate data points
 if args.debug:
-    data = np.arange(args.size * args.dims, dtype=real_type)
-    data = np.array([x % args.size for x in data])
+    data = np.arange(args.size * args.dims, dtype=real_type) % args.size
+    data = np.reshape(data, (args.size, args.dims))
 else:
     data = sklearn.datasets.make_blobs(n_samples=args.size, n_features=args.dims, centers=args.num_cluster, \
                                        cluster_std=args.cluster_std, shuffle=True, random_state=1)[0].astype(real_type)
@@ -52,8 +52,8 @@ if args.scale:
 if args.binary:
     # write data points to file in binary format
     with open(args.output_file, 'wb') as file:
-        file.write((args.size).to_bytes(size_in_bytes(size_type), sys.byteorder))
-        file.write((args.dims).to_bytes(size_in_bytes(size_type), sys.byteorder))
+        file.write(args.size.to_bytes(size_in_bytes(size_type), sys.byteorder))
+        file.write(args.dims.to_bytes(size_in_bytes(size_type), sys.byteorder))
         file.write(data.tobytes())
 else:
     # write data points to file in text format
