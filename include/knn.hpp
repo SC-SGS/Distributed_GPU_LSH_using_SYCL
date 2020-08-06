@@ -154,6 +154,26 @@ public:
      */
     void save(const std::string& knn_file_name, const std::string& dist_file_name, const MPI_Comm& communicator) {
         START_TIMING(save_knns);
+        if constexpr (layout == memory_layout::soa) {
+            const auto transform = [&](auto& buffer) {
+                using soa_layout = knn<memory_layout::soa, Options, Data>;
+                using aos_layout = knn<memory_layout::aos, Options, Data>;
+
+                auto& active = buffer.active();
+                auto& inactive = buffer.inactive();
+                for (index_type point = 0; point < data_.rank_size; ++point) {
+                    for (index_type nn = 0; nn < k; ++nn) {
+                        inactive[aos_layout::get_linear_id(comm_rank_, point, nn, data_, k)]
+                                = active[soa_layout::get_linear_id(comm_rank_, point, nn, data_, k)];
+                    }
+                }
+                buffer.swap_buffers();
+            };
+
+            transform(buffers_knn);
+            transform(buffers_dist);
+        }
+
         MPI_File file;
 
         MPI_File_open(communicator, knn_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
@@ -163,6 +183,11 @@ public:
         MPI_File_open(communicator, dist_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
         MPI_File_write_ordered(file, buffers_dist.active().data(), buffers_dist.active().size(), detail::mpi_type_cast<real_type>(), MPI_STATUS_IGNORE);
         MPI_File_close(&file);
+
+        if constexpr (layout == memory_layout::soa) {
+            buffers_knn.swap_buffers();
+            buffers_dist.swap_buffers();
+        }
         END_TIMING_MPI(save_knns, comm_rank_);
     }
 
