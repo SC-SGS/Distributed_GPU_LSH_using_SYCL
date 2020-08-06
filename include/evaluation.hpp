@@ -68,6 +68,7 @@ template <typename Knns>
 
     using index_type = typename Knns::index_type;
     using real_type = typename Knns::real_type;
+    using aos_layout = knn<memory_layout::aos, typename Knns::options_type, typename Knns::data_type>;
 
     const auto& data = knns.get_data();
     const index_type size = data.rank_size;
@@ -81,7 +82,7 @@ template <typename Knns>
         for (index_type i = 0; i < k; ++i) {
             const index_type calculated_id = calculated_knns[knns.get_linear_id(comm_rank, point, i, data, k)];
             for (index_type j = 0; j < k; ++j) {
-                if (calculated_id == correct_knns[knns.get_linear_id(comm_rank, point, j, data, k)]) {
+                if (calculated_id == correct_knns[aos_layout::get_linear_id(comm_rank, point, j, data, k)]) {
                     ++count;
                     break;
                 }
@@ -108,6 +109,8 @@ template <typename Knns, typename real_type, typename index_type>
 [[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
+    using aos_layout = knn<memory_layout::aos, typename Knns::options_type, typename Knns::data_type>;
+
     const auto& data = knns.get_data();
     const index_type rank_size = data.rank_size;
     const index_type k = knns.k;
@@ -126,7 +129,7 @@ template <typename Knns, typename real_type, typename index_type>
     for (index_type point = 0; point < rank_size; ++point) {
         for (index_type nn = 0; nn < k; ++nn) {
             calculated_knns_dist_sorted[nn] = calculated_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
-            correct_knns_dist_sorted[nn] = correct_knns_dist[knns.get_linear_id(comm_rank, point, nn, data, k)];
+            correct_knns_dist_sorted[nn] = correct_knns_dist[aos_layout::get_linear_id(comm_rank, point, nn, data, k)];
         }
         auto count = std::count(calculated_knns_dist_sorted.cbegin(), calculated_knns_dist_sorted.cend(), std::numeric_limits<real_type>::max());
         if (count != 0) {

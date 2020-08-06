@@ -35,6 +35,10 @@ public:
     using real_type = typename Options::real_type;
     /// The used integer type.
     using index_type = typename Options::index_type;
+    /// The type of the provided @ref options class.
+    using options_type = Options;
+    /// The type of the provided @ref data class.
+    using data_type = Data;
 
 
     /// The buffers containing the found knns.

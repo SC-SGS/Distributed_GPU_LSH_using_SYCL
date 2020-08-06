@@ -282,6 +282,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         }
 
         if (parser.has_argv("evaluate_knn")) {
+            // expect correct arrays in AoS form!!!
             detail::mpi_print(comm_rank, "\n");
             START_TIMING(parsing_correct_knns);
             using index_type = typename options_type::index_type;
