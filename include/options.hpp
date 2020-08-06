@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-08-06
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -23,7 +23,7 @@
 #include <config.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
-#include <hash_function.hpp>
+#include <hash_functions/hash_function.hpp>
 
 
 /**

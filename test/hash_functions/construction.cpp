@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 
-#include <random_projection_hash_function.hpp>
+#include <hash_functions/random_projection_hash_function.hpp>
 
 
 TEST(HashFunctionsTest, DefaultConstruction) {

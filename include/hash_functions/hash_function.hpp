@@ -14,8 +14,8 @@
 
 #include <config.hpp>
 #include <detail/print.hpp>
-#include <entropy_based_hash_function.hpp>
-#include <random_projection_hash_function.hpp>
+#include <hash_functions/entropy_based_hash_function.hpp>
+#include <hash_functions/random_projection_hash_function.hpp>
 
 
 /**

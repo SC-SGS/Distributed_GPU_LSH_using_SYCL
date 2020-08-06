@@ -15,7 +15,7 @@
 #include <config.hpp>
 #include <data.hpp>
 #include <detail/print.hpp>
-#include <hash_function.hpp>
+#include <hash_functions/hash_function.hpp>
 #include <knn.hpp>
 #include <options.hpp>
 
