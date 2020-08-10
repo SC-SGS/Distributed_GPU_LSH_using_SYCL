@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-08-10
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -50,7 +50,7 @@ public:
     void calculate_knn(const index_type k, Knns& knns) {
         static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
 
-        calculate_knn(k, data_.buffer, knns);
+        calculate_knn(k, data_.buffer, knns, true);
     }
     template <typename Knns>
     void calculate_knn(const index_type k, mpi_buffers<real_type, index_type>& data_mpi_buffers, Knns& knns) {
@@ -67,9 +67,8 @@ public:
         calculate_knn(k, data_buffer, knns);
     }
     template <typename Knns>
-    void calculate_knn(const index_type k, sycl::buffer<real_type, 1>& data_buffer, Knns& knns) {
+    void calculate_knn(const index_type k, sycl::buffer<real_type, 1>& data_buffer, Knns& knns, const bool first_round = false) {
         static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The template parameter must by a 'knn' type!");
-        static bool first_round = true; // TODO 2020-07-17 16:59 marcel: better
 
         // TODO 2020-06-23 18:54 marcel: implement correctly
         if (k > data_.rank_size) {
@@ -104,6 +103,7 @@ public:
                     nearest_neighbors[i] = acc_knns[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
                     distances[i] = acc_knns_dist[Knns::get_linear_id(comm_rank_, idx, i, data, k)];
                 }
+
                 index_type argmax = 0;
                 real_type max_distance = distances[argmax];
                 for (index_type i = 0; i < k; ++i) {
@@ -165,8 +165,6 @@ public:
             });
         });
         END_TIMING_MPI_AND_BARRIER(calculate_nearest_neighbors, comm_rank_, queue_);
-
-        first_round = false;
     }
 
 
