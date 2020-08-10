@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-06
+ * @date 2020-08-10
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -176,13 +176,25 @@ public:
 
         MPI_File file;
 
-        MPI_File_open(communicator, knn_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY , MPI_INFO_NULL, &file);
-        MPI_File_write_ordered(file, buffers_knn.active().data(), buffers_knn.active().size(), detail::mpi_type_cast<index_type>(), MPI_STATUS_IGNORE);
-        MPI_File_close(&file);
+        const auto save_to_file = [&](const std::string& file_name, auto& buffer) {
+            using value_type = typename std::remove_reference_t<decltype(buffer)>::value_type;
+            
+            // open file in create mode to write header information
+            if (comm_rank_ == 0) {
+                std::ofstream out(file_name, std::ios::out | std::ios::binary);
+                out.write(reinterpret_cast<const char*>(&data_.total_size), sizeof(data_.total_size));
+                out.write(reinterpret_cast<const char*>(&data_.dims), sizeof(data_.dims));
+            }
+            MPI_Barrier(communicator);
 
-        MPI_File_open(communicator, dist_file_name.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
-        MPI_File_write_ordered(file, buffers_dist.active().data(), buffers_dist.active().size(), detail::mpi_type_cast<real_type>(), MPI_STATUS_IGNORE);
-        MPI_File_close(&file);
+            // open file in append mode to write knns
+            MPI_File_open(communicator, file_name.c_str(), MPI_MODE_APPEND | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
+            MPI_File_write_ordered(file, buffer.active().data(), buffer.active().size(), detail::mpi_type_cast<value_type>(), MPI_STATUS_IGNORE);
+            MPI_File_close(&file);
+        };
+
+        save_to_file(knn_file_name, buffers_knn);
+        save_to_file(dist_file_name, buffers_dist);
 
         if constexpr (layout == memory_layout::soa) {
             buffers_knn.swap_buffers();
