@@ -183,7 +183,7 @@ public:
             if (comm_rank_ == 0) {
                 std::ofstream out(file_name, std::ios::out | std::ios::binary);
                 out.write(reinterpret_cast<const char*>(&data_.total_size), sizeof(data_.total_size));
-                out.write(reinterpret_cast<const char*>(&data_.dims), sizeof(data_.dims));
+                out.write(reinterpret_cast<const char*>(&k), sizeof(k));
             }
             MPI_Barrier(communicator);
 
