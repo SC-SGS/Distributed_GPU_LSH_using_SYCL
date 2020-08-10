@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-06
+ * @date 2020-08-10
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -148,6 +148,9 @@ template <typename Knns, typename real_type, typename index_type>
             if (calculated_knns_dist_sorted[nn] != 0.0 && correct_knns_dist_sorted[nn] != 0.0) {
                 ++error_count;
                 error_ratio += calculated_knns_dist_sorted[nn] / correct_knns_dist_sorted[nn];
+            } else {
+                ++error_count;
+                ++error_ratio;
             }
         }
         if (error_count != 0) {
