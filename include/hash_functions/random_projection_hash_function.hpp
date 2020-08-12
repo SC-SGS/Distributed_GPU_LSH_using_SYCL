@@ -87,7 +87,6 @@ public:
                              + (combined_hash << static_cast<hash_value_type>(6))
                              + (combined_hash >> static_cast<hash_value_type>(2));
         }
-        // TODO 2020-07-08 14:34 marcel: sycl::abs?
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
         }
