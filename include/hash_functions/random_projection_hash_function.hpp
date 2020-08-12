@@ -258,11 +258,6 @@ template <memory_layout layout, typename Data>
                 = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
         }
 
-        for (std::size_t i = 0; i <= data.dims; ++i) {
-            std::cout << hash_pool[i] << " ";
-        }
-        std::cout << std::endl;
-
         // select used hash functions from hash pool
 //        std::mt19937 rnd_uniform_gen(rnd_device());
         std::mt19937 rnd_uniform_gen;
