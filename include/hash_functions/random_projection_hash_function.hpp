@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-08-12
  *
  * @brief Implements the @ref random_projection_hash_functions class representing the used LSH hash functions.
  */
@@ -234,27 +234,47 @@ template <memory_layout layout, typename Data>
     MPI_Comm_rank(communicator, &comm_rank);
 
     options_type opt = data.get_options();
+
     std::vector<real_type> buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1));
 
     if (comm_rank == 0) {
-        // create hash functions on MPI rank 0
-        // TODO 2020-05-07 19:03 marcel: uncomment for truly random numbers
+        // create all hash functions pool only on rank 0
 //        std::random_device rnd_device;
 //        std::mt19937 rnd_normal_gen(rnd_device());
 //        std::mt19937 rnd_uniform_gen(rnd_device());
-        std::mt19937 rnd_normal_gen;
+        std::mt19937 rnd_normal_pool_gen;
+        std::mt19937 rnd_uniform_pool_gen;
+        std::normal_distribution<real_type> rnd_normal_pool_dist;
+        std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, opt.w);
+
+        std::vector<real_type> hash_pool(opt.hash_pool_size * (data.dims + 1));
+
+        for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
+            for (index_type dim = 0; dim < data.dims; ++dim) {
+                hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, dim, opt, data)]
+                    = rnd_normal_pool_dist(rnd_normal_pool_gen);
+            }
+            hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, data.dims, opt, data)]
+                = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
+        }
+
+        for (std::size_t i = 0; i <= data.dims; ++i) {
+            std::cout << hash_pool[i] << " ";
+        }
+        std::cout << std::endl;
+
+        // select used hash functions from hash pool
+//        std::mt19937 rnd_uniform_gen(rnd_device());
         std::mt19937 rnd_uniform_gen;
-        std::normal_distribution<real_type> rnd_normal_dist;
-        std::uniform_real_distribution<real_type> rnd_uniform_dist(0, opt.w);
+        std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size - 1);
 
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-                for (index_type dim = 0; dim < data.dims; ++dim) {
+                const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
+                for (index_type dim = 0; dim <= data.dims; ++dim) {
                     buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)]
-                        = std::abs(rnd_normal_dist(rnd_normal_gen));
+                        = hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, pool_hash_function, dim, opt, data)];
                 }
-                buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)]
-                    = rnd_uniform_dist(rnd_uniform_gen);
             }
         }
     }
