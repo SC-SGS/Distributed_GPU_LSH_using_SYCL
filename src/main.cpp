@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-06
+ * @date 2020-08-12
  *
  * @brief The main file containing the main logic.
  */
@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <stdlib.h>
+#include <thread>
 #include <utility>
 
 #include <mpi.h>
@@ -249,6 +250,9 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
         detail::mpi_print(comm_rank, "\n");
         for (int round = 0; round < comm_size; ++round) {
             detail::mpi_print(comm_rank, "Round {} of {}\n", round + 1, comm_size);
+
+//            std::thread t(&decltype(data_buffer)::send_receive, &data_buffer);
+
             // calculate k-nearest-neighbors
             if (round == 0) {
                 tables.calculate_knn(k, knns);
@@ -264,6 +268,7 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             knns.buffers_knn.send_receive();
             knns.buffers_dist.send_receive();
             // wait until ALL communication has finished
+//            t.join();
             MPI_Barrier(communicator);
         }
         // wait until all kernels have finished
@@ -343,6 +348,30 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 int main(int argc, char** argv) {
     // initialize MPI environment
     MPI_Init(&argc, &argv);
+//    constexpr int requested = MPI_THREAD_SERIALIZED;
+//    int provided;
+//    MPI_Init_thread(&argc, &argv, requested, &provided);
+//    if (requested < provided) {
+//        const auto convert = [](const int ts) -> std::string {
+//            switch (ts) {
+//                case MPI_THREAD_SINGLE:
+//                    return "MPI_THREAD_SINGLE";
+//                case MPI_THREAD_FUNNELED:
+//                    return "MPI_THREAD_FUNNELED";
+//                case MPI_THREAD_SERIALIZED:
+//                    return "MPI_THREAD_SERIALIZED";
+//                case MPI_THREAD_MULTIPLE:
+//                    return "MPI_THREAD_MULTIPLE";
+//                default:
+//                    return "ILLEGAL THREAD LEVEL";
+//            }
+//        };
+//        std::cout << "Couldn't provide the requested level of thread support!\n"
+//                  << "requested: " << convert(requested)
+//                  << "provided:  " << convert(provided) << std::endl;
+//        MPI_Finalize();
+//        return EXIT_FAILURE;
+//    }
 
     MPI_Comm communicator;
     int exit_code = custom_main(communicator, argc, argv);
