@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-10
+ * @date 2020-08-18
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -172,7 +172,12 @@ public:
 
             transform(buffers_knn);
             transform(buffers_dist);
+        } else {
+            std::copy(buffers_dist.active().begin(), buffers_dist.active().end(), buffers_dist.inactive().begin());
+            buffers_dist.swap_buffers();
         }
+        std::transform(buffers_dist.active().begin(), buffers_dist.active().end(), buffers_dist.active().begin(),
+                [](const real_type val) { return std::sqrt(val); });
 
         MPI_File file;
 
@@ -198,6 +203,8 @@ public:
 
         if constexpr (layout == memory_layout::soa) {
             buffers_knn.swap_buffers();
+            buffers_dist.swap_buffers();
+        } else {
             buffers_dist.swap_buffers();
         }
         END_TIMING_MPI(save_knns, comm_rank_);
