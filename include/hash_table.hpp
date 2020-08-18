@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-10
+ * @date 2020-08-18
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -259,7 +259,7 @@ private:
                 }
             });
         });
-        END_TIMING_MPI(count_hash_values, comm_rank_);
+        END_TIMING_MPI_AND_BARRIER(count_hash_values, comm_rank_, queue_);
     }
     /**
      * @brief Calculates the offsets for each hash bucket in each hash table.
