@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-12
+ * @date 2020-07-26
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -65,7 +65,8 @@ namespace detail {
             // delete full_msg (previously allocated with new)
             delete[] full_msg;
 
-#ifndef ENABLE_GPU
+// call abort if running on the CPU
+#if SYCL_TARGET == 0
             abort();
 #endif
         }

@@ -1,6 +1,24 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_CXX_COMPILER syclcc-clang)
+# specify used SYCL implementation
+set(SUPPORTED_SYCL_IMPLEMENTATIONS hipSYCL ComputeCpp)
+if (NOT SYCL_IMPLEMENTATION)
+    set(SYCL_IMPLEMENTATION hipSYCL)
+endif ()
+if (NOT ${SYCL_IMPLEMENTATION} IN_LIST SUPPORTED_SYCL_IMPLEMENTATIONS)
+    message(FATAL_ERROR "SYCL implementation \"${SYCL_IMPLEMENTATION}\" currently not supported!")
+else ()
+    message(STATUS "Using \"${SYCL_IMPLEMENTATION}\" as SYCL implementation.")
+endif ()
+
+
+# set compiler wrapper based on used SYCL implementation
+if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
+    set(CMAKE_CXX_COMPILER syclcc-clang)
+elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
+    set(CMAKE_CXX_COMPILER compute++)
+endif()
+
 
 project("Distributed GPU LSH implementation using SYCL"
         VERSION 0.0.0
@@ -12,8 +30,31 @@ project("Distributed GPU LSH implementation using SYCL"
 # cmake configuration options
 option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
-option(ENABLE_GPU "Enable the usage of GPUs" ON)
-option(ENABLE_TIMING "Enable the timing of various functions" OFF)
+option(ENABLE_TIMING "Enable the timing of various functions" OFF) # TODO: remove
+
+
+# set timer behaviour
+set(SUPPORTED_TIMERS NONE REDUCED DETAILED) # NONE = 0, REDUCED = 1, DETAILED = 2
+if (NOT TIMER)
+    set(TIMER DETAILED)
+endif ()
+if (NOT ${TIMER} IN_LIST SUPPORTED_TIMERS)
+    message(FATAL_ERROR "Timer \"${TIMER}\" not supported!")
+else ()
+    message(STATUS "Using \"${TIMER}\" as timer.")
+endif ()
+
+
+# set supported SYCL targets
+set(SUPPORTED_SYCL_TARGETS CPU NVIDIA AMD) # CPU = 0, NVIDIA = 1, AMD = 2
+if (NOT SYCL_TARGET)
+    set(SYCL_TARGET NVIDIA)
+endif ()
+if (NOT ${SYCL_TARGET} IN_LIST SUPPORTED_SYCL_TARGETS)
+    message(FATAL_ERROR "SYCL target \"${SYCL_TARGET}\" not supported!")
+else () 
+    message(STATUS "Using \"${SYCL_TARGET}\" as SYCL target.")
+endif ()
 
 
 # add custom cmake modules path
@@ -30,25 +71,25 @@ endif ()
 
 
 # find boost
-find_package(Boost 1.72 REQUIRED PATHS /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/boost-1.72.0-zex4jeneghfjf4xvolu2lzqor7urievz)
-if (Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-endif ()
+find_package(Boost 1.72 REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
-# find MPI and add it to the library target
-find_package(MPI)
+
+# find MPI and add it to the target
+find_package(MPI REQUIRED)
 include_directories(${MPI_CXX_INCLUDE_DIRS})
 link_libraries(MPI::MPI_CXX)
 
 
-
-# set source include files
-set(SOURCES )
+# find OpenMP add it to the target
+#find_package(OpenMP)
+#link_libraries(OpenMP::OpenMP_CXX)
 
 
 # set c++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
 
 # set CMAKE_CXX_FLAGS based on CMAKE_BUILD_TYPE
 string(APPEND CMAKE_CXX_FLAGS_INIT " ")
@@ -58,30 +99,48 @@ string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
 string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 
 
-if (NOT DEFINED ENV{CLION_IDE})
-
-    if (ENABLE_GPU)
-        message(STATUS "Enabled the usage of GPUs")
-    else ()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu") # this line breaks GTest
-        message(STATUS "Disabled the usage of GPUs")
-    endif ()
-endif ()
-
-
 # include directory
 include_directories(include)
 
+
 # create executable
-add_executable(prog src/main.cpp ${SOURCES})
+add_executable(prog src/main.cpp)
 target_compile_options(prog PRIVATE -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-format-security)
-target_compile_definitions(prog PRIVATE ENABLE_GPU)
-target_link_libraries(prog PRIVATE -lstdc++fs) # don't know why this is necessary
+target_link_libraries(prog PRIVATE -lstdc++fs)
+
+list(FIND SUPPORTED_SYCL_TARGETS "${SYCL_TARGET}" SYCL_TARGET_IDX)
+target_compile_definitions(prog PRIVATE SYCL_TARGET=${SYCL_TARGET_IDX})
+list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
+target_compile_definitions(prog PRIVATE TIMER=${TIMER_IDX})
+
+
+# set SYCL implementation specific options
+if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
+    if (SYCL_TARGET MATCHES "CPU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu")
+    endif ()
+elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
+    if (SYCL_TARGET MATCHES "NVIDIA")
+        set(COMPUTECPP_BITCODE ptx64)
+    endif ()
+    if (SYCL_TARGET MATCHES "CPU")
+        target_compile_options(prog PRIVATE -sycl-host-only)
+    else ()
+        target_compile_options(prog PRIVATE -sycl-driver)
+    endif ()
+    target_link_libraries(prog PRIVATE -lComputeCpp)
+endif()
+
+
+# unset variable
+unset(SYCL_IMPLEMENTATION)
+
+
 
 
 # generate documentation if requested
 if (ENABLE_DOCUMENTATION)
-    message(STATUS "Enabled generation of documentation using Doxygen")
+    message(STATUS "Using doxygen to generate documentation.")
     add_subdirectory(doc)
 endif ()
 
@@ -108,7 +167,7 @@ else ()
         set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type" FORCE)
     endif ()
 endif ()
-message(STATUS "CMAKE_BUILD_TYPE is: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
 
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
