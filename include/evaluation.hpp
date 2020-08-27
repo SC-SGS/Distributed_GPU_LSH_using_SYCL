@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-10
+ * @date 2020-08-18
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -90,7 +90,7 @@ template <typename Knns>
         }
         average_recall += count / static_cast<real_type>(k);
     }
-    
+    // TODO 2020-08-17 17:36 marcel: fix error if total_size isn't dividable by comm_size
     return (average_recall / size)  * 100;
 }
 
