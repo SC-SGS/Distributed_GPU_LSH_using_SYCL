@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-30
+ * @date 2020-08-25
  *
  * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -246,6 +246,7 @@ private:
     entropy_based_hash_functions(const Options& opt, Data& data, std::vector<real_type>& hash_functions_pool, std::vector<real_type>& cut_off_points_pool, const int comm_rank)
         : buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + opt.num_cut_off_points)), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
+        // TODO 2020-08-12 12:27 marcel: hash pool multiple ranks?
         std::mt19937 rnd_uniform_gen;
         std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size);
 
@@ -361,6 +362,8 @@ template <memory_layout layout, typename Data>
             MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), detail::mpi_type_cast<real_type>(), MPI_SUM, communicator);
             
             std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
+
+            // TODO 2020-08-25 14:04 marcel: cut of points
         }
     }
 
