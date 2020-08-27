@@ -30,11 +30,10 @@ project("Distributed GPU LSH implementation using SYCL"
 # cmake configuration options
 option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
-option(ENABLE_TIMING "Enable the timing of various functions" OFF) # TODO: remove
 
 
 # set timer behaviour
-set(SUPPORTED_TIMERS NONE REDUCED DETAILED) # NONE = 0, REDUCED = 1, DETAILED = 2
+set(SUPPORTED_TIMERS NONE REDUCED_FILE DETAILED) # NONE = 0, REDUCED_FILE = 1, DETAILED = 2
 if (NOT TIMER)
     set(TIMER DETAILED)
 endif ()
@@ -59,15 +58,6 @@ endif ()
 
 # add custom cmake modules path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
-
-
-# generate timing information if requested
-if (ENABLE_TIMING)
-    message(STATUS "Enabled timing")
-    add_definitions(-DENABLE_TIMING)
-else ()
-    message(STATUS "Disabled timing")
-endif ()
 
 
 # find boost

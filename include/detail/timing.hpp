@@ -1,19 +1,18 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-25
+ * @date 2020-08-27
  * @brief Timing macros compatible with MPI and/or SYCL.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMING_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMING_HPP
 
-
 #include <chrono>
+#include <fstream>
 
 #include <config.hpp>
 #include <detail/print.hpp>
-
 
 /**
  * @def START_TIMING
@@ -52,8 +51,49 @@
  *
  * @attention Before calling `END_TIMING_MPI_AND_BARRIER(x, comm_rank, queue)` a call to `START_TIMING(x)` **must** be made!
  */
-#ifdef ENABLE_TIMING
+#if TIMER > 0
+
 #define START_TIMING(name) const auto start_##name = std::chrono::steady_clock::now();
+
+#if TIMER == 1
+
+inline std::ofstream out_timing_file("timing.txt");
+
+#define END_TIMING(name)                                                                                               \
+do {                                                                                                                   \
+const auto end_##name = std::chrono::steady_clock::now();                                                              \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
+out_timing_file << duration_##name << ',';                                                                             \
+} while (false)
+
+#define END_TIMING_MPI(name, comm_rank)                                                                                \
+do {                                                                                                                   \
+const auto end_##name = std::chrono::steady_clock::now();                                                              \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
+if (comm_rank == 0) {                                                                                                  \
+    out_timing_file << duration_##name << ',';                                                                         \
+}                                                                                                                      \
+} while (false)
+
+#define END_TIMING_BARRIER(name, queue)                                                                                \
+do {                                                                                                                   \
+queue.wait_and_throw();                                                                                                \
+const auto end_##name = std::chrono::steady_clock::now();                                                              \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
+out_timing_file << duration_##name << ',';                                                                             \
+} while (false)
+
+#define END_TIMING_MPI_AND_BARRIER(name, comm_rank, queue)                                                             \
+do {                                                                                                                   \
+queue.wait_and_throw();                                                                                                \
+const auto end_##name = std::chrono::steady_clock::now();                                                              \
+const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
+if (comm_rank == 0) {                                                                                                  \
+    out_timing_file << duration_##name << ',';                                                                         \
+}                                                                                                                      \
+} while (false)
+
+#elif TIMER == 2
 
 #define END_TIMING(name)                                                                                               \
 do {                                                                                                                   \
@@ -66,7 +106,7 @@ detail::print("Elapsed time ({}): {} ms\n", #name, duration_##name);            
 do {                                                                                                                   \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
-detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
+detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);              \
 } while (false)
 
 #define END_TIMING_BARRIER(name, queue)                                                                                \
@@ -82,14 +122,19 @@ do {                                                                            
 queue.wait_and_throw();                                                                                                \
 const auto end_##name = std::chrono::steady_clock::now();                                                              \
 const auto duration_##name = std::chrono::duration_cast<std::chrono::milliseconds>(end_##name - start_##name).count(); \
-detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);  \
+detail::mpi_print(comm_rank, "Elapsed time on rank {} ({}): {} ms\n", comm_rank, #name, duration_##name);              \
 } while (false)
+
+#endif
+
 #else
+
 #define START_TIMING(name)
 #define END_TIMING(name)
 #define END_TIMING_MPI(name, comm_rank)
 #define END_TIMING_BARRIER(name, queue)
 #define END_TIMING_MPI_AND_BARRIER(name, comm_rank, queue)
+
 #endif
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMING_HPP
