@@ -195,7 +195,7 @@ public:
             MPI_Barrier(communicator);
 
             // open file in append mode to write knns
-            MPI_File_open(communicator, file_name.c_str(), MPI_MODE_APPEND | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
+            MPI_File_open(communicator, file_name.data(), MPI_MODE_APPEND | MPI_MODE_WRONLY, MPI_INFO_NULL, &file);
             MPI_File_write_ordered(file, buffer.active().data(), buffer.active().size(), detail::mpi_type_cast<value_type>(), MPI_STATUS_IGNORE);
             MPI_File_close(&file);
         };
