@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-18
+ * @date 2020-08-27
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
 
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 #include <mpi.h>
@@ -109,13 +110,13 @@ public:
      * @brief Converts a two-dimensional index into a flat one-dimensional index based on the current @ref memory_layout.
      * @param[in] comm_rank the current MPI rank
      * @param[in] point the provided data point
-     * @param[in] i the provided knn index
+     * @param[in] nn the provided knn index
      * @param[in] data the used data set
      * @param[in] k the number of nearest-neighbors to search for
      * @return the flattened index (`[[nodiscard]]`)
      *
      * @pre @p point **must** be greater or equal than `0` and less than @p dims.
-     * @pre @p i **must** be greater or equal than `0` and less than @p k.
+     * @pre @p nn **must** be greater or equal than `0` and less than @p k.
      * @pre @p k **must** be greater than `0`
      */
     [[nodiscard]] static constexpr index_type get_linear_id([[maybe_unused]] const int comm_rank,
@@ -147,12 +148,13 @@ public:
     /**
      * @brief Saves the nearest-neighbors to @p file using the current @ref memory_layout.
      * @details The content of @p file is overwritten if it already exists.
-     * @param[in] file_name the name of the @p file
+     * @param[in] knn_file_name the name of the @p file for the nearest neighbors
+     * @param[in] dist_file_name the name of the @p file for the nearest neighbor distances
      * @param[in] communicator the MPI communicator used to write the data to the file
      *
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
-    void save(const std::string& knn_file_name, const std::string& dist_file_name, const MPI_Comm& communicator) {
+    void save(const std::string_view knn_file_name, const std::string_view dist_file_name, const MPI_Comm& communicator) {
         START_TIMING(save_knns);
         if constexpr (layout == memory_layout::soa) {
             const auto transform = [&](auto& buffer) {
