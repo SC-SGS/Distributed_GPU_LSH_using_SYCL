@@ -183,7 +183,7 @@ public:
 
         MPI_File file;
 
-        const auto save_to_file = [&](const std::string& file_name, auto& buffer) {
+        const auto save_to_file = [&](const std::string_view file_name, auto& buffer) {
             using value_type = typename std::remove_reference_t<decltype(buffer)>::value_type;
             
             // open file in create mode to write header information
