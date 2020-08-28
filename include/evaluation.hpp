@@ -104,6 +104,7 @@ template <typename Knns>
  * @param[in] knns the calculated and correct k-nearest-neighbors
  * @param[in] data_buffer the data set
  * @param[in] comm_rank the current MPI rank
+ * @param[in] communicator the current MPI_Comm communicator
  * @return the calculated error ratio, the number of points for which only less than `k` nearest-neighbors could be found and the total
  *         number of nearest-neighbors that couldn't be found
  */
