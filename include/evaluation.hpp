@@ -108,7 +108,7 @@ template <typename Knns>
  *         number of nearest-neighbors that couldn't be found
  */
 template <typename Knns, typename real_type, typename index_type>
-[[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank) {
+[[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(Knns& knns, mpi_buffers<real_type, index_type>& data_buffer, const int comm_rank, const MPI_Comm& communicator) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
     using aos_layout = knn<memory_layout::aos, typename Knns::options_type, typename Knns::data_type>;
@@ -160,8 +160,13 @@ template <typename Knns, typename real_type, typename index_type>
             mean_error_ratio += error_ratio / error_count;
         }
     }
-    
-    return std::make_tuple(mean_error_ratio / mean_error_count, num_points_not_found, num_knn_not_found);
+
+    const real_type avg_mean_error_ratio = average(mean_error_ratio / mean_error_count, communicator);
+    const index_type total_num_points_not_found = mpi_sum(num_points_not_found, communicator);
+    const index_type total_num_knn_not_found = mpi_sum(num_knn_not_found, communicator);
+
+    // TODO 2020-08-28 14:46 marcel: check again
+    return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_EVALUATION_HPP

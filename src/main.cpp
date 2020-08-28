@@ -317,12 +317,12 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
             START_TIMING(evaluating);
             detail::mpi_print(comm_rank, "\nrecall: {} %\n", recall(knns, comm_rank, comm_size, communicator));
-            const auto [error_ration_percent, num_points_not_found, num_knn_not_found] = error_ratio(knns, data_buffer, comm_rank);
+            const auto [error_ration_percent, num_points_not_found, num_knn_not_found] = error_ratio(knns, data_buffer, comm_rank, communicator);
             if (num_points_not_found != 0) {
                 detail::mpi_print(comm_rank, "error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n",
-                        average(error_ration_percent, communicator), mpi_sum(num_points_not_found, communicator), mpi_sum(num_knn_not_found, communicator));
+                        error_ration_percent, num_points_not_found, num_knn_not_found);
             } else {
-                detail::mpi_print(comm_rank, "error ratio: {} \n", average(error_ration_percent, communicator));
+                detail::mpi_print(comm_rank, "error ratio: {} \n", error_ration_percent);
             }
             END_TIMING_MPI(evaluating, comm_rank);
         }
