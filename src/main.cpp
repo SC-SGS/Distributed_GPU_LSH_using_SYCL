@@ -8,7 +8,6 @@
 
 #include <filesystem>
 #include <iostream>
-#include <stdlib.h>
 #include <thread>
 #include <utility>
 
@@ -27,6 +26,7 @@
 #include <knn.hpp>
 #include <mpi_buffer.hpp>
 #include <options.hpp>
+#include <single_gpu_selector.hpp>
 
 
 /**
@@ -59,46 +59,6 @@ void mpi_comm_exception_handler(MPI_Comm* comm, int* err, ...) {
  */
 void mpi_file_exception_handler(MPI_File* file, int* err, ...) {
     throw mpi_file_exception(*file, *err);
-}
-
-/**
- * @brief For every GPU on a node one MPI process should be spawned
- * -> set CUDA_VISIBLE_DEVICES to the MPI rank of the MPI process on the current node.
- * @param[in] communicator the MPI_Comm communicator
- */
-void setup_cuda_devices(const MPI_Comm& communicator) {
-    int comm_size, comm_rank;
-    MPI_Comm_size(communicator, &comm_size);
-    MPI_Comm_rank(communicator, &comm_rank);
-
-    // create communicator for each node
-    MPI_Comm node_communicator;
-    MPI_Comm_split_type(communicator, MPI_COMM_TYPE_SHARED, comm_size, MPI_INFO_NULL, &node_communicator);
-    // get node size and rank
-    int comm_node_size, comm_node_rank;
-    MPI_Comm_size(node_communicator, &comm_node_size);
-    MPI_Comm_rank(node_communicator, &comm_node_rank);
-
-    // set a CUDA_VISIBLE_DEVICES for each MPI process on the current rank
-    int err = setenv("CUDA_VISIBLE_DEVICES", std::to_string(comm_node_rank).c_str(), 1);
-    if (err != 0) {
-        throw std::logic_error("Error while setting CUDA_VISIBLE_DEVICES environment variable!");
-    }
-    if (const char* env_val = getenv("CUDA_VISIBLE_DEVICES"); env_val != nullptr) {
-        detail::mpi_print(comm_rank, "Used CUDA device on world rank {} and node rank: CUDA_VISIBLE_DEVICES={}\n",
-                comm_rank, comm_node_rank, env_val);
-    }
-
-    // free communicator
-    MPI_Comm_free(&node_communicator);
-
-
-    // test for correctness
-    const auto device_list = sycl::platform::get_platforms()[0].get_devices();
-    // if the current device is a GPU AND no CUDA_VISIBLE_DEVICE is set, i.e. MORE MPI processes than GPUs per node were spawned, throw
-    if (device_list[0].is_gpu() && device_list.size() != 1) {
-        throw std::invalid_argument("Can't use more MPI processes per node than available GPUs per node!");
-    }
 }
 
 std::string append_to_file_name(const std::string& file_name, const std::string& append) {
@@ -206,10 +166,6 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-        // TODO 2020-08-28 14:04 marcel: selector
-        // set CUDA_VISIBLE_DEVICES
-//        setup_cuda_devices(communicator);
-
         
         START_TIMING(all);
 
@@ -235,8 +191,8 @@ int custom_main(MPI_Comm& communicator, const int argc, char** argv) {
 
         // create a SYCL queue for each device
         sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&sycl_exception_handler));
+//        sycl::queue queue(single_gpu_selector{communicator}, sycl::async_handler(&sycl_exception_handler));
         detail::print("[{}, {}]\n", comm_rank, queue.get_device().get_info<sycl::info::device::name>().c_str());
-
 
         // create hash tables
         START_TIMING(creating_hash_tables);
