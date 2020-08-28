@@ -227,18 +227,17 @@ private:
      * @param[in] data the @ref data object representing the used data set
      * @param[in] communicator the *MPI_Comm* communicator used
      * @param[in] comm_rank the current MPI rank
+     * @param[in] comm_size the current MPI comm size
      *
      * @pre @p k **must** be greater than `0`.
      */
-    knn(const index_type k, Data& data, const MPI_Comm& communicator, const int comm_rank)
+    knn(const index_type k, Data& data, const MPI_Comm& communicator, const int comm_rank, const int comm_size)
         : buffers_knn(data.rank_size, k, communicator), buffers_dist(data.rank_size, k, communicator),
           k(k), comm_rank_(comm_rank), comm_(communicator), data_(data)
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
 
         // calculate start ID
-        int comm_size;
-        MPI_Comm_size(communicator, &comm_size);
         const index_type base_id = data.total_size / comm_size * comm_rank + std::min<index_type>(comm_rank, data.total_size % comm_size);
         index_type running_id = base_id;
 
@@ -280,9 +279,10 @@ private:
  */
 template <memory_layout layout, typename Data, typename Options = typename Data::options_type>
 [[nodiscard]] inline auto make_knn(const typename Options::index_type k, Data& data, const MPI_Comm& communicator) {
-    int comm_rank;
+    int comm_rank, comm_size;
     MPI_Comm_rank(communicator, &comm_rank);
-    return knn<layout, Options, Data>(k, data, communicator, comm_rank);
+    MPI_Comm_size(communicator, &comm_size);
+    return knn<layout, Options, Data>(k, data, communicator, comm_rank, comm_size);
 }
 
 

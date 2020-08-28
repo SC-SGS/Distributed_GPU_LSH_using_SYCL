@@ -75,9 +75,7 @@ public:
             throw std::invalid_argument("k must not be greater than the data set size!");
         }
 
-        int comm_size;
-        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-        const index_type base_id = data_.total_size / comm_size * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size);
+        const index_type base_id = data_.total_size / comm_size_ * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size_);
 
         START_TIMING(calculate_nearest_neighbors);
         queue_.submit([&](sycl::handler& cgh) {
@@ -206,10 +204,11 @@ private:
      * @param[in] data the @ref data object representing the used data set
      * @param[in] hash_functions the hash functions object representing the used LSH hash functions
      * @param[in] comm_rank the current MPI rank
+     * @param[in] comm_size the current MPI comm size
      */
-    hash_tables(sycl::queue& queue, const Options& opt, Data& data, HashFunctions<layout, Options, Data> hash_functions, const int comm_rank)
+    hash_tables(sycl::queue& queue, const Options& opt, Data& data, HashFunctions<layout, Options, Data> hash_functions, const int comm_rank, const int comm_size)
             : buffer(opt.num_hash_tables * data.rank_size), offsets(opt.num_hash_tables * (opt.hash_table_size + 1)),
-              hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), opt_(opt), data_(data)
+              hash_function(hash_functions), queue_(queue), comm_rank_(comm_rank), comm_size_(comm_size), opt_(opt), data_(data)
     {
         {
             // create temporary buffer to count the occurrence of each hash value
@@ -300,10 +299,8 @@ private:
      */
     void fill_hash_tables() {
         START_TIMING(fill_hash_tables);
-        int comm_size;
-        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-        const index_type base_id = data_.total_size / comm_size * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size);
-        const bool has_smaller_rank_size = (data_.total_size % comm_size != 0) && static_cast<index_type>(comm_rank_) >= (data_.total_size % comm_size);
+        const index_type base_id = data_.total_size / comm_size_ * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size_);
+        const bool has_smaller_rank_size = (data_.total_size % comm_size_ != 0) && static_cast<index_type>(comm_rank_) >= (data_.total_size % comm_size_);
         
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
@@ -338,6 +335,8 @@ private:
     sycl::queue queue_;
     /// The current MPI rank.
     const int comm_rank_;
+    /// The current MPI comm size.
+    const int comm_size_;
     /// Const reference to @ref options object.
     const Options& opt_;
     /// Reference to @ref data object.
@@ -357,9 +356,10 @@ private:
  */
 template <memory_layout layout, template<memory_layout, typename, typename> typename HashFunctions, typename Options, typename Data>
 [[nodiscard]] inline auto make_hash_tables(sycl::queue& queue, HashFunctions<layout, Options, Data> hash_functions, const MPI_Comm& communicator) {
-    int comm_rank;
+    int comm_rank, comm_size;
     MPI_Comm_rank(communicator, &comm_rank);
-    return hash_tables<layout, HashFunctions, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank);
+    MPI_Comm_size(communicator, &comm_size);
+    return hash_tables<layout, HashFunctions, Options, Data>(queue, hash_functions.get_options(), hash_functions.get_data(), hash_functions, comm_rank, comm_size);
 }
 
 
