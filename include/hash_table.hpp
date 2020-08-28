@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-18
+ * @date 2020-08-28
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -75,6 +75,10 @@ public:
             throw std::invalid_argument("k must not be greater than the data set size!");
         }
 
+        int comm_size;
+        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+        const index_type base_id = data_.total_size / comm_size * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size);
+
         START_TIMING(calculate_nearest_neighbors);
         queue_.submit([&](sycl::handler& cgh) {
             sycl::buffer<index_type, 1> knn_buffers(knns.buffers_knn.active().data(), knns.buffers_knn.active().size());
@@ -121,7 +125,7 @@ public:
                             ++bucket_element)
                     {
                         const index_type point = acc_hash_tables[hash_table * data.rank_size + bucket_element];
-                        const index_type point_idx = point % data.rank_size;
+                        const index_type point_idx = point - base_id;
                         real_type dist = 0.0;
                         for (index_type dim = 0; dim < data.dims; ++dim) {
                             const index_type x_idx = data.get_linear_id(comm_rank_, idx, data.rank_size, dim, data.dims);
@@ -296,6 +300,11 @@ private:
      */
     void fill_hash_tables() {
         START_TIMING(fill_hash_tables);
+        int comm_size;
+        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+        const index_type base_id = data_.total_size / comm_size * comm_rank_ + std::min<index_type>(comm_rank_, data_.total_size % comm_size);
+        const bool has_smaller_rank_size = (data_.total_size % comm_size != 0) && static_cast<index_type>(comm_rank_) >= (data_.total_size % comm_size);
+        
         queue_.submit([&](sycl::handler& cgh) {
             auto acc_data = data_.buffer.template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_function.buffer.template get_access<sycl::access::mode::read>(cgh);
@@ -308,10 +317,17 @@ private:
             cgh.parallel_for<class kernel_fill_hash_tables>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
+                index_type val = 0;
+                if (has_smaller_rank_size && idx == data.rank_size - 1) {
+                    val = base_id;
+                } else {
+                    val = idx + base_id;
+                }
+
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     const hash_value_type hash_value = hash_function.hash(comm_rank, hash_table, idx, acc_data, acc_hash_functions, opt, data);
                     acc_hash_tables[hash_table * data.rank_size + acc_offsets[hash_table * (opt.hash_table_size + 1) + hash_value + 1].fetch_add(1)]
-                        = idx + comm_rank * data.rank_size;
+                        = val;
                 }
             });
         });

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-27
+ * @date 2020-08-28
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -236,12 +236,28 @@ private:
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 < k, "Illegal number of nearest-neighbors to search for!: 0 < {}", k);
 
+        // calculate start ID
+        int comm_size;
+        MPI_Comm_size(communicator, &comm_size);
+        const index_type base_id = data.total_size / comm_size * comm_rank + std::min<index_type>(comm_rank, data.total_size % comm_size);
+        index_type running_id = base_id;
+
         for (index_type point = 0; point < data.rank_size; ++point) {
             for (index_type nn = 0; nn < k; ++nn) {
-                buffers_knn.active()[this->get_linear_id(comm_rank, point, nn, data, k)] = point + comm_rank * data.rank_size;
+                buffers_knn.active()[this->get_linear_id(comm_rank, point, nn, data, k)] = point + running_id;
                 buffers_dist.active()[this->get_linear_id(comm_rank, point, nn, data, k)] = std::numeric_limits<real_type>::max();
             }
+            ++running_id;
         }
+
+        const bool has_smaller_rank_size = (data.total_size % comm_size != 0)
+                && static_cast<index_type>(comm_rank) >= (data.total_size % comm_size);
+        if (has_smaller_rank_size) {
+            for (std::size_t nn = 0; nn < k; ++nn) {
+                buffers_knn.active()[this->get_linear_id(comm_rank, 0, nn, data, k)] = base_id;
+            }
+        }
+
     }
 
     /// The current MPI rank.

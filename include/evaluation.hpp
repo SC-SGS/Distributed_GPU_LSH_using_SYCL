@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-27
+ * @date 2020-08-28
  *
  * @brief Implements metrics to evaluate the @ref knn search results.
  */
@@ -31,7 +31,7 @@
  * @return the sum value
  */
 template <typename T>
-[[nodiscard]] T sum(T value, const MPI_Comm& communicator) {
+[[nodiscard]] T mpi_sum(T value, const MPI_Comm& communicator) {
     T sums = 0.0;
     MPI_Allreduce(&value, &sums, 1, detail::mpi_type_cast<T>(), MPI_SUM, communicator);
     return sums;
@@ -46,7 +46,7 @@ template <typename T>
  */
 template <typename T>
 [[nodiscard]] T average(T value, const MPI_Comm& communicator) {
-    T sums = sum(value, communicator);
+    T sums = mpi_sum(value, communicator);
 
     int comm_size;
     MPI_Comm_size(communicator, &comm_size);
@@ -60,24 +60,27 @@ template <typename T>
  * @tparam Knn represents the calculated nearest neighbors
  * @param[in] knns the calculated and correct k-nearest-neighbors
  * @param[in] comm_rank the current MPI rank
+ * @param[in] comm_size the current MPI_Comm size
  * @param[in] communicator the used MPI_Comm communicator
  * @return the calculated recall
  */
 template <typename Knns>
-[[nodiscard]] typename Knns::real_type recall(Knns& knns, const int comm_rank, const MPI_Comm& communicator) {
+[[nodiscard]] typename Knns::real_type recall(Knns& knns, const int comm_rank, const int comm_size, const MPI_Comm& communicator) {
     static_assert(std::is_base_of_v<detail::knn_base, Knns>, "The first template parameter must by a 'knn' type!");
 
     using index_type = typename Knns::index_type;
     using real_type = typename Knns::real_type;
     using aos_layout = knn<memory_layout::aos, typename Knns::options_type, typename Knns::data_type>;
-
+    
     const auto& data = knns.get_data();
-    const index_type size = data.rank_size;
+    const bool has_smaller_rank_size = (data.total_size % comm_size != 0) && static_cast<index_type>(comm_rank) >= (data.total_size % comm_size);
+    const index_type size = has_smaller_rank_size ? data.rank_size - 1 : data.rank_size;
     const index_type k = knns.k;
     index_type count = 0;
 
     std::vector<index_type>& calculated_knns = knns.buffers_knn.active();
     std::vector<index_type>& correct_knns = knns.buffers_knn.inactive();
+
     for (index_type point = 0; point < size; ++point) {
         for (index_type i = 0; i < k; ++i) {
             const index_type calculated_id = calculated_knns[knns.get_linear_id(comm_rank, point, i, data, k)];
@@ -89,9 +92,8 @@ template <typename Knns>
             }
         }
     }
-    // TODO 2020-08-17 17:36 marcel: fix error if total_size isn't dividable by comm_size
 
-    return (static_cast<real_type>(sum(count, communicator)) / (data.total_size * k)) * 100;
+    return (static_cast<real_type>(mpi_sum(count, communicator)) / (data.total_size * k)) * 100;
 }
 
 /**
