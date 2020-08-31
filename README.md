@@ -38,12 +38,13 @@ $ make -j $(nprocs)
 ```
 
 Provided configuration options are:
+
 | option                 | default value | description                                                                                             |
-| ---------------------- | :-----------: | ------------------------------------------------------------------------------------------------------- |
+|------------------------|:-------------:|---------------------------------------------------------------------------------------------------------|
 | `SYCL_IMPLEMENTATION`  | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL` or `ComputeCpp`.                        |
 | `SYCL_TARGET`          | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                       | 
 | `TIMER`                | `DETAILED`    | Specify which timer functionality should be used. Must be one of: `NONE`, `REDUCED_FILE` or `DETAILED`. |
-| `ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen)                       .                      |
+| `ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                             |
 
 
 ## Building the documentation
