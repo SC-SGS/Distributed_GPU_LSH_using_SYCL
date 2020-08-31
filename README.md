@@ -6,14 +6,26 @@
 
 **Supervisor:** _M.Sc. Gregor Daiß_
 
+
 ## Description
-**TODO**
+The computation of k-Nearest Neighbors (KNN) graphs is an integral part of numerous data mining tasks and scientific 
+computing applications. For large amounts of data, as commonly seen in those fields, the data size alone becomes too 
+big to fit on a single machine. Furthermore, the sub-quadratic runtime required for the computation of the graph 
+naturally increases with the size of the data. Hence, the distributed computation of the KNN graphs using 
+locality-sensitive hashing (LSH) becomes an intriguing prospect. While there already are some distributed approaches 
+for the implementation of this algorithm, those are generally relying on MapReduce or similar frameworks. For 
+High-Performance-Computing a different approach is preferable. The implementation should work on modern accelerators 
+and distribute the workload over multiple compute nodes using a framework suitable to be run on supercomputers. This 
+work aims to create just such an LSH implementation, enabling the distributed computation of the KNN, using data sets 
+that are located over multiple compute nodes using MPI (or HPX as a modern alternative).
+
 
 ## Prerequisite
 * A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL) 
   or [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) (currently not working).
 * A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
+
 
 ## Building the program
 To build the code use:
@@ -39,6 +51,7 @@ After the call to `cmake -DENABLE_DOCUMENTATION=ON ..` use:
 ```bash
 $ make doc
 ```
+
 
 ## Running the program
 After a successful `make` an executable file named `./prog` is available:
