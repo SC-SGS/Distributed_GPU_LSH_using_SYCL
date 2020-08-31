@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-26
+ * @date 2020-08-31
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -96,9 +96,9 @@ namespace detail {
 #define DEBUG_ASSERT_MPI(cond, comm_rank, msg, ...)
 #else
 #define DEBUG_ASSERT(cond, msg, ...) \
-        detail::check(cond, #cond, detail::source_location::current(PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
+        detail::check(cond, #cond, detail::source_location::current(PRETTY_FUNC_NAME__, __FILE__, __LINE__), msg, __VA_ARGS__)
 #define DEBUG_ASSERT_MPI(comm_rank, cond, msg, ...) \
-        detail::check(cond, #cond, detail::source_location::current(comm_rank, PRETTY_FUNC_NAME__), msg, __VA_ARGS__)
+        detail::check(cond, #cond, detail::source_location::current(comm_rank, PRETTY_FUNC_NAME__, __FILE__, __LINE__), msg, __VA_ARGS__)
 #endif
 
 

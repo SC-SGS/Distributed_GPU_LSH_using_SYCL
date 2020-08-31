@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-27
+ * @date 2020-08-31
  *
  * @brief Custom implementation for the [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location) class.
  * @details Includes a better function name (if supported) and the MPI rank.
@@ -27,39 +27,6 @@
 #define PRETTY_FUNC_NAME__ __func__
 #endif
 
-/**
- * @def BUILTIN_FUNCTION__
- * @brief The `BUILTIN_FUNCTION__` macro is defined as `__builtin_FUNCTION` if supported, otherwise it's defined as a lambda
- *        returning `"unknown"`.
- */
-#if __has_builtin(__builtin_FUNCTION)
-#define BUILTIN_FUNCTION__ __builtin_FUNCTION
-#else
-#define BUILTIN_FUNCTION__ []() { return "unknown"; }
-#endif
-
-/**
- * @def BUILTIN_FILE__
- * @brief The `BUILTIN_FILE__` macro is defined as `__builtin_FILE` if supported, otherwise it's defined as a lambda
- *        returning `"unknown"`.
- */
-#if __has_builtin(__builtin_FILE)
-#define BUILTIN_FILE__ __builtin_FILE
-#else
-#define BUILTIN_FILE__ []() { return "unknown"; }
-#endif
-
-/**
- * @def BUILTIN_LINE__
- * @brief The `BUILTIN_LINE__` macro is defined as `__builtin_LINE` if supported, otherwise it's defined as a lambda returning `0`.
- */
-#if __has_builtin(__builtin_LINE)
-#define BUILTIN_LINE__ __builtin_LINE
-#else
-#define BUILTIN_LINE__ []() { return 0; }
-#endif
-
-
 namespace detail {
 
     /**
@@ -79,9 +46,9 @@ namespace detail {
          * @attention @p column is always (independent of the call side position) default initialized to 0!
          */
         static source_location current(
-                const char* func = BUILTIN_FUNCTION__(),
-                const char* file = BUILTIN_FILE__(),
-                const int line = BUILTIN_LINE__(),
+                const char* func,
+                const char* file,
+                const int line,
                 const int column = 0
         ) noexcept {
             return current(-1, func, file, line, column);
@@ -99,9 +66,9 @@ namespace detail {
          */
         static source_location current(
                 const int comm_rank,
-                const char* func = BUILTIN_FUNCTION__(),
-                const char* file = BUILTIN_FILE__(),
-                const int line = BUILTIN_LINE__(),
+                const char* func,
+                const char* file,
+                const int line,
                 const int column = 0
         ) noexcept {
             source_location loc;
