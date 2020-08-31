@@ -35,7 +35,7 @@ public:
 // target CPU
 #if SYCL_TARGET == 0
 
-    if (device.get_info<sycl::info::device::device_type() == sycl::info::device_type::cpu) {
+    if (device.get_info<sycl::info::device::device_type>() == sycl::info::device_type::cpu) {
         return 100;
     } else {
         return -1;
