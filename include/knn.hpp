@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-28
+ * @date 2020-08-31
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -10,7 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
 
 #include <filesystem>
-#include <string_view>
+#include <string>
 #include <vector>
 
 #include <mpi.h>
@@ -154,7 +154,7 @@ public:
      *
      * @throw std::invalid_argument if @p file can't be opened or created.
      */
-    void save(const std::string_view knn_file_name, const std::string_view dist_file_name, const MPI_Comm& communicator) {
+    void save(const std::string& knn_file_name, const std::string& dist_file_name, const MPI_Comm& communicator) {
         START_TIMING(save_knns);
         if constexpr (layout == memory_layout::soa) {
             const auto transform = [&](auto& buffer) {
@@ -183,7 +183,7 @@ public:
 
         MPI_File file;
 
-        const auto save_to_file = [&](const std::string_view file_name, auto& buffer) {
+        const auto save_to_file = [&](const std::string& file_name, auto& buffer) {
             using value_type = typename std::remove_reference_t<decltype(buffer)>::value_type;
             
             // open file in create mode to write header information
