@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-28
+ * @date 2020-08-31
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -159,7 +159,10 @@ public:
 
 private:
     /// The current MPI rank.
-    [[maybe_unused]] const int comm_rank_;
+#if SYCL_TARGET != 0
+[[maybe_unused]]
+#endif
+    const int comm_rank_;
     /// Map containing all provided command line arguments.
     std::map<std::string, std::string> argvs_;
 };
