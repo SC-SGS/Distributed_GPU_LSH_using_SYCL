@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-28
+ * @date 2020-08-31
  *
  * @brief Implements a device selector such that every MPI rank allocates only one device (GPU).
  */
@@ -32,21 +32,39 @@ public:
      * @return the device score
      */
     int operator()(const sycl::device& device) const override {
+// target CPU
+#if SYCL_TARGET == 0
+
+    if (device.get_info<sycl::info::device::device_type() == sycl::info::device_type::cpu) {
+        return 100;
+    } else {
+        return -1;
+    }
+
+#else // target GPU
+
+        // get MPI rank nad size
+        int comm_rank, comm_size;
+        MPI_Comm_rank(communicator_, &comm_rank);
+        MPI_Comm_size(communicator_, &comm_size);
+
         // only select GPUs
         if (device.get_info<sycl::info::device::device_type>() != sycl::info::device_type::gpu) return -1;
 
-        int comm_rank;
-        MPI_Comm_rank(communicator_, &comm_rank);
-
+        // get list of devices
         auto device_list = device.get_platform().get_devices();
+        if (device_list.size() < static_cast<std::size_t>(comm_size)) {
+            throw std::logic_error("Not enough devices to satisfy the number of MPI processes!");
+        }
         for (std::size_t i = 0; i < device_list.size(); ++i) {
             // select GPU which equals to the current MPI rank
             if (device_list[i] == device && i == static_cast<std::size_t>(comm_rank)) {
                 return 100;
             }
         }
-        // TODO 2020-08-28 14:57 marcel: throw exception?
         return -1;
+        // TODO 2020-08-31 13:34 marcel: check multi node GPU
+#endif
     }
 
 private:
