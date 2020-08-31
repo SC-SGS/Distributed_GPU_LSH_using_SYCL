@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-06
+ * @date 2020-08-31
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -18,9 +18,8 @@
 #include <string>
 #include <type_traits>
 
-#include <boost/type_index.hpp>
-
 #include <config.hpp>
+#include <detail/arithmetic_type_name.hpp>
 #include <detail/assert.hpp>
 #include <detail/convert.hpp>
 #include <hash_functions/hash_function.hpp>
@@ -272,9 +271,9 @@ public:
      * @return the output stream
      */
     friend std::ostream& operator<<(std::ostream& out, const options& opt) {
-        out << "real_type '" << boost::typeindex::type_id<real_type>().pretty_name() << "'\n";
-        out << "index_type '" << boost::typeindex::type_id<index_type>().pretty_name() << "'\n";
-        out << "hash_value_type '" << boost::typeindex::type_id<hash_value_type>().pretty_name() << "'\n";
+        out << "real_type '" << detail::arithmetic_type_name<real_type>() << "'\n";
+        out << "index_type '" << detail::arithmetic_type_name<index_type>() << "'\n";
+        out << "hash_value_type '" << detail::arithmetic_type_name<hash_value_type>() << "'\n";
         out << "hash_functions_type '" << options::hash_functions_type << "'\n";
         out << "hash_pool_size " << opt.hash_pool_size << '\n';
         out << "num_cut_off_points " << opt.num_cut_off_points << '\n';

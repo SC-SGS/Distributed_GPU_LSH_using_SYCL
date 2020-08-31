@@ -60,11 +60,6 @@ endif ()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 
-# find boost
-find_package(Boost 1.72 REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-
-
 # find MPI and add it to the target
 find_package(MPI REQUIRED)
 include_directories(${MPI_CXX_INCLUDE_DIRS})
