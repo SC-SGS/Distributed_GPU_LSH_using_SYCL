@@ -241,8 +241,7 @@ private:
      * @brief Construct new hash functions.
      * @param[in] opt the @ref options object representing the currently set options
      * @param[in] data the @ref data object representing the used data set
-     * @param[in] hash_functions_pool a pool of hash functions that can be used
-     * @param[in] cut_off_points_pool the cut off points corresponding to the hash functions in the pool
+     * @param[in] tmp_buffer the hash functions to initialize the sycl::buffer with
      * @param[in] comm_rank the current MPI rank
      */
     entropy_based_hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
