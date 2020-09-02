@@ -156,25 +156,22 @@ public:
      */
     template <memory_layout new_layout>
     [[nodiscard]] entropy_based_hash_functions<new_layout, Options, Data> get_as() {
-//        static_assert(new_layout != layout, "using new_layout == layout result in a simple copy");
-//
-//        entropy_based_hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
-//        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
-//        auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
-//        std::vector<real_type>& pool_new = new_hash_functions.hash_functions_pool;
-//        for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
-//            for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
-//                for (index_type dim = 0; dim <= data_.dims; ++dim) {
-//                    // transform memory layout
-//                    const index_type idx_new = new_hash_functions.get_linear_id(hash_table, hash_function, dim);
-//                    const index_type idx_this = this->get_linear_id(hash_table, hash_function, dim);
-//                    acc_new[idx_new] = acc_this[idx_this];
-//                    pool_new[idx_new] = acc_this[idx_this];
-//                }
-//            }
-//        }
-//        return new_hash_functions;
-        return 0;
+        static_assert(new_layout != layout, "using new_layout == layout results in a simple copy");
+
+        entropy_based_hash_functions<new_layout, Options, Data> new_hash_functions(opt_, data_, buffer.get_count(), comm_rank_);
+        auto acc_new = new_hash_functions.buffer.template get_access<sycl::access::mode::discard_write>();
+        auto acc_this = buffer.template get_access<sycl::access::mode::read>();
+        for (index_type hash_table = 0; hash_table < opt_.num_hash_tables; ++hash_table) {
+            for (index_type hash_function = 0; hash_function < opt_.num_hash_functions; ++hash_function) {
+                for (index_type dim = 0; dim < (data_.dims + opt_.num_cut_off_points - 1); ++dim) {
+                    // transform memory layout
+                    const index_type idx_new = new_hash_functions.get_linear_id(comm_rank_, hash_table, hash_function, dim, opt_, data_);
+                    const index_type idx_this = this->get_linear_id(comm_rank_, hash_table, hash_function, dim, opt_, data_);
+                    acc_new[idx_new] = acc_this[idx_this];
+                }
+            }
+        }
+        return new_hash_functions;
     }
 
     /**
@@ -252,6 +249,16 @@ private:
             acc[i] = tmp_buffer[i];
         }
     }
+
+    /**
+     * @brief Construct an empty hash functions buffer.
+     * @param[in] opt the @ref options object representing the currently set options
+     * @param[in] data the @ref data object representing the used data set
+     * @param[in] size the size of the empty buffer
+     * @param[in] comm_rank the current MPI rank
+     */
+    entropy_based_hash_functions(const Options& opt, Data& data, const index_type size, const int comm_rank)
+            : buffer(size), comm_rank_(comm_rank), opt_(opt), data_(data) { }
 
 
     /// The current MPI rank.
