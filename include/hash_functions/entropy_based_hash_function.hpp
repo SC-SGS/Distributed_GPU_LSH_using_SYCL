@@ -129,18 +129,18 @@ public:
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             real_type hash = 0.0;
-            const index_type idx = hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + hash_function * (data.dims + opt.num_cut_off_points - 1);
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash += acc_data[data.get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
-                        acc_hash_functions[idx + dim];
+                        acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
+            hash_value_type entropy_hash = 0;
             for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-                combined_hash += hash > acc_hash_functions[idx + data.dims + cop];
+                entropy_hash += hash > acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, data.dims + cop, opt, data)];
             }
-//            combined_hash ^= static_cast<hash_value_type>(i)
-//                             + static_cast<hash_value_type>(0x9e3779b9)
-//                             + (combined_hash << static_cast<hash_value_type>(6))
-//                             + (combined_hash >> static_cast<hash_value_type>(2));
+            combined_hash ^= entropy_hash
+                             + static_cast<hash_value_type>(0x9e3779b9)
+                             + (combined_hash << static_cast<hash_value_type>(6))
+                             + (combined_hash >> static_cast<hash_value_type>(2));
         }
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
@@ -195,20 +195,20 @@ public:
                                                             const index_type hash_table, const index_type hash_function, const index_type dim,
                                                             const Options& opt, const Data& data) noexcept
     {
-//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
-//                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
-//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
-//                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
-//        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
-//                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
-//
-//        if constexpr (layout == memory_layout::aos) {
-//            // Array of Structs
-//            return hash_table * opt.num_hash_functions * (data.dims + 1) + hash_function * (data.dims + 1) + dim;
-//        } else {
-//            // Struct of Arrays
-//            return hash_table * opt.num_hash_functions * (data.dims + 1) + dim * opt.num_hash_functions + hash_function;
-//        }
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
+                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
+        DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < (data.dims + opt.num_cut_off_points - 1),
+                         "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + opt.num_cut_off_points - 1);
+        
+        if constexpr (layout == memory_layout::aos) {
+            // Array of Structs
+            return hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + hash_function * (data.dims + opt.num_cut_off_points - 1) + dim;
+        } else {
+            // Struct of Arrays
+            return hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + dim * opt.num_hash_functions + hash_function;
+        }
         return 0;
     }
 
@@ -248,7 +248,6 @@ private:
     entropy_based_hash_functions(const Options& opt, Data& data, std::vector<real_type>& tmp_buffer, const int comm_rank)
         : buffer(tmp_buffer.size()), comm_rank_(comm_rank), opt_(opt), data_(data)
     {
-        // TODO 2020-08-12 12:27 marcel: hash pool multiple ranks?
         auto acc = buffer.template get_access<sycl::access::mode::discard_write>();
         for (std::size_t i = 0; i < tmp_buffer.size(); ++i) {
             acc[i] = tmp_buffer[i];
@@ -291,11 +290,24 @@ template <memory_layout layout, typename Data>
     // create hash functions pool
     std::vector<real_type> hash_functions_pool(opt.hash_pool_size * data.dims);
     std::vector<real_type> cut_off_points_pool(opt.hash_pool_size * (opt.num_cut_off_points - 1));
-    std::mt19937 rnd_normal_gen;
+
+    const auto get_linear_id_pool = [=](const index_type pool_function, [[maybe_unused]] const index_type pool_size,
+                                        const index_type dim, [[maybe_unused]] const index_type dims) {
+        if constexpr (layout == memory_layout::aos) {
+            // Array of Structs
+            return pool_function * dims + dim;
+        } else {
+            // Struct of Arrays
+            return dim * pool_size + pool_function;
+        }
+    };
+
+    std::mt19937 rnd_normal_gen;    // TODO 2020-09-02 14:08 marcel: abs ???
     std::normal_distribution<real_type> rnd_normal_dist;
     for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
         for (index_type dim = 0; dim < data.dims; ++dim) {
-            hash_functions_pool[hash_function * data.dims + dim] = std::abs(rnd_normal_dist(rnd_normal_gen));
+            hash_functions_pool[get_linear_id_pool(hash_function, opt.hash_pool_size, dim, data.dims)]
+                    = std::abs(rnd_normal_dist(rnd_normal_gen));
         }
     }
     
@@ -314,33 +326,25 @@ template <memory_layout layout, typename Data>
                     auto acc_data = data.buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hf = hf_buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hv = hv_buffer.template get_access<sycl::access::mode::write>(cgh);
+                    const index_type pool_size = opt.hash_pool_size;
+                    const index_type dims = data.dims;
 
                     cgh.parallel_for<class fill_unsorted>(sycl::range<>(data.rank_size), [=](sycl::item<> item) {
                         const index_type idx = item.get_linear_id();
 
                         real_type value = 0.0;
                         for (index_type dim = 0; dim < data.dims; ++dim) {
-                            value += acc_data[data.get_linear_id(comm_rank, idx, data.rank_size, dim, data.dims)] * acc_hf[hash_function * data.dims + dim];
+                            value += acc_data[data.get_linear_id(comm_rank, idx, data.rank_size, dim, data.dims)]
+                                    * acc_hf[get_linear_id_pool(hash_function, pool_size, dim, dims)];
                         }
                         acc_hv[idx] = value;
                     });
                 });
             }
-//            std::cout << opt.num_cut_off_points << std::endl << std::endl;
-//            for (const real_type val : hash_values) {
-//                std::cout << val << ' ';
-//            }
-//            std::cout << std::endl;
 
             // distributed sort vector
             odd_even_sort(hash_values, communicator);
 
-//            for (const real_type val : hash_values) {
-//                std::cout << val << ' ';
-//            }
-//            std::cout << std::endl;
-
-            // calculate cut-off points
             std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
 
             // calculate cut-off points indices
@@ -349,11 +353,6 @@ template <memory_layout layout, typename Data>
             for (index_type i = 0; i < cut_off_points_idx.size(); ++i) {
                 cut_off_points_idx[i] = (i + 1) * jump;
             }
-
-//            for (const auto val : cut_off_points_idx) {
-//                std::cout << val << ' ';
-//            }
-//            std::cout << std::endl;
 
             // fill cut-off points which are located on the current rank
             for (index_type i = 0; i < opt.num_cut_off_points; ++i) {
@@ -365,12 +364,7 @@ template <memory_layout layout, typename Data>
 
             // combine to final cut-off points on all ranks
             MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), detail::mpi_type_cast<real_type>(), MPI_SUM, communicator);
-
-//            for (const auto val : cut_off_points) {
-//                std::cout << val << ' ';
-//            }
-//            std::cout << std::endl;
-
+            // copy current cut off points to pool
             std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
         }
     }
@@ -378,21 +372,20 @@ template <memory_layout layout, typename Data>
     std::vector<real_type> buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1));
     if (comm_rank == 0) {
         // select used hash functions from hash pool
-        std::random_device rnd_device;
-        std::mt19937 rnd_uniform_gen(rnd_device());
-//        std::mt19937 rnd_uniform_gen;
+//        std::random_device rnd_device;
+//        std::mt19937 rnd_uniform_gen(rnd_device());
+        std::mt19937 rnd_uniform_gen;
         std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size - 1);
 
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
-//                std::cout << pool_hash_function << ' ';
                 for (index_type dim = 0; dim < data.dims; ++dim) {
-                    buffer[hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + hash_function * (data.dims + opt.num_cut_off_points - 1) + dim]
-                            = hash_functions_pool[pool_hash_function * data.dims + dim];
+                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)]
+                            = hash_functions_pool[get_linear_id_pool(pool_hash_function, opt.hash_pool_size, dim, data.dims)];
                 }
                 for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-                    buffer[hash_table * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + hash_function * (data.dims + opt.num_cut_off_points - 1) + data.dims + cop]
+                    buffer[hash_functions_type::get_linear_id(comm_rank, hash_table, hash_function, data.dims + cop, opt, data)]
                             = cut_off_points_pool[pool_hash_function * (opt.num_cut_off_points - 1) + cop];
                 }
             }
@@ -402,35 +395,7 @@ template <memory_layout layout, typename Data>
     // broadcast hash functions to other MPI ranks
     MPI_Bcast(buffer.data(), buffer.size(), detail::mpi_type_cast<real_type>(), 0, communicator);
 
-    std::cout << "\n\n\n\n";
-    for (index_type i = 0; i < opt.hash_pool_size; ++i) {
-        for (index_type j = 0; j < data.dims; ++j) {
-            std::cout << hash_functions_pool[i * data.dims + j] << ' ';
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl << std::endl;
-    for (index_type i = 0; i < opt.hash_pool_size; ++i) {
-        for (index_type j = 0; j < opt.num_cut_off_points - 1; ++j) {
-            std::cout << cut_off_points_pool[i * (opt.num_cut_off_points - 1) + j] << ' ';
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl << std::endl;
-
-    for (index_type k = 0; k < opt.num_hash_tables; ++k) {
-        for (index_type i = 0; i < opt.num_hash_functions; ++i) {
-            for (index_type j = 0; j < (data.dims + opt.num_cut_off_points - 1); ++j) {
-                std::cout << buffer[k * opt.num_hash_functions * (data.dims + opt.num_cut_off_points - 1) + i * (data.dims + opt.num_cut_off_points - 1) + j] << ' ';
-            }
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
     END_TIMING_MPI(creating_hash_functions, comm_rank);
-    std::exit(0);
     return hash_functions_type(data.get_options(), data, buffer, comm_rank);
 }
 
