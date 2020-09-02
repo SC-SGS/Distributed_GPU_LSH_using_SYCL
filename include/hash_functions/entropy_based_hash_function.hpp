@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-31
+ * @date 2020-09-02
  *
  * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -134,20 +134,9 @@ public:
                 hash += acc_data[data.get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[idx + dim];
             }
-//            for (index_type i = 0; i < opt.num_cut_off_points - 1; ++i) {
-//                detail::print("{} ", acc_hash_functions[idx + data.dims + i]);
-//            }
-//            detail::print("-> {}", hash);
-            hash_value_type i = 0;
             for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-                if (hash <= acc_hash_functions[idx + data.dims + cop]) {
-                    break;
-                }
-                ++i;
+                combined_hash += hash > acc_hash_functions[idx + data.dims + cop];
             }
-//            while (i < opt.num_cut_off_points && hash > acc_hash_functions[idx + data.dims + i]) { ++i; }
-//            detail::print(" -> {}\n", i);
-            combined_hash += i;
 //            combined_hash ^= static_cast<hash_value_type>(i)
 //                             + static_cast<hash_value_type>(0x9e3779b9)
 //                             + (combined_hash << static_cast<hash_value_type>(6))
