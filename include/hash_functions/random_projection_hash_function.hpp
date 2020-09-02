@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-12
+ * @date 2020-09-02
  *
  * @brief Implements the @ref random_projection_hash_functions class representing the used LSH hash functions.
  */
@@ -138,8 +138,8 @@ public:
     {
         DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_table && hash_table < opt.num_hash_tables,
                          "Out-of-bounce access!: 0 <= {} < {}", hash_table, opt.num_hash_tables);
-        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
-                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
+//        DEBUG_ASSERT_MPI(comm_rank, 0 <= hash_function && hash_function < opt.num_hash_functions,
+//                         "Out-of-bounce access!: 0 <= {} < {}", hash_function, opt.num_hash_functions);
         DEBUG_ASSERT_MPI(comm_rank, 0 <= dim && dim < data.dims + 1,
                          "Out-of-bounce access!: 0 <= {} < {}", dim, data.dims + 1);
 
