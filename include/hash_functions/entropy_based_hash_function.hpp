@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-02
+ * @date 2020-09-03
  *
  * @brief Implements the @ref entropy_based_hash_functions class representing the used entropy-based LSH hash functions
  */
@@ -308,12 +308,12 @@ template <memory_layout layout, typename Data>
         }
     };
 
-    std::mt19937 rnd_normal_gen;    // TODO 2020-09-02 14:08 marcel: abs ???
+    std::mt19937 rnd_normal_gen;
     std::normal_distribution<real_type> rnd_normal_dist;
     for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
         for (index_type dim = 0; dim < data.dims; ++dim) {
             hash_functions_pool[get_linear_id_pool(hash_function, opt.hash_pool_size, dim, data.dims)]
-                    = std::abs(rnd_normal_dist(rnd_normal_gen));
+                    = rnd_normal_dist(rnd_normal_gen);
         }
     }
     
