@@ -24,6 +24,21 @@
 
 
 /**
+ * @brief Calculates: \f$ a \ mod\  b == ((a \% b) + b) \% b \f$, where `mod` is the mathematical modulo operator and `%` the
+ * symmetric modulo operator.
+ * @details Assumes: `b > 0` and `b + b - 1 <= std::numeric_limits<T>::max()`.
+ * @tparam T the used type
+ * @param[in] a the dividend
+ * @param[in] b the divisor
+ * @return the mathematical modulo value
+ */
+template <typename T>
+constexpr T mod(T a, T b) noexcept {
+    return ((a % b) + b) % b;
+}
+
+
+/**
  * @brief Class representing the LSH hash functions.
  * @tparam layout determines whether the hash functions are saved as *Array of Structs* or *Struct of Arrays*
  * @tparam Options represents various constant options to alter the algorithm's behaviour
@@ -75,22 +90,22 @@ public:
         DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
                          "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
 
-        hash_value_type combined_hash = opt.num_hash_functions;
+        using hash_value_type_signed = std::make_signed_t<hash_value_type>;
+
+        // TODO 2020-09-03 12:28 marcel: check shift
+        hash_value_type_signed combined_hash = static_cast<hash_value_type_signed>(opt.num_hash_functions);
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             real_type hash = acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)];
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
-            combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
-                             + static_cast<hash_value_type>(0x9e3779b9)
-                             + (combined_hash << static_cast<hash_value_type>(6))
-                             + (combined_hash >> static_cast<hash_value_type>(2));
+            combined_hash ^= static_cast<hash_value_type_signed>(hash / opt.w)
+                             + static_cast<hash_value_type_signed>(0x9e3779b9)
+                             + (combined_hash << static_cast<hash_value_type_signed>(6))
+                             + (combined_hash >> static_cast<hash_value_type_signed>(2));
         }
-        if constexpr (std::is_signed_v<hash_value_type>) {
-            combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
-        }
-        return combined_hash % opt.hash_table_size;
+        return static_cast<hash_value_type>(mod<hash_value_type_signed>(combined_hash, opt.hash_table_size));
     }
 
     /**
@@ -243,7 +258,7 @@ template <memory_layout layout, typename Data>
 //        std::mt19937 rnd_uniform_gen(rnd_device());
         std::mt19937 rnd_normal_pool_gen;
         std::mt19937 rnd_uniform_pool_gen;
-        std::normal_distribution<real_type> rnd_normal_pool_dist; // todo: (5, 2) -> abs????
+        std::normal_distribution<real_type> rnd_normal_pool_dist;
         std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, opt.w);
 
         std::vector<real_type> hash_pool(opt.hash_pool_size * (data.dims + 1));
@@ -251,7 +266,7 @@ template <memory_layout layout, typename Data>
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, dim, opt, data)]
-                    = rnd_normal_pool_dist(rnd_normal_pool_gen); // TODO 2020-09-02 17:28 marcel: abs ???p
+                    = rnd_normal_pool_dist(rnd_normal_pool_gen);
             }
             hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, data.dims, opt, data)]
                 = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
