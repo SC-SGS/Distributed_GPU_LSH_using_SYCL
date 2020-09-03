@@ -75,18 +75,36 @@ public:
         DEBUG_ASSERT_MPI(comm_rank, 0 <= point && point < data.rank_size,
                          "Out-of-bounce access!: 0 <= {} < {}", point, data.rank_size);
 
+//        const index_type offset = opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1);
+//        real_type combined_hash = acc_hash_functions[offset + hash_table * (opt.num_hash_functions + 1) + opt.num_hash_functions];
         hash_value_type combined_hash = opt.num_hash_functions;
+//        hash_value_type combined_hash = 0;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             real_type hash = acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, data.dims, opt, data)];
+//            real_type hash = 0;
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash += acc_data[data_type::get_linear_id(comm_rank, point, data.rank_size, dim, data.dims)] *
                         acc_hash_functions[get_linear_id(comm_rank, hash_table, hash_function, dim, opt, data)];
             }
+//            if (hash > 0) {
+//                combined_hash |= 1;
+//            } else {
+//                combined_hash |= 0;
+//            }
+//            if (hash_function != opt.num_hash_functions - 1) {
+//                combined_hash <<= 1;
+//            }
+//            combined_hash += static_cast<hash_value_type>(hash / 0.01) * acc_hash_functions[offset + hash_table * (opt.num_hash_functions + 1) + hash_function];
             combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
                              + static_cast<hash_value_type>(0x9e3779b9)
                              + (combined_hash << static_cast<hash_value_type>(6))
                              + (combined_hash >> static_cast<hash_value_type>(2));
         }
+//        hash_value_type result_hash = static_cast<hash_value_type>(combined_hash / opt.w);
+//        if constexpr (std::is_signed_v<hash_value_type>) {
+//            result_hash = result_hash < 0 ? -result_hash : result_hash;
+//        }
+//        return result_hash % opt.hash_table_size;
         if constexpr (std::is_signed_v<hash_value_type>) {
             combined_hash = combined_hash < 0 ? -combined_hash : combined_hash;
         }
@@ -235,6 +253,7 @@ template <memory_layout layout, typename Data>
     options_type opt = data.get_options();
 
     std::vector<real_type> buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1));
+//    std::vector<real_type> buffer(opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1) + opt.num_hash_tables * (opt.num_hash_functions + 1));
 
     if (comm_rank == 0) {
         // create all hash functions pool only on rank 0
@@ -243,7 +262,7 @@ template <memory_layout layout, typename Data>
 //        std::mt19937 rnd_uniform_gen(rnd_device());
         std::mt19937 rnd_normal_pool_gen;
         std::mt19937 rnd_uniform_pool_gen;
-        std::normal_distribution<real_type> rnd_normal_pool_dist;
+        std::normal_distribution<real_type> rnd_normal_pool_dist; // todo: (5, 2) -> abs????
         std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, opt.w);
 
         std::vector<real_type> hash_pool(opt.hash_pool_size * (data.dims + 1));
@@ -251,7 +270,7 @@ template <memory_layout layout, typename Data>
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
             for (index_type dim = 0; dim < data.dims; ++dim) {
                 hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, dim, opt, data)]
-                    = rnd_normal_pool_dist(rnd_normal_pool_gen);
+                    = rnd_normal_pool_dist(rnd_normal_pool_gen); // TODO 2020-09-02 17:28 marcel: abs ???p
             }
             hash_pool[hash_functions_type::get_linear_id(comm_rank, 0, hash_function, data.dims, opt, data)]
                 = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
@@ -271,6 +290,14 @@ template <memory_layout layout, typename Data>
                 }
             }
         }
+        // new
+//        const index_type offset = opt.num_hash_tables * opt.num_hash_functions * (data.dims + 1);
+//        for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+//            for (index_type dim = 0; dim < opt.num_hash_functions; ++dim) {
+//                buffer[offset + hash_table * (opt.num_hash_functions + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
+//            }
+//            buffer[offset + hash_table * (opt.num_hash_functions + 1) + opt.num_hash_functions] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
+//        }
     }
 
     // broadcast hash functions to other MPI ranks
