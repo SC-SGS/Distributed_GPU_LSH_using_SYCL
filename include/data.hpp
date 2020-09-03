@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-06
+ * @date 2020-09-03
  *
  * @brief Implements the @ref data class representing the used data set.
  */
@@ -183,6 +183,7 @@ private:
      * @return the output stream
      */
     friend std::ostream& operator<<(std::ostream& out, const data& data) {
+        out << "layout '" << layout << "'\n";
         out << "total_size " << data.total_size << '\n';
         out << "rank_size " << data.rank_size << '\n';
         out << "dims " << data.dims;

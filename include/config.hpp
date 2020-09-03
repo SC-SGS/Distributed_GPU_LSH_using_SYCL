@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-09-03
  *
  * @brief Contains global constants, typedefs and enums.
  */
@@ -11,6 +11,7 @@
 
 #include <CL/sycl.hpp>
 
+#include <ostream>
 
 namespace sycl = cl::sycl;
 /// Namespace containing helper classes and functions.
@@ -47,6 +48,17 @@ enum class memory_layout {
     soa
 };
 
+std::ostream& operator<<(std::ostream& out, const memory_layout layout) {
+    switch (layout) {
+        case memory_layout::aos:
+            out << "Array of Structs";
+            break;
+        case memory_layout::soa:
+            out << "Struct of Arrays";
+            break;
+    }
+    return out;
+}
 
 /// Shorthand macro for std::enable_if
 #define REQUIRES(cond) std::enable_if_t<(cond), int> = 0
