@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-08-31
+ * @date 2020-09-17
  *
  * @brief Implements a @ref options class for managing hyperparameters.
  */
@@ -245,7 +245,9 @@ public:
     // ---------------------------------------------------------------------------------------------------------- //
 
     /// The type of the hash functions.
-    static constexpr auto hash_functions_type = hash_functions::random_projection;
+//    static constexpr auto hash_functions_type = hash_functions::random_projection;
+//    static constexpr auto hash_functions_type = hash_functions::entropy_based;
+    static constexpr auto hash_functions_type = hash_functions::mixed;
 
 
     /**

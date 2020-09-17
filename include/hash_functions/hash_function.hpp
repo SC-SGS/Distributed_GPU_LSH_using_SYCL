@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-07-29
+ * @date 2020-09-17
  *
  * @brief Implements the factory functions for the hash functions classes.
  */
@@ -16,6 +16,7 @@
 #include <detail/print.hpp>
 #include <hash_functions/entropy_based_hash_function.hpp>
 #include <hash_functions/random_projection_hash_function.hpp>
+#include <hash_functions/mixed_hash_function.hpp>
 
 
 /**
@@ -30,6 +31,8 @@ struct hash_functions {
      * @brief Tag for the random projection hash functions.
      */
     static struct RandomProjection{} random_projection;
+
+    static struct Mixed{} mixed;
 };
 
 /**
@@ -48,6 +51,11 @@ std::ostream& operator<<(std::ostream& out, hash_functions::EntropyBased) {
  */
 std::ostream& operator<<(std::ostream& out, hash_functions::RandomProjection) {
     out << "random_projections";
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, hash_functions::Mixed) {
+    out << "mixed";
     return out;
 }
 
@@ -76,6 +84,11 @@ template <memory_layout layout, typename Data>
 template <memory_layout layout, typename Data>
 [[nodiscard]] inline auto make_hash_functions(Data& data, const MPI_Comm& communicator, hash_functions::RandomProjection) {
     return make_random_projection_hash_functions<layout, Data>(data, communicator);
+}
+
+template <memory_layout layout, typename Data>
+[[nodiscard]] inline auto make_hash_functions(Data& data, const MPI_Comm& communicator, hash_functions::Mixed) {
+    return make_mixed_hash_functions<layout, Data>(data, communicator);
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTION_HPP
