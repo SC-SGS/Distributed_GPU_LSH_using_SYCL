@@ -87,9 +87,16 @@ string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
 # include directory
 include_directories(include)
 
+# source files
+set(SOURCE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/errhandler.cpp
+)
+
 
 # create executable
-add_executable(prog src/main.cpp)
+add_executable(prog src/main.cpp ${SOURCE})
 target_compile_options(prog PRIVATE -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-format-security)
 target_link_libraries(prog PRIVATE -lstdc++fs)
 
