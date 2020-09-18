@@ -34,15 +34,23 @@ int sycl_lsh::main(int argc, char** argv, sycl_lsh::custom_main_ptr func) {
         }
     };
 
+    // get MPI rank
+    int comm_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
+
     if (provided < required) {
         // required level of thread support couldn't be provided -> exit program
-        std::cerr << "Couldn't provide the required level of thread support!\n"
-                  << "required: " << level_of_thread_support_to_string(required) << '\n'
-                  << "provided: " << level_of_thread_support_to_string(provided) << std::endl;
+        if (comm_rank == 0) {
+            std::cerr << "Couldn't provide the required level of thread support!\n"
+                      << "required: " << level_of_thread_support_to_string(required) << '\n'
+                      << "provided: " << level_of_thread_support_to_string(provided) << std::endl;
+        }
         return_code = EXIT_FAILURE;
     } else {
         // required level of thread support could be provided -> call custom main function
-        std::cout << "Provided level of thread support is: " << level_of_thread_support_to_string(provided) << std::endl;
+        if (comm_rank == 0) {
+            std::cout << "Provided level of thread support is: " << level_of_thread_support_to_string(provided) << std::endl;
+        }
 
         return_code = std::invoke(func, argc, argv);
     }
