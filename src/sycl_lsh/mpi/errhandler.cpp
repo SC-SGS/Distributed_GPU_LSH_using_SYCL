@@ -5,6 +5,7 @@
  */
 
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
+#include <sycl_lsh/exceptions/file_exception.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
 
 #include <stdexcept>
@@ -25,7 +26,7 @@ namespace {
      * Default @ref sycl_lsh::errhandler function for MPI files.
      */
     void file_exception_errhandler(MPI_File* file, int* err, ...) {
-        throw std::logic_error("FILE ERROR!");
+        throw sycl_lsh::file_exception(*file, *err);
     }
     /*
      * Default @ref sycl_lsh::errhandler function for MPI windows.

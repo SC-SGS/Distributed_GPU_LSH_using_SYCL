@@ -11,6 +11,7 @@
 
 // include all necessary library headers
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
+#include <sycl_lsh/exceptions/file_exception.hpp>
 
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
