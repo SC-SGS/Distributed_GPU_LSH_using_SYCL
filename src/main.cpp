@@ -1,7 +1,31 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-09-18
+ *
+ * @brief The main file containing the main logic.
+ */
+
+#include <sycl_lsh/core.hpp>
+
+#include <mpi.h>
+
 #include <iostream>
 
-int main() {
-    std::cout << "Hello, World!" << std::endl;
 
+
+int custom_main(int argc, char** argv) {
+    sycl_lsh::communicator comm;
+    sycl_lsh::errhandler handler(sycl_lsh::errhandler::type::comm);
+    comm.attach_errhandler(handler);
+
+    MPI_Comm_call_errhandler(comm.get(), 1);
+    
+    std::cout << "custom main" << std::endl;
     return 0;
+}
+
+
+int main(int argc, char** argv) {
+    return sycl_lsh::main(argc, argv, &custom_main);
 }
