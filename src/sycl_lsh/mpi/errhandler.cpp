@@ -6,6 +6,7 @@
 
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
 #include <sycl_lsh/exceptions/file_exception.hpp>
+#include <sycl_lsh/exceptions/window_exception.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
 
 #include <stdexcept>
@@ -15,7 +16,6 @@
 //                                        default errhandler functions                                        //
 // ---------------------------------------------------------------------------------------------------------- //
 namespace {
-    // TODO 2020-09-18 18:02 marcel: correct exceptions
     /*
      * Default @ref sycl_lsh::errhandler function for MPI communicators.
      */
@@ -32,7 +32,7 @@ namespace {
      * Default @ref sycl_lsh::errhandler function for MPI windows.
      */
     void win_exception_errhandler(MPI_Win* win, int* err, ...) {
-        throw std::logic_error("WIN ERROR!");
+        throw sycl_lsh::window_exception(*win, *err);
     }
 }
 
