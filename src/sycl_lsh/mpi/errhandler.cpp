@@ -4,6 +4,7 @@
  * @date 2020-09-18
  */
 
+#include <sycl_lsh/exceptions/communicator_exception.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
 
 #include <stdexcept>
@@ -18,7 +19,7 @@ namespace {
      * Default @ref sycl_lsh::errhandler function for MPI communicators.
      */
     void comm_exception_errhandler(MPI_Comm* comm, int* err, ...) {
-        throw std::logic_error("COMM ERROR!");
+        throw sycl_lsh::communicator_exception(*comm, *err);
     }
     /*
      * Default @ref sycl_lsh::errhandler function for MPI files.

@@ -19,7 +19,11 @@ int custom_main(int argc, char** argv) {
     sycl_lsh::errhandler handler(sycl_lsh::errhandler::type::comm);
     comm.attach_errhandler(handler);
 
-    MPI_Comm_call_errhandler(comm.get(), 1);
+    try {
+        MPI_Comm_call_errhandler(comm.get(), 1);
+    } catch (const sycl_lsh::communicator_exception& e) {
+        std::cerr << "Exception thrown on rank " << e.rank() << ": " << e.what() << " (error code: " << e.error_code() << ")" << std::endl;
+    }
     
     std::cout << "custom main" << std::endl;
     return 0;

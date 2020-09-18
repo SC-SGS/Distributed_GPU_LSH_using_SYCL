@@ -10,6 +10,8 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CORE_HPP
 
 // include all necessary library headers
+#include <sycl_lsh/exceptions/communicator_exception.hpp>
+
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
 #include <sycl_lsh/mpi/main.hpp>
