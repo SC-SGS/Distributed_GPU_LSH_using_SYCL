@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-19
  *
  * @brief The main file containing the main logic.
  */
@@ -15,17 +15,22 @@
 
 
 int custom_main(int argc, char** argv) {
+    // create MPI communicator
     sycl_lsh::communicator comm;
+    // optionally: set exception handler for the communicator
     sycl_lsh::errhandler handler(sycl_lsh::errhandler::type::comm);
     comm.attach_errhandler(handler);
 
-    try {
-        MPI_Comm_call_errhandler(comm.get(), 1);
-    } catch (const sycl_lsh::communicator_exception& e) {
-        std::cerr << "Exception thrown on rank " << e.rank() << ": " << e.what() << " (error code: " << e.error_code() << ")" << std::endl;
+    // parse command line arguments
+    sycl_lsh::argv_parser parser(argc, argv);
+    // print help message if requested
+    if (parser.has_argv("help")) {
+        if (comm.rank() == 0) {
+            std::cout << parser.description() << std::endl;
+            return EXIT_SUCCESS;
+        }
     }
     
-    std::cout << "custom main" << std::endl;
     return 0;
 }
 

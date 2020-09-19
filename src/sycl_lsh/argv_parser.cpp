@@ -1,0 +1,110 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-09-19
+ */
+
+#include <sycl_lsh/argv_parser.hpp>
+
+#include <string>
+#include <map>
+#include <stdexcept>
+#include <utility>
+#include <numeric>
+#include <sstream>
+
+
+const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser::list_of_argvs_ = {
+        { "help",               { "help screen", false } },
+        { "data",               { "path to the data file", true } },
+        { "k",                  { "the number of nearest-neighbors to search for", true } },
+        { "options",            { "path to options file", false } },
+        { "save_options",       { "save the currently used options to the given path", false } },
+        { "save_knn",           { "save the calculated nearest-neighbors to path", false } },
+        { "evaluate_knn",       { "read the correct nearest-neighbors and evaluate calculated nearest-neighbors", false } },
+        { "hash_pool_size",     { "number of hash functions in the hash pool", false } },
+        { "num_hash_functions", { "number of hash functions per hash table", false } },
+        { "num_hash_tables",    { "number of hash tables to create", false } },
+        { "hash_table_size",    { "size of each hash table", false } },
+        { "w",                  { "segment size for the random projections hash functions", false } },
+        { "num_cut_off_points", { "number of cut-off points for the entropy-based hash functions", false } }
+};
+
+
+// ---------------------------------------------------------------------------------------------------------- //
+//                                                constructor                                                 //
+// ---------------------------------------------------------------------------------------------------------- //
+sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
+    for (int i = 1; i < argc; ++i) {
+        std::string key = argv[i];
+
+        // check whether the key starts with two leading "--"
+        if (key.rfind("--", 0) != 0) {
+            throw std::invalid_argument("All command line argument keys must start with '--'!: " + key);
+        }
+        key.erase(0, 2);    // remove leading '--'
+
+        // check whether the key is legal
+        if (list_of_argvs_.count(key) == 0) {
+            throw std::invalid_argument("Illegal command line argument key!: " + key);
+        }
+        // check whether the key hasn't been provided yet
+        if (argvs_.count(key) > 0) {
+            throw std::invalid_argument("Duplicate command line argument key!: " + key);
+        }
+
+        if (key == "help") {
+            // if the current key equals 'help' continue parsing the next [key, value]-pair
+            // -> DON'T read a value because none will be provided!
+            argvs_.emplace(std::move(key), "");
+        } else {
+            // check whether a value is present
+            if (i + 1 >= argc) {
+                throw std::invalid_argument("Command line argument key has no value!");
+            }
+            // check whether the next value isn't a key
+            if (key.rfind("--", 0) == 0) {
+                throw std::invalid_argument("Expected command line argument value but got another key!: " + std::string(argv[i + 1]));
+            }
+
+            // add the [key, value]-pair to parsed command line arguments
+            argvs_.emplace(std::move(key), argv[++i]);
+        }
+    }
+
+    // if '--help' isn't provided, check whether the required command line arguments are present
+    // if '--help' is provided, the required command line arguments do not have to be present
+    if (argvs_.count("help") == 0) {
+        for (const auto& [key, desc] : list_of_argvs_) {
+            if (desc.second && argvs_.count(key) == 0) {
+                throw std::logic_error("The required command line key " + key + " is missing!");
+            }
+        }
+    }
+}
+
+
+// ---------------------------------------------------------------------------------------------------------- //
+//                                           other member functions                                           //
+// ---------------------------------------------------------------------------------------------------------- //
+bool sycl_lsh::argv_parser::has_argv(const std::string& key) const { return argvs_.count(key) > 0; }
+
+std::string sycl_lsh::argv_parser::description() const {
+    const auto max_reduction = [](const std::size_t value, const auto& pair) { return std::max(value, pair.first.size()); };
+    const std::size_t max_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction);
+
+    // write header information
+    std::stringstream ss;
+    ss << "Usage: ./prog --data \"path-tp-data_set\" --k \"number-of-knn\" [options]\n";
+    ss << "options:\n";
+
+    // write command line arguments and their respective description
+    for (const auto& [key, desc] : list_of_argvs_) {
+        ss << "   --" << key << std::string(max_size - key.size() + 2, ' ') << desc.first;
+        if (desc.second) {
+            ss << " (required)";
+        }
+        ss << '\n';
+    }
+    return ss.str();
+}
