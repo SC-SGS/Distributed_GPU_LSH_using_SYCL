@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-19
  *
  * @brief Exception class for errors occurring in MPI files.
  */
@@ -40,9 +40,17 @@ namespace sycl_lsh {
          */
         [[nodiscard]]
         int error_code() const noexcept { return error_code_; }
+        /**
+         * @brief Returns the filename of the file on which the MPI error occurred.
+         * @details Returns `"unknown"` if retrieving the filename isn't supported.
+         * @return the filename (`[[nodiscard]]`)
+         */
+        [[nodiscard]]
+        const char* filename() const noexcept { return filename_; }
 
     private:
         const int error_code_;
+        char filename_[MPI_MAX_INFO_VAL] = "unknown";
         char error_msg_[MPI_MAX_ERROR_STRING];
     };
 
