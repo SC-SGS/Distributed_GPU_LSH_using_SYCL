@@ -37,6 +37,7 @@ int custom_main(int argc, char** argv) {
         if (comm.rank() == 0) {
             std::cout << e.what() << std::endl;
         }
+        return EXIT_FAILURE;
     }
     
     return EXIT_SUCCESS;
