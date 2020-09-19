@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-19
  *
  * @brief Minimalistic wrapper class around a MPI communicator.
  */
@@ -65,6 +65,21 @@ namespace sycl_lsh {
          * @return `*this`
          */
         communicator& operator=(communicator&& rhs);
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                         MPI communicator functions                                         //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Returns the current MPI rank.
+         * @return the rank
+         */
+        int rank() const;
+        /**
+         * @brief Returns the size of the MPI communicator.
+         * @return the communicator size
+         */
+        int size() const;
 
 
         // ---------------------------------------------------------------------------------------------------------- //

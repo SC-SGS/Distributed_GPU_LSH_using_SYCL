@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-19
  */
 
 #include <sycl_lsh/mpi/communicator.hpp>
@@ -83,6 +83,21 @@ sycl_lsh::communicator& sycl_lsh::communicator::operator=(sycl_lsh::communicator
     rhs.comm_ = MPI_COMM_NULL;
     rhs.is_freeable_ = false;
     return *this;
+}
+
+
+// ---------------------------------------------------------------------------------------------------------- //
+//                                         MPI communicator functions                                         //
+// ---------------------------------------------------------------------------------------------------------- //
+int sycl_lsh::communicator::rank() const {
+    int comm_rank;
+    MPI_Comm_rank(comm_, &comm_rank);
+    return comm_rank;
+}
+int sycl_lsh::communicator::size() const {
+    int comm_size;
+    MPI_Comm_size(comm_, &comm_size);
+    return comm_size;
 }
 
 
