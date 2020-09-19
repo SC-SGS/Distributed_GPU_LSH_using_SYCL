@@ -21,14 +21,13 @@ endif()
 
 
 project("Distributed GPU LSH implementation using SYCL"
-        VERSION 0.0.0
+        VERSION 1.0.0
         LANGUAGES CXX
         DESCRIPTION "master theses Marcel Breyer"
         HOMEPAGE_URL "https://gitlab-sim.informatik.uni-stuttgart.de/breyerml/distributed_gpu_lsh_using_sycl")
 
 
 # cmake configuration options
-option(ENABLE_TESTS "Generate tests" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
 
 
@@ -56,39 +55,21 @@ else ()
 endif ()
 
 
+# set cmake build type if none was specified
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified!")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type" FORCE)
+endif ()
+message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
+
+
 # add custom cmake modules path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 
-# find MPI and add it to the target
-find_package(MPI REQUIRED)
-include_directories(${MPI_CXX_INCLUDE_DIRS})
-link_libraries(MPI::MPI_CXX)
-
-
-# find OpenMP add it to the target
-#find_package(OpenMP)
-#link_libraries(OpenMP::OpenMP_CXX)
-
-
-# set c++ standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-
-# set CMAKE_CXX_FLAGS based on CMAKE_BUILD_TYPE
-string(APPEND CMAKE_CXX_FLAGS_INIT " ")
-string(APPEND CMAKE_CXX_FLAGS_DEBUG_INIT " -g")
-string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL_INIT " -Os -DNDEBUG")
-string(APPEND CMAKE_CXX_FLAGS_RELEASE_INIT " -O3 -DNDEBUG")
-string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT " -O2 -g -DNDEBUG")
-
-
-# include directory
-include_directories(include)
-
-# source files
-set(SOURCE
+# create library
+set(SYCL_LSH_LIBRARY_NAME "sycl_lsh")
+add_library(${SYCL_LSH_LIBRARY_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/communicator_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/file_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/window_exception.cpp
@@ -98,44 +79,58 @@ set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/argv_parser.cpp
 )
 
+# set include directory
+target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC include)
 
-# create executable
-add_executable(prog src/main.cpp ${SOURCE})
-target_compile_options(prog PRIVATE -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-format-security)
-target_link_libraries(prog PRIVATE -lstdc++fs)
 
+# find MPI and add it to the target
+find_package(MPI REQUIRED)
+include_directories(${MPI_CXX_INCLUDE_DIRS})
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE MPI::MPI_CXX)
+
+
+# find OpenMP add it to the target
+#find_package(OpenMP REQUIRED)
+#target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE OpenMP::OpenMP_CXX)
+
+
+# set c++ standard
+target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
+
+
+# set library compile definitions
 list(FIND SUPPORTED_SYCL_TARGETS "${SYCL_TARGET}" SYCL_TARGET_IDX)
-target_compile_definitions(prog PRIVATE SYCL_TARGET=${SYCL_TARGET_IDX})
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE SYCL_TARGET=${SYCL_TARGET_IDX})
 list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
-target_compile_definitions(prog PRIVATE TIMER=${TIMER_IDX})
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE TIMER=${TIMER_IDX})
 
 
 # set SYCL implementation specific options
 if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
     if (SYCL_TARGET MATCHES "CPU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cpu")
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=cpu)
     elseif (SYCL_TARGET MATCHES "NVIDIA")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=cuda")
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=cuda)
     elseif (SYCL_TARGET MATCHES "AMD")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --hipsycl-platform=rocm")
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=rocm)
     endif ()
 elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
     if (SYCL_TARGET MATCHES "NVIDIA")
         set(COMPUTECPP_BITCODE ptx64)
     endif ()
     if (SYCL_TARGET MATCHES "CPU")
-        target_compile_options(prog PRIVATE -sycl-host-only)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE -sycl-host-only)
     else ()
-        target_compile_options(prog PRIVATE -sycl-driver)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE -sycl-driver)
     endif ()
-    target_link_libraries(prog PRIVATE -lComputeCpp)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE -lComputeCpp)
 endif()
 
 
-# unset variable
-unset(SYCL_IMPLEMENTATION)
-
-
+# create executable
+add_executable(prog src/main.cpp)
+target_compile_options(prog PRIVATE -Wall -Wextra -pedantic)
+target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
 
 
 # generate documentation if requested
@@ -145,29 +140,14 @@ if (ENABLE_DOCUMENTATION)
 endif ()
 
 
-# generate tests if requested
-if (ENABLE_TESTS)
-    # check the set CMAKE_BUILD_TYPE
-    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-        message(STATUS "Setting build type to 'Debug' as none was specified and tests are enabled!")
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the build type" FORCE)
-    elseif(NOT(CMAKE_BUILD_TYPE MATCHES "Debug"))
-        message(FATAL_ERROR "You have to use the build type 'Debug' as long as tests are enabled!")
-    endif ()
-
-    message(STATUS "Enabled tests using google's test framework (GTest)")
-    # install test framework in third_party directory
-    include(GoogleTest)
-    include(CTest)
-    enable_testing()
-    add_subdirectory(test)
-else ()
-    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-        message(STATUS "Setting build type to 'Release' as none was specified and tests are disabled!")
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type" FORCE)
-    endif ()
-endif ()
-message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
+# unset variables
+unset(SUPPORTED_SYCL_IMPLEMENTATIONS)
+unset(SYCL_IMPLEMENTATION)
+unset(SUPPORTED_TIMERS)
+unset(TIMER)
+unset(SUPPORTED_SYCL_TARGETS)
+unset(SYCL_TARGET)
+unset(ENABLE_DOCUMENTATION)
 
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
