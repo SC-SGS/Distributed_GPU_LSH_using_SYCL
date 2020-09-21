@@ -11,7 +11,7 @@
 
 #include <mpi.h>
 
-namespace sycl_lsh {
+namespace sycl_lsh::mpi {
 
     /**
     * @brief Minimalistic wrapper around a MPI errhandler.

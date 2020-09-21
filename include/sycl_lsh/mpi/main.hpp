@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-21
  *
  * @brief Wrapper function to automatically initialize and finalize the MPI environment correctly.
  */
@@ -9,7 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MAIN_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MAIN_HPP
 
-namespace sycl_lsh {
+namespace sycl_lsh::mpi {
 
     /// The type of the custom main function called inside @ref sycl_lsh::main.
     using custom_main_ptr = int(*)(int, char**);

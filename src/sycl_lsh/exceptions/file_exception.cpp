@@ -7,7 +7,7 @@
 #include <sycl_lsh/exceptions/file_exception.hpp>
 
 
-sycl_lsh::file_exception::file_exception(const MPI_File& file, const int error_code) : error_code_(error_code) {
+sycl_lsh::mpi::file_exception::file_exception(const MPI_File& file, const int error_code) : error_code_(error_code) {
     // try retrieving the filename
     MPI_Info info;
     MPI_File_get_info(file, &info);

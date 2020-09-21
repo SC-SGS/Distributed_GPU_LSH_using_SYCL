@@ -58,7 +58,7 @@ namespace {
 }
 
 
-int sycl_lsh::main(int argc, char** argv, sycl_lsh::custom_main_ptr func) {
+int sycl_lsh::mpi::main(int argc, char** argv, sycl_lsh::mpi::custom_main_ptr func) {
     int return_code = EXIT_SUCCESS;
 
     // initialize the MPI environment with thread support

@@ -7,7 +7,7 @@
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
 
 
-sycl_lsh::communicator_exception::communicator_exception(const MPI_Comm& comm, const int error_code) : error_code_(error_code) {
+sycl_lsh::mpi::communicator_exception::communicator_exception(const MPI_Comm& comm, const int error_code) : error_code_(error_code) {
     // get current MPI rank
     MPI_Comm_rank(comm, &comm_rank_);
 

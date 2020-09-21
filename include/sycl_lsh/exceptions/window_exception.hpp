@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-19
+ * @date 2020-09-21
  *
  * @brief Exception class for errors occurring in MPI windows.
  */
@@ -13,7 +13,7 @@
 
 #include <mpi.h>
 
-namespace sycl_lsh {
+namespace sycl_lsh::mpi {
 
     /**
      * @brief Exception class for errors occurring in MPI windows.

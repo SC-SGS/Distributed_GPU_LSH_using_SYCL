@@ -13,7 +13,7 @@
 
 #include <mpi.h>
 
-namespace sycl_lsh {
+namespace sycl_lsh::mpi {
 
     /**
      * @brief Exception class for errors occurring in MPI files.

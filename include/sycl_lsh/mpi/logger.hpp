@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string_view>
 
-namespace sycl_lsh {
+namespace sycl_lsh::mpi {
 
     /**
      * @brief Simple MPI aware logging class.

@@ -6,6 +6,7 @@
 
 #include <sycl_lsh/mpi/logger.hpp>
 
+
 #include <mpi.h>
 
 #include <vector>
@@ -15,30 +16,30 @@
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::logger::logger(const sycl_lsh::communicator& comm, std::ostream& out) : comm_(comm), out_(out) { }
+sycl_lsh::mpi::logger::logger(const sycl_lsh::mpi::communicator& comm, std::ostream& out) : comm_(comm), out_(out) { }
 
 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                  logging                                                   //
 // ---------------------------------------------------------------------------------------------------------- //
-void sycl_lsh::logger::log(const int comm_rank, const std::string_view msg) {
+void sycl_lsh::mpi::logger::log(const int comm_rank, const std::string_view msg) {
     // print message only on requested MPI rank
     if (comm_rank == comm_.rank()) {
         out_ << msg;
     }
 }
 
-void sycl_lsh::logger::log(const std::string_view msg) {
+void sycl_lsh::mpi::logger::log(const std::string_view msg) {
     // print message only in master rank (MPI rank 0)
     log(0, msg);
 }
 
-void sycl_lsh::logger::log_on_master(const std::string_view msg) {
+void sycl_lsh::mpi::logger::log_on_master(const std::string_view msg) {
     // print message only in master rank (MPI rank 0)
     log(0, msg);
 }
 
-void sycl_lsh::logger::log_on_all(const std::string_view msg) {
+void sycl_lsh::mpi::logger::log_on_all(const std::string_view msg) {
     // get the sizes of each message
     std::vector<int> sizes(comm_.size());
     int msg_size = msg.size();

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-19
+ * @date 2020-09-21
  */
 
 #include <sycl_lsh/mpi/communicator.hpp>
@@ -12,11 +12,11 @@
 // ---------------------------------------------------------------------------------------------------------- //
 //                                        constructors and destructor                                         //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::communicator::communicator() : is_freeable_(true) {
+sycl_lsh::mpi::communicator::communicator() : is_freeable_(true) {
     MPI_Comm_dup(MPI_COMM_WORLD, &comm_);
 }
 
-sycl_lsh::communicator::communicator(const sycl_lsh::communicator& other) {
+sycl_lsh::mpi::communicator::communicator(const sycl_lsh::mpi::communicator& other) {
     if (other.comm_ == MPI_COMM_NULL) {
         // copy a communicator which refers to MPI_COMM_NULL
         comm_ = MPI_COMM_NULL;
@@ -28,7 +28,7 @@ sycl_lsh::communicator::communicator(const sycl_lsh::communicator& other) {
     }
 }
 
-sycl_lsh::communicator::communicator(sycl_lsh::communicator&& other) noexcept
+sycl_lsh::mpi::communicator::communicator(sycl_lsh::mpi::communicator&& other) noexcept
     : comm_(std::move(other.comm_)), is_freeable_(std::move(other.is_freeable_))
 {
     // set other to the moved-from state
@@ -36,9 +36,9 @@ sycl_lsh::communicator::communicator(sycl_lsh::communicator&& other) noexcept
     other.is_freeable_ = false;
 }
 
-sycl_lsh::communicator::communicator(MPI_Comm comm, const bool is_freeable) noexcept : comm_(comm), is_freeable_(is_freeable) { }
+sycl_lsh::mpi::communicator::communicator(MPI_Comm comm, const bool is_freeable) noexcept : comm_(comm), is_freeable_(is_freeable) { }
 
-sycl_lsh::communicator::~communicator() {
+sycl_lsh::mpi::communicator::~communicator() {
     // destroy communicator if marked as freeable
     if (is_freeable_) {
         MPI_Comm_free(&comm_);
@@ -49,7 +49,7 @@ sycl_lsh::communicator::~communicator() {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                            assignment operators                                            //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::communicator& sycl_lsh::communicator::operator=(const sycl_lsh::communicator& rhs) {
+sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(const sycl_lsh::mpi::communicator& rhs) {
     // check against self-assignment
     if (this != std::addressof(rhs)) {
         // delete current communicator if and only if it is marked as freeable
@@ -71,7 +71,7 @@ sycl_lsh::communicator& sycl_lsh::communicator::operator=(const sycl_lsh::commun
     return *this;
 }
 
-sycl_lsh::communicator& sycl_lsh::communicator::operator=(sycl_lsh::communicator&& rhs) {
+sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(sycl_lsh::mpi::communicator&& rhs) {
     // delete current communicator if and only if it is marked as freeable
     if (is_freeable_) {
         MPI_Comm_free(&comm_);
@@ -89,12 +89,12 @@ sycl_lsh::communicator& sycl_lsh::communicator::operator=(sycl_lsh::communicator
 // ---------------------------------------------------------------------------------------------------------- //
 //                                         MPI communicator functions                                         //
 // ---------------------------------------------------------------------------------------------------------- //
-int sycl_lsh::communicator::rank() const {
+int sycl_lsh::mpi::communicator::rank() const {
     int comm_rank;
     MPI_Comm_rank(comm_, &comm_rank);
     return comm_rank;
 }
-int sycl_lsh::communicator::size() const {
+int sycl_lsh::mpi::communicator::size() const {
     int comm_size;
     MPI_Comm_size(comm_, &comm_size);
     return comm_size;
@@ -104,8 +104,8 @@ int sycl_lsh::communicator::size() const {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                            errhandler functions                                            //
 // ---------------------------------------------------------------------------------------------------------- //
-void sycl_lsh::communicator::attach_errhandler(const sycl_lsh::errhandler& handler) {
-    if (handler.handler_type() != sycl_lsh::errhandler::type::comm) {
+void sycl_lsh::mpi::communicator::attach_errhandler(const sycl_lsh::mpi::errhandler& handler) {
+    if (handler.handler_type() != sycl_lsh::mpi::errhandler::type::comm) {
         throw std::logic_error("Illegal errhandler type!");
     }
     MPI_Comm_set_errhandler(comm_, handler.get());
