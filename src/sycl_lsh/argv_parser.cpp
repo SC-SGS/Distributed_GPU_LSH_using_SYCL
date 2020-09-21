@@ -1,15 +1,13 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-19
+ * @date 2020-09-21
  */
 
 #include <sycl_lsh/argv_parser.hpp>
 
-#include <string>
-#include <map>
-#include <stdexcept>
-#include <utility>
+#include <fmt/format.h>
+
 #include <numeric>
 #include <sstream>
 
@@ -40,17 +38,17 @@ sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
 
         // check whether the key starts with two leading "--"
         if (key.rfind("--", 0) != 0) {
-            throw std::invalid_argument("All command line argument keys must start with '--'!: " + key);
+            throw std::invalid_argument(fmt::format("All command line argument keys must start with '--' ({})!", key));
         }
         key.erase(0, 2);    // remove leading '--'
 
         // check whether the key is legal
         if (list_of_argvs_.count(key) == 0) {
-            throw std::invalid_argument("Illegal command line argument key!: " + key);
+            throw std::invalid_argument(fmt::format("Illegal command line argument key {}!", key));
         }
         // check whether the key hasn't been provided yet
         if (argvs_.count(key) > 0) {
-            throw std::invalid_argument("Duplicate command line argument key!: " + key);
+            throw std::invalid_argument(fmt::format("Duplicate command line argument key {}!", key));
         }
 
         if (key == "help") {
@@ -64,7 +62,7 @@ sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
             }
             // check whether the next value isn't a key
             if (key.rfind("--", 0) == 0) {
-                throw std::invalid_argument("Expected command line argument value but got another key!: " + std::string(argv[i + 1]));
+                throw std::invalid_argument(fmt::format("Expected command line argument value but got another key {}!", argv[i + 1]));
             }
 
             // add the [key, value]-pair to parsed command line arguments
@@ -77,7 +75,7 @@ sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
     if (argvs_.count("help") == 0) {
         for (const auto& [key, desc] : list_of_argvs_) {
             if (desc.second && argvs_.count(key) == 0) {
-                throw std::logic_error("The required command line key " + key + " is missing!");
+                throw std::logic_error(fmt::format("The required command line key '{}' is missing!", key));
             }
         }
     }
@@ -91,20 +89,18 @@ bool sycl_lsh::argv_parser::has_argv(const std::string& key) const { return argv
 
 std::string sycl_lsh::argv_parser::description() const {
     const auto max_reduction = [](const std::size_t value, const auto& pair) { return std::max(value, pair.first.size()); };
-    const std::size_t max_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction);
+    const int alignment_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction) + 2;
+
+    fmt::memory_buffer buf;
 
     // write header information
-    std::stringstream ss;
-    ss << "Usage: ./prog --data \"path-tp-data_set\" --k \"number-of-knn\" [options]\n";
-    ss << "options:\n";
+    fmt::format_to(buf, "Usage: ./prog --data \"path-tp-data_set\" --k \"number-of-knn\" [options]\n");
+    fmt::format_to(buf, "options:\n");
 
     // write command line arguments and their respective description
     for (const auto& [key, desc] : list_of_argvs_) {
-        ss << "   --" << key << std::string(max_size - key.size() + 2, ' ') << desc.first;
-        if (desc.second) {
-            ss << " (required)";
-        }
-        ss << '\n';
+        fmt::format_to(buf, "  --{:<{}} {} {}\n", key, alignment_size, desc.first, desc.second ? "(required)" : "");
     }
-    return ss.str();
+
+    return fmt::to_string(buf);
 }

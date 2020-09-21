@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-19
+ * @date 2020-09-21
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -10,6 +10,8 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARGV_PARSER_HPP
 
 #include <sycl_lsh/detail/conversion.hpp>
+
+#include <fmt/format.h>
 
 #include <map>
 #include <stdexcept>
@@ -76,11 +78,11 @@ namespace sycl_lsh {
         T argv_as(const std::string& key) const {
             // check whether the key is legal
             if (list_of_argvs_.count(key) == 0) {
-                throw std::invalid_argument("The requested command line argument key '" + key + "' is illegal!");
+                throw std::invalid_argument(fmt::format("The requested command line argument key '{}' is illegal!", key));
             }
             // check whether the key has been provided
             if (!this->has_argv(key)) {
-                throw std::invalid_argument("The requested command line argument key '" + key + "' hasn't been provided!");
+                throw std::invalid_argument(fmt::format("The requested command line argument key '{}' hasn't been provided!", key));
             }
 
             // convert the value to the given type T
