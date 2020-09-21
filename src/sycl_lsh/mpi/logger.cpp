@@ -5,7 +5,7 @@
  */
 
 #include <sycl_lsh/mpi/logger.hpp>
-
+#include <sycl_lsh/mpi/type_cast.hpp>
 
 #include <mpi.h>
 
@@ -43,7 +43,7 @@ void sycl_lsh::mpi::logger::log_on_all(const std::string_view msg) {
     // get the sizes of each message
     std::vector<int> sizes(comm_.size());
     int msg_size = msg.size();
-    MPI_Gather(&msg_size, 1, MPI_INT, sizes.data(), 1, MPI_INT, 0, comm_.get());
+    MPI_Gather(&msg_size, 1, type_cast<typename decltype(sizes)::value_type>(), sizes.data(), 1, type_cast<decltype(msg_size)>(), 0, comm_.get());
 
     // calculate total msg size
     int total_msg_size = std::accumulate(sizes.begin(), sizes.end(), 0);
@@ -56,7 +56,7 @@ void sycl_lsh::mpi::logger::log_on_all(const std::string_view msg) {
 
     // get all messages
     std::string total_msg(total_msg_size, ' ');
-    MPI_Gatherv(msg.data(), msg.size(), MPI_CHAR, total_msg.data(), sizes.data(), displacements.data(), MPI_CHAR, 0, comm_.get());
+    MPI_Gatherv(msg.data(), msg.size(), type_cast<char>(), total_msg.data(), sizes.data(), displacements.data(), type_cast<char>(), 0, comm_.get());
 
     // print total msg on master rank
     if (comm_.rank() == 0) {
