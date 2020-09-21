@@ -69,7 +69,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 # create library
 set(SYCL_LSH_LIBRARY_NAME "sycl_lsh")
-add_library(${SYCL_LSH_LIBRARY_NAME} SHARED
+add_library(${SYCL_LSH_LIBRARY_NAME} STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/communicator_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/file_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/window_exception.cpp
