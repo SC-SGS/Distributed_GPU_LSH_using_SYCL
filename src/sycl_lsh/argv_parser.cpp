@@ -89,7 +89,7 @@ bool sycl_lsh::argv_parser::has_argv(const std::string& key) const { return argv
 
 std::string sycl_lsh::argv_parser::description() const {
     const auto max_reduction = [](const std::size_t value, const auto& pair) { return std::max(value, pair.first.size()); };
-    const int alignment_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction) + 2;
+    const std::size_t alignment_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction) + 2;
 
     fmt::memory_buffer buf;
 
