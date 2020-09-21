@@ -95,6 +95,17 @@ target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE MPI::MPI_CXX)
 #target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE OpenMP::OpenMP_CXX)
 
 
+# find fmt lib and add it to the target
+find_package(fmt REQUIRED PATHS /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/fmt-7.0.3-4crpju6s5jaj7tqnbmpqesfnovfs35qy)
+if (NOT DEFINED FMT_HEADER_ONLY OR ${FMT_HEADER_ONLY} MATCHES "0")
+    message(STATUS "Linking against fmt lib.")
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE fmt::fmt)
+else ()
+    message(STATUS "Using fmt lib in its header only mode.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC FMT_HEADER_ONLY=1)
+endif ()
+
+
 # set c++ standard
 target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
 

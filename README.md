@@ -24,6 +24,7 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 * A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL) 
   or [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) (currently not working).
 * A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
+* The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
 
@@ -45,6 +46,7 @@ Provided configuration options are:
 | `SYCL_TARGET`          | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                       | 
 | `TIMER`                | `DETAILED`    | Specify which timer functionality should be used. Must be one of: `NONE`, `REDUCED_FILE` or `DETAILED`. |
 | `ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                             |
+| `FMT_HEADER_ONLY`      | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                    |
 
 
 ## Building the documentation
