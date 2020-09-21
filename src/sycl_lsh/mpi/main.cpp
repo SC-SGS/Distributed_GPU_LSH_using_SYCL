@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-21
  */
 
 #include <sycl_lsh/mpi/main.hpp>
@@ -47,11 +47,6 @@ int sycl_lsh::main(int argc, char** argv, sycl_lsh::custom_main_ptr func) {
         }
         return_code = EXIT_FAILURE;
     } else {
-        // required level of thread support could be provided -> call custom main function
-        if (comm_rank == 0) {
-            std::cout << "Provided level of thread support is: " << level_of_thread_support_to_string(provided) << std::endl;
-        }
-
         return_code = std::invoke(func, argc, argv);
     }
 
