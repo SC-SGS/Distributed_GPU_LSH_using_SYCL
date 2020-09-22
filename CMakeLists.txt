@@ -120,7 +120,8 @@ target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
 # set SYCL implementation specific options
 if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
     if (SYCL_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=cpu)
+        # TODO: using this line results in many linker errors
+#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
     elseif (SYCL_TARGET MATCHES "NVIDIA")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
     elseif (SYCL_TARGET MATCHES "AMD")
