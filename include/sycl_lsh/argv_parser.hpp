@@ -107,7 +107,7 @@ namespace sycl_lsh {
         }
 
         // convert the value to the given type T
-        if (std::is_same_v<T, std::string>) {
+        if constexpr (std::is_same_v<T, std::string>) {
             return argvs_.at(key);
         } else {
             return detail::convert_to<T>(argvs_.at(key));
