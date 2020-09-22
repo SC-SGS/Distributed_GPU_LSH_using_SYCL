@@ -29,30 +29,30 @@ project("Distributed GPU LSH implementation using SYCL"
 
 # cmake configuration options
 option(SYCL_LSH_ENABLE_DEBUG "Enable debugging macros" OFF)
-option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
+option(SYCL_LSH_ENABLE_DOCUMENTATION "Generate documentation" OFF)
 
 
 # set timer behaviour
-set(SUPPORTED_TIMERS NONE REDUCED_FILE DETAILED) # NONE = 0, REDUCED_FILE = 1, DETAILED = 2
-if (NOT TIMER)
-    set(TIMER DETAILED)
-endif ()
-if (NOT ${TIMER} IN_LIST SUPPORTED_TIMERS)
-    message(FATAL_ERROR "Timer \"${TIMER}\" not supported!")
-else ()
-    message(STATUS "Using \"${TIMER}\" as timer.")
-endif ()
+#set(SUPPORTED_TIMERS NONE REDUCED_FILE DETAILED) # NONE = 0, REDUCED_FILE = 1, DETAILED = 2
+#if (NOT TIMER)
+#    set(TIMER DETAILED)
+#endif ()
+#if (NOT ${TIMER} IN_LIST SUPPORTED_TIMERS)
+#    message(FATAL_ERROR "Timer \"${TIMER}\" not supported!")
+#else ()
+#    message(STATUS "Using \"${TIMER}\" as timer.")
+#endif ()
 
 
 # set supported SYCL targets
-set(SUPPORTED_SYCL_TARGETS CPU NVIDIA AMD) # CPU = 0, NVIDIA = 1, AMD = 2
-if (NOT SYCL_TARGET)
-    set(SYCL_TARGET NVIDIA)
+set(SUPPORTED_SYCL_LSH_TARGETS CPU NVIDIA AMD) # CPU = 0, NVIDIA = 1, AMD = 2
+if (NOT SYCL_LSH_TARGET)
+    set(SYCL_LSH_TARGET NVIDIA)
 endif ()
-if (NOT ${SYCL_TARGET} IN_LIST SUPPORTED_SYCL_TARGETS)
-    message(FATAL_ERROR "SYCL target \"${SYCL_TARGET}\" not supported!")
+if (NOT ${SYCL_LSH_TARGET} IN_LIST SUPPORTED_SYCL_LSH_TARGETS)
+    message(FATAL_ERROR "SYCL target \"${SYCL_LSH_TARGET}\" not supported!")
 else () 
-    message(STATUS "Using \"${SYCL_TARGET}\" as SYCL target.")
+    message(STATUS "Using \"${SYCL_LSH_TARGET}\" as SYCL target.")
 endif ()
 
 
@@ -92,7 +92,7 @@ target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
 
 
 # find fmt lib and add it to the target
-find_package(fmt REQUIRED PATHS /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/fmt-7.0.3-4crpju6s5jaj7tqnbmpqesfnovfs35qy)
+find_package(fmt REQUIRED)
 if (NOT DEFINED FMT_HEADER_ONLY OR ${FMT_HEADER_ONLY} MATCHES "0")
     message(STATUS "Linking against fmt lib.")
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
@@ -111,27 +111,27 @@ if (SYCL_LSH_ENABLE_DEBUG)
     message(STATUS "Enabled debugging.")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC -DSYCL_LSH_DEBUG)
 endif ()
-list(FIND SUPPORTED_SYCL_TARGETS "${SYCL_TARGET}" SYCL_TARGET_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_TARGET_IDX})
-list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
+list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
+#list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
+#target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
 
 
 # set SYCL implementation specific options
 if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
-    if (SYCL_TARGET MATCHES "CPU")
+    if (SYCL_LSH_TARGET MATCHES "CPU")
         # TODO: using this line results in many linker errors
 #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
-    elseif (SYCL_TARGET MATCHES "NVIDIA")
+    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
-    elseif (SYCL_TARGET MATCHES "AMD")
+    elseif (SYCL_LSH_TARGET MATCHES "AMD")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
     endif ()
 elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
-    if (SYCL_TARGET MATCHES "NVIDIA")
+    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
         set(COMPUTECPP_BITCODE ptx64)
     endif ()
-    if (SYCL_TARGET MATCHES "CPU")
+    if (SYCL_LSH_TARGET MATCHES "CPU")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-host-only)
     else ()
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
@@ -147,7 +147,7 @@ target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
 
 
 # generate documentation if requested
-if (ENABLE_DOCUMENTATION)
+if (SYCL_LSH_ENABLE_DOCUMENTATION)
     message(STATUS "Using doxygen to generate documentation.")
     add_subdirectory(doc)
 endif ()
@@ -156,21 +156,20 @@ endif ()
 # unset variables
 unset(SUPPORTED_SYCL_IMPLEMENTATIONS)
 unset(SYCL_IMPLEMENTATION)
-unset(SUPPORTED_TIMERS)
-unset(TIMER)
-unset(SUPPORTED_SYCL_TARGETS)
-unset(SYCL_TARGET)
-unset(ENABLE_DOCUMENTATION)
+#unset(SUPPORTED_TIMERS)
+#unset(TIMER)
+unset(SUPPORTED_SYCL_LSH_TARGETS)
+unset(SYCL_LSH_TARGET)
+unset(SYCL_LSH_ENABLE_DOCUMENTATION)
 
 
 # add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
 if ($ENV{CLION_IDE})
     include_directories({PROJECT_SOURCE_DIR}/include)
-    include_directories(${PROJECT_SOURCE_DIR}/third_party/googletest-src/googletest/include)
     include_directories(/home/marcel/Programs/mpi/include)
     include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
     include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
 
-    file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/test/*.cpp)
+    file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/sycl_lsh/*.cpp)
     add_executable(test_prog ${SOURCES})
 endif ()
