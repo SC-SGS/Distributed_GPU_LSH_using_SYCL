@@ -14,6 +14,7 @@
 #include <mpi.h>
 
 #include <cstdlib>
+#include <memory>
 #include <stdio.h>
 
 namespace sycl_lsh::detail {
