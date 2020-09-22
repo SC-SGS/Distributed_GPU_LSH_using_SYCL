@@ -104,6 +104,7 @@ endif ()
 
 # set c++ standard
 target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
+target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE -Wno-format-security)
 
 
 # set library compile definitions
