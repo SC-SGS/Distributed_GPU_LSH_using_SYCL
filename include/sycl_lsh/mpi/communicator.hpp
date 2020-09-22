@@ -42,7 +42,7 @@ namespace sycl_lsh::mpi {
          * @param[in] comm the MPI_Comm to wrap
          * @param[in] is_freeable `true` if @p comm should be freed at the end of `*this` lifetime, `false` otherwise
          */
-        communicator(MPI_Comm comm, const bool is_freeable) noexcept;
+        communicator(MPI_Comm comm, bool is_freeable) noexcept;
         /**
          * @brief Destruct the @ref sycl_lsh::mpi::communicator object.
          * @details Only calls *MPI_Comm_free* if @ref sycl_lsh::mpi::communicator::freeable() returns `true`.
@@ -64,7 +64,7 @@ namespace sycl_lsh::mpi {
          * @param[in] rhs the @ref sycl_lsh::mpi::communicator to move-from
          * @return `*this`
          */
-        communicator& operator=(communicator&& rhs);
+        communicator& operator=(communicator&& rhs) noexcept;
 
 
         // ---------------------------------------------------------------------------------------------------------- //

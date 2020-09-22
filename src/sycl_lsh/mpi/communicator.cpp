@@ -71,7 +71,7 @@ sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(const sycl_l
     return *this;
 }
 
-sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(sycl_lsh::mpi::communicator&& rhs) {
+sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(sycl_lsh::mpi::communicator&& rhs) noexcept {
     // delete current communicator if and only if it is marked as freeable
     if (is_freeable_) {
         MPI_Comm_free(&comm_);
