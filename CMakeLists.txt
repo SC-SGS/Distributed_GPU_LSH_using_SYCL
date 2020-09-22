@@ -161,15 +161,3 @@ unset(SYCL_IMPLEMENTATION)
 unset(SUPPORTED_SYCL_LSH_TARGETS)
 unset(SYCL_LSH_TARGET)
 unset(SYCL_LSH_ENABLE_DOCUMENTATION)
-
-
-# add custom hardcoded path so that clion can find the header files (NOT (!!!) needed to compile code)
-if ($ENV{CLION_IDE})
-    include_directories({PROJECT_SOURCE_DIR}/include)
-    include_directories(/home/marcel/Programs/mpi/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/include)
-    include_directories(/home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/llvm-10.0.0-uxnrorpisttivegjr4eqshrdva3heg55/include/c++/v1)
-
-    file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/sycl_lsh/*.cpp)
-    add_executable(test_prog ${SOURCES})
-endif ()
