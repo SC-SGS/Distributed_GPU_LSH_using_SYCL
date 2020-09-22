@@ -20,6 +20,14 @@
 namespace sycl_lsh::detail {
 
     /**
+     * @brief A dummy function such that the compiler can catch potential format string errors.
+     * @details This functions never gets called!
+     * @param[in] format the `printf` format string
+     * @param[in] ... the arguments to fill the `printf` placeholders in the formatting string
+     */
+    void check_args(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
+
+    /**
      * @brief Custom assertion function called in the `SYCL_LSH_DEBUG_ASSERT` and `SYCL_LSH_DEBUG0_ASSERT` macros.
      * @details If the assert condition @p cond evaluates to `false`, the condition, location and custom message are printed on the
      *          [`stderr stream`](https://en.cppreference.com/w/cpp/io/c/std_streams). Afterwards the program terminates with a call to
@@ -31,7 +39,7 @@ namespace sycl_lsh::detail {
      * @param[in] cond the assert condition, terminates the program if evaluated to `false`
      * @param[in] cond_str the assert condition as string for a better error message
      * @param[in] msg the custom assert message printed after the assertion location
-     * @param[in] args the arguments to fill the `printf` like placeholders in the custom error message
+     * @param[in] args the arguments to fill the `printf` placeholders in the custom error message
      */
     template <typename... Args>
     inline void assert_function(const char* file, const char* function, const int line,
@@ -100,7 +108,9 @@ namespace sycl_lsh::detail {
  * @param[in] msg the custom assert message
  */
 #if SYCL_LSH_DEBUG
-#define SYCL_LSH_DEBUG_ASSERT(cond, msg, ...) sycl_lsh::detail::assert_function(__FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, cond, #cond, msg, __VA_ARGS__)
+#define SYCL_LSH_DEBUG_ASSERT(cond, msg, ...)                                                                       \
+  if (false) sycl_lsh::detail::check_args(msg, __VA_ARGS__);                                                        \
+  sycl_lsh::detail::assert_function(__FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, cond, #cond, msg, __VA_ARGS__)
 #define SYCL_LSH_DEBUG0_ASSERT(cond, msg) sycl_lsh::detail::assert_function(__FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, cond, #cond, msg)
 #else
 #define SYCL_LSH_DEBUG_ASSERT(cond, msg, ...)
