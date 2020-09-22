@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -87,7 +87,7 @@ sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
 // ---------------------------------------------------------------------------------------------------------- //
 bool sycl_lsh::argv_parser::has_argv(const std::string& key) const { return argvs_.count(key) > 0; }
 
-std::string sycl_lsh::argv_parser::description() const {
+std::string sycl_lsh::argv_parser::description() {
     const auto max_reduction = [](const std::size_t value, const auto& pair) { return std::max(value, pair.first.size()); };
     const std::size_t alignment_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction) + 2;
 

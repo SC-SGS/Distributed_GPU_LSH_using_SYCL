@@ -31,7 +31,7 @@ int custom_main(int argc, char** argv) {
         sycl_lsh::argv_parser parser(argc, argv);
         // log help message if requested
         if (parser.has_argv("help")) {
-            logger.log(parser.description());
+            logger.log(sycl_lsh::argv_parser::description());
             return EXIT_SUCCESS;
         }
 

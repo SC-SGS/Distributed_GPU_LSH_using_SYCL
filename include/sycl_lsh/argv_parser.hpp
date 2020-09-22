@@ -98,7 +98,7 @@ namespace sycl_lsh {
          * @return the description (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        std::string description() const;
+        static std::string description();
 
     private:
         /// List of all possible command line options ({ KEY, { DESCRIPTION, IS_REQUIRED } })
