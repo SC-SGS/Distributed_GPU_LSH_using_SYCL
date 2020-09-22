@@ -37,22 +37,22 @@ namespace sycl_lsh::mpi {
          * @brief Construct a new communicator errhandler with the handler function @p func.
          * @param[in] func the handler function to call
          */
-        errhandler(MPI_Comm_errhandler_function func);
+        explicit errhandler(MPI_Comm_errhandler_function func);
         /**
          * @brief Construct a new file errhandler with the handler function @p func.
          * @param[in] func the handler function to call
          */
-        errhandler(MPI_File_errhandler_function func);
+        explicit errhandler(MPI_File_errhandler_function func);
         /**
          * @brief Construct a new window errhandler with the handler function @p func.
          * @param[in] func the handler function to call
          */
-        errhandler(MPI_Win_errhandler_function func);
+        explicit errhandler(MPI_Win_errhandler_function func);
         /**
          * @brief Construct a new errhandler of type @p t with a default exception error handler function.
          * @param[in] t the type of the errhandler
          */
-        errhandler(const type t);
+        explicit errhandler(type t);
         // delete copy constructor
         errhandler(const errhandler&) = delete;
         /**
@@ -66,7 +66,7 @@ namespace sycl_lsh::mpi {
          * @param[in] t the type of MPI_Errhandler
          * @param[in] is_freeable `true` if @p errhandler should be freed at the end of `*this` lifetime, `false` otherwise
          */
-        errhandler(MPI_Errhandler errhandler, const type t, const bool is_freeable) noexcept;
+        errhandler(MPI_Errhandler errhandler, type t, bool is_freeable) noexcept;
         /**
          * @brief Destruct the @ref sycl_lsh::mpi::errhandler object.
          * @details Only calls *MPI_Errhandler_free* if @ref sycl_lsh::mpi::errhandler::freeable() returns `true`.

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  *
  * @brief Exception class for errors occurring in MPI windows.
  */
@@ -25,7 +25,7 @@ namespace sycl_lsh::mpi {
          * @param[in] win the MPI window in which the error occurred
          * @param[in] error_code the occurred MPI error code
          */
-        window_exception(const MPI_Win& win, const int error_code);
+        window_exception(const MPI_Win& win, int error_code);
 
         /**
          * @brief Returns the MPI error message associated with the error code.

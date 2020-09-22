@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -53,7 +53,7 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if **any** command line argument value starts with '--'.
          * @throws std::logic_error if **any** required command line argument hasn't been provided.
          */
-        argv_parser(const int argc, char** argv);
+        argv_parser(int argc, char** argv);
 
         /**
          * @brief Check whether the command line argument @p key has been specified.

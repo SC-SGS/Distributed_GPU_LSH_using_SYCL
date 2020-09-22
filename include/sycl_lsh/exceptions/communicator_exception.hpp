@@ -25,7 +25,7 @@ namespace sycl_lsh::mpi {
          * @param[in] comm the MPI communicator in which the error occurred
          * @param[in] error_code the occurred MPI error code
          */
-        communicator_exception(const MPI_Comm& comm, const int error_code);
+        communicator_exception(const MPI_Comm& comm, int error_code);
 
         /**
          * @brief Returns the MPI error message associated with the error code.

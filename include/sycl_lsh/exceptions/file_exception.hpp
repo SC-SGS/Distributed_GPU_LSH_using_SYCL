@@ -25,7 +25,7 @@ namespace sycl_lsh::mpi {
          * @param[in] file the MPI file in which the error occurred
          * @param[in] error_code the occurred MPI error code
          */
-        file_exception(const MPI_File& file, const int error_code);
+        file_exception(const MPI_File& file, int error_code);
 
         /**
          * @brief Returns the MPI error message associated with the error code.
