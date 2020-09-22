@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  *
  * @brief Wrapper function to automatically initialize and finalize the MPI environment correctly.
  */
@@ -11,7 +11,7 @@
 
 namespace sycl_lsh::mpi {
 
-    /// The type of the custom main function called inside @ref sycl_lsh::main.
+    /// The type of the custom main function called inside @ref sycl_lsh::mpi::main().
     using custom_main_ptr = int(*)(int, char**);
 
     /**

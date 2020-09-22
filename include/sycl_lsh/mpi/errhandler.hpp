@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-22
  *
  * @brief Minimalistic wrapper class around a MPI errhandler.
  */
@@ -19,7 +19,7 @@ namespace sycl_lsh::mpi {
     class errhandler {
     public:
         /**
-         * @brief Enum class for the different @ref sycl_lsh::errhandler types.
+         * @brief Enum class for the different @ref sycl_lsh::mpi::errhandler types.
          */
         enum class type {
             /** errhandler for MPI communicators */
@@ -57,20 +57,20 @@ namespace sycl_lsh::mpi {
         // delete copy constructor
         errhandler(const errhandler&) = delete;
         /**
-         * @brief Construct a new @ref sycl_lsh::errhandler from the resources hold by @p other.
-         * @param[in,out] other the @ref sycl_lsh::errhandler to move-from
+         * @brief Construct a new @ref sycl_lsh::mpi::errhandler from the resources hold by @p other.
+         * @param[in,out] other the @ref sycl_lsh::mpi::errhandler to move-from
          */
         errhandler(errhandler&& other) noexcept;
         /**
-         * @brief Construct a new @ref sycl_lsh::errhandler from the given MPI_Errhandler.
+         * @brief Construct a new @ref sycl_lsh::mpi::errhandler from the given MPI_Errhandler.
          * @param[in] errhandler the MPI_Errhandler to wrap
          * @param[in] t the type of MPI_Errhandler
          * @param[in] is_freeable `true` if @p errhandler should be freed at the end of `*this` lifetime, `false` otherwise
          */
         errhandler(MPI_Errhandler errhandler, const type t, const bool is_freeable) noexcept;
         /**
-         * @brief Destruct the @ref sycl_lsh::errhandler object.
-         * @details Only calls *MPI_Errhandler_free* if @ref sycl_lsh::errhandler::freeable() returns `true`.
+         * @brief Destruct the @ref sycl_lsh::mpi::errhandler object.
+         * @details Only calls *MPI_Errhandler_free* if @ref sycl_lsh::mpi::errhandler::freeable() returns `true`.
          */
         ~errhandler();
 
@@ -81,7 +81,7 @@ namespace sycl_lsh::mpi {
         errhandler& operator=(const errhandler&) = delete;
         /**
          * @brief Move-assigns @p rhs to `*this`.
-         * @param[in] rhs the @ref sycl_lsh::errhandler to move-from
+         * @param[in] rhs the @ref sycl_lsh::mpi::errhandler to move-from
          * @return `*this`
          */
         errhandler& operator=(errhandler&& rhs);
@@ -91,19 +91,19 @@ namespace sycl_lsh::mpi {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Get the underlying MPI errhandler.
-         * @return the MPI errhandler wrapped in this @ref sycl_lsh::errhandler object (`[nodiscard]]`)
+         * @return the MPI errhandler wrapped in this @ref sycl_lsh::mpi::errhandler object (`[nodiscard]]`)
          */
         [[nodiscard]]
         const MPI_Errhandler& get() const noexcept { return errhandler_; }
         /**
          * @brief Get the underlying MPI errhandler.
-         * @return the MPI errhandler wrapped in this @ref sycl_lsh::errhandler object (`[nodiscard]]`)
+         * @return the MPI errhandler wrapped in this @ref sycl_lsh::mpi::errhandler object (`[nodiscard]]`)
          */
         [[nodiscard]]
         MPI_Errhandler& get() noexcept { return errhandler_; }
         /**
-         * @brief Get the type of the @ref sycl_lsh::errhandler.
-         * @return the type of this @ref sycl_lsh::errhandler object (`[nodiscard]]`)
+         * @brief Get the type of the @ref sycl_lsh::mpi::errhandler.
+         * @return the type of this @ref sycl_lsh::mpi::errhandler object (`[nodiscard]]`)
          */
         [[nodiscard]]
         type handler_type() const noexcept { return type_; }

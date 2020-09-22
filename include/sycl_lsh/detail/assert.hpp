@@ -95,7 +95,6 @@ namespace sycl_lsh::detail {
  * @def SYCL_LSH_DEBUG0_ASSERT
  * @brief Defines a custom `assert()` macro.
  * @details This macro is only defined if `SYCL_LSH_ENABLE_DEBUG` is set to `On` during [CMake's](https://cmake.org/) configuration step.
- * @param[in] comm_rank the MPI rank
  * @param[in] cond the assert condition
  * @param[in] msg the custom assert message
  */

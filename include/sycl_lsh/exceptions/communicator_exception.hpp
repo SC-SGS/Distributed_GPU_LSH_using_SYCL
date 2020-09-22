@@ -1,9 +1,9 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-18
+ * @date 2020-09-22
  *
- * @brief Exception class for errors occurring in @ref sycl_lsh::communicator.
+ * @brief Exception class for errors occurring in @ref sycl_lsh::mpi::communicator.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_COMMUNICATOR_EXCEPTION_HPP
@@ -16,7 +16,7 @@
 namespace sycl_lsh::mpi {
 
     /**
-     * @brief Exception class for errors occurring in @ref sycl_lsh::communicator.
+     * @brief Exception class for errors occurring in @ref sycl_lsh::mpi::communicator.
      */
     class communicator_exception : public std::exception {
     public:

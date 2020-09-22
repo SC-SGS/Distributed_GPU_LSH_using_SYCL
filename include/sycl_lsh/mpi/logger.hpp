@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  *
  * @brief Implements a simple MPI aware logger class.
  */
@@ -26,7 +26,7 @@ namespace sycl_lsh::mpi {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Construct a new logger for the given output-stream @p out.
-         * @param[in] comm the used @ref sycl_lsh::communicator
+         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in,out] out the output-stream to log on
          */
         logger(const communicator& comm, std::ostream& out = std::cout);
