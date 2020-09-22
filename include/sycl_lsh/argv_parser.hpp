@@ -75,23 +75,7 @@ namespace sycl_lsh {
          */
         template <typename T>
         [[nodiscard]]
-        T argv_as(const std::string& key) const {
-            // check whether the key is legal
-            if (list_of_argvs_.count(key) == 0) {
-                throw std::invalid_argument(fmt::format("The requested command line argument key '{}' is illegal!", key));
-            }
-            // check whether the key has been provided
-            if (!this->has_argv(key)) {
-                throw std::invalid_argument(fmt::format("The requested command line argument key '{}' hasn't been provided!", key));
-            }
-
-            // convert the value to the given type T
-            if (std::is_same_v<T, std::string>) {
-                return argvs_.at(key);
-            } else {
-                return detail::convert_to<T>(argvs_.at(key));
-            }
-        }
+        T argv_as(const std::string& key) const;
 
         /**
          * @brief Returns a description of all command line arguments.
@@ -105,6 +89,30 @@ namespace sycl_lsh {
         static const std::map<std::string, std::pair<std::string, bool>> list_of_argvs_;
         std::map<std::string, std::string> argvs_;
     };
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                 implementation of template member function                                 //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <typename T>
+    [[nodiscard]]
+    T argv_parser::argv_as(const std::string& key) const {
+        // check whether the key is legal
+        if (list_of_argvs_.count(key) == 0) {
+            throw std::invalid_argument(fmt::format("The requested command line argument key '{}' is illegal!", key));
+        }
+        // check whether the key has been provided
+        if (!this->has_argv(key)) {
+            throw std::invalid_argument(fmt::format("The requested command line argument key '{}' hasn't been provided!", key));
+        }
+
+        // convert the value to the given type T
+        if (std::is_same_v<T, std::string>) {
+            return argvs_.at(key);
+        } else {
+            return detail::convert_to<T>(argvs_.at(key));
+        }
+    }
 
 }
 
