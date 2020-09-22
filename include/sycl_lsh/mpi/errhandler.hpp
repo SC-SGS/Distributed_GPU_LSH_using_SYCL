@@ -50,7 +50,6 @@ namespace sycl_lsh::mpi {
         errhandler(MPI_Win_errhandler_function func);
         /**
          * @brief Construct a new errhandler of type @p t with a default exception error handler function.
-         * @details TODO: exceptions
          * @param[in] t the type of the errhandler
          */
         errhandler(const type t);
