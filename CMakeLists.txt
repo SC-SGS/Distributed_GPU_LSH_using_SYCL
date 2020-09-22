@@ -28,6 +28,7 @@ project("Distributed GPU LSH implementation using SYCL"
 
 
 # cmake configuration options
+option(SYCL_LSH_ENABLE_DEBUG "Enable debugging macros" OFF)
 option(ENABLE_DOCUMENTATION "Generate documentation" OFF)
 
 
@@ -87,14 +88,14 @@ target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC include)
 # find MPI and add it to the target
 find_package(MPI REQUIRED)
 include_directories(${MPI_CXX_INCLUDE_DIRS})
-target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE MPI::MPI_CXX)
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
 
 
 # find fmt lib and add it to the target
 find_package(fmt REQUIRED PATHS /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/fmt-7.0.3-4crpju6s5jaj7tqnbmpqesfnovfs35qy)
 if (NOT DEFINED FMT_HEADER_ONLY OR ${FMT_HEADER_ONLY} MATCHES "0")
     message(STATUS "Linking against fmt lib.")
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE fmt::fmt)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
 else ()
     message(STATUS "Using fmt lib in its header only mode.")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC FMT_HEADER_ONLY=1)
@@ -106,10 +107,14 @@ target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
 
 
 # set library compile definitions
+if (SYCL_LSH_ENABLE_DEBUG)
+    message(STATUS "Enabled debugging.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC -DSYCL_LSH_DEBUG)
+endif ()
 list(FIND SUPPORTED_SYCL_TARGETS "${SYCL_TARGET}" SYCL_TARGET_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE SYCL_TARGET=${SYCL_TARGET_IDX})
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_TARGET_IDX})
 list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE TIMER=${TIMER_IDX})
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
 
 
 # set SYCL implementation specific options
@@ -117,20 +122,20 @@ if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
     if (SYCL_TARGET MATCHES "CPU")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=cpu)
     elseif (SYCL_TARGET MATCHES "NVIDIA")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=cuda)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
     elseif (SYCL_TARGET MATCHES "AMD")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE --hipsycl-platform=rocm)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
     endif ()
 elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
     if (SYCL_TARGET MATCHES "NVIDIA")
         set(COMPUTECPP_BITCODE ptx64)
     endif ()
     if (SYCL_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE -sycl-host-only)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-host-only)
     else ()
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PRIVATE -sycl-driver)
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
     endif ()
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PRIVATE -lComputeCpp)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp)
 endif()
 
 
