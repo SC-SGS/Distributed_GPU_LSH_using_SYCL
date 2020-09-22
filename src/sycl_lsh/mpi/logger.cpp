@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  */
 
 #include <sycl_lsh/mpi/logger.hpp>
@@ -59,7 +59,7 @@ void sycl_lsh::mpi::logger::log_on_all(const std::string_view msg) {
     MPI_Gatherv(msg.data(), msg.size(), type_cast<char>(), total_msg.data(), sizes.data(), displacements.data(), type_cast<char>(), 0, comm_.get());
 
     // print total msg on master rank
-    if (comm_.rank() == 0) {
+    if (comm_.master_rank()) {
         out_ << total_msg;
     }
 }

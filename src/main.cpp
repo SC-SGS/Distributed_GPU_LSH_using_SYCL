@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  *
  * @brief The main file containing the main logic.
  */
@@ -22,31 +22,22 @@ int custom_main(int argc, char** argv) {
     sycl_lsh::mpi::errhandler handler(sycl_lsh::mpi::errhandler::type::comm);
     comm.attach_errhandler(handler);
 
+    // create default logger (logs to std::cout)
+    sycl_lsh::mpi::logger logger(comm);
+
     try {
 
         // parse command line arguments
         sycl_lsh::argv_parser parser(argc, argv);
-        // print help message if requested
+        // log help message if requested
         if (parser.has_argv("help")) {
-            if (comm.rank() == 0) {
-                std::cout << parser.description() << std::endl;
-                return EXIT_SUCCESS;
-            }
+            logger.log(parser.description());
+            return EXIT_SUCCESS;
         }
 
     } catch (const std::exception& e) {
-        if (comm.rank() == 0) {
-            std::cout << e.what() << std::endl;
-        }
+        logger.log(e.what());
 //        return EXIT_FAILURE;
-    }
-
-    sycl_lsh::mpi::logger logger(comm);
-
-    if (comm.rank() == 0) {
-        logger.log_on_all(fmt::format("Hello, World on rank: {} (master)\n", comm.rank()));
-    } else {
-        logger.log_on_all(fmt::format("Hello, World on rank: {}\n", comm.rank()));
     }
 
     return EXIT_SUCCESS;

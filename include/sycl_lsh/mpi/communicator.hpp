@@ -80,6 +80,11 @@ namespace sycl_lsh::mpi {
          * @return the communicator size
          */
         int size() const;
+        /**
+         * @brief Returns `true` if the current MPI rank is the master rank, i.e. MPI rank 0.
+         * @return `true` if the current MPI rank is rank 0, `false` otherwise
+         */
+        bool master_rank() const;
 
 
         // ---------------------------------------------------------------------------------------------------------- //

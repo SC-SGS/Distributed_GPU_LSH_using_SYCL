@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-22
  */
 
 #include <sycl_lsh/mpi/communicator.hpp>
@@ -98,6 +98,9 @@ int sycl_lsh::mpi::communicator::size() const {
     int comm_size;
     MPI_Comm_size(comm_, &comm_size);
     return comm_size;
+}
+bool sycl_lsh::mpi::communicator::master_rank() const {
+    return this->rank() == 0;
 }
 
 
