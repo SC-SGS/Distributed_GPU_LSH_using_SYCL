@@ -36,8 +36,8 @@ int custom_main(int argc, char** argv) {
         }
 
         const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser);
-        logger.log(fmt::format("{}\n", opt));
-        opt.save(comm, parser);
+        logger.log("{}\n", opt);
+//        opt.save(comm, parser);
 
     } catch (const std::exception& e) {
         logger.log(e.what());

@@ -77,7 +77,6 @@ add_library(${SYCL_LSH_LIBRARY_NAME} STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/errhandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/logger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/argv_parser.cpp
 )
 
