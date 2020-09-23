@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-09-23
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -14,8 +14,8 @@
 #include <mpi.h>
 
 #include <cstdlib>
-#include <memory>
 #include <stdio.h>
+#include <utility>
 
 namespace sycl_lsh::detail {
 
