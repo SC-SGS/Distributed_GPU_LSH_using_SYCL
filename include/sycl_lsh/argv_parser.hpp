@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-09-23
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -29,8 +29,8 @@ namespace sycl_lsh {
      * | data_file             | Path to the data file (**required**).                                                                 |
      * | k                     | The number of nearest-neighbors to search for (**required**).                                         |
      * | options_file          | Path to the options file to load.                                                                     |
-     * | save_options_file     | Path to the file to save the currently used options to.                                               |
-     * | save_knn_file         | Path to the file to save the found k-nearest-neighbors to.                                            |
+     * | options_save_file     | Path to the file to save the currently used options to.                                               |
+     * | knn_save_file         | Path to the file to save the found k-nearest-neighbors to.                                            |
      * | evaluate_knn_file     | Path to the file containing the correct k-nearest-neighbors.                                          |
      * | hash_pool_size        | The number of hash functions in the hash pool.                                                        |
      * | num_hash_functions    | The number of hash functions to calculate the hash values with.                                       |
