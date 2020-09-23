@@ -3,6 +3,7 @@
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/detail/arithmetic_type_name.hpp>
+#include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 
@@ -35,7 +36,7 @@ namespace sycl_lsh {
      * @tparam hash_value_t an integral type (use for hash values)
      */
     template <typename real_t, typename index_t, typename hash_value_t>
-    struct options {
+    struct options : private detail::options_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
