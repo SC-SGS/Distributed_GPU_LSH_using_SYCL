@@ -39,11 +39,9 @@ int custom_main(int argc, char** argv) {
             opt.save(comm, parser, logger);
         }
 
-        
-
     } catch (const std::exception& e) {
-        logger.log(e.what());
-//        return EXIT_FAILURE;
+        logger.log("{}\n", e.what());
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
