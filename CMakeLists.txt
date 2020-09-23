@@ -1,21 +1,21 @@
 cmake_minimum_required(VERSION 3.13)
 
 # specify used SYCL implementation
-set(SUPPORTED_SYCL_IMPLEMENTATIONS hipSYCL ComputeCpp)
-if (NOT SYCL_IMPLEMENTATION)
-    set(SYCL_IMPLEMENTATION hipSYCL)
+set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp)
+if (NOT SYCL_LSH_IMPLEMENTATION)
+    set(SYCL_LSH_IMPLEMENTATION hipSYCL)
 endif ()
-if (NOT ${SYCL_IMPLEMENTATION} IN_LIST SUPPORTED_SYCL_IMPLEMENTATIONS)
-    message(FATAL_ERROR "SYCL implementation \"${SYCL_IMPLEMENTATION}\" currently not supported!")
+if (NOT ${SYCL_LSH_IMPLEMENTATION} IN_LIST SUPPORTED_SYCL_LSH_IMPLEMENTATIONS)
+    message(FATAL_ERROR "SYCL implementation \"${SYCL_LSH_IMPLEMENTATION}\" currently not supported!")
 else ()
-    message(STATUS "Using \"${SYCL_IMPLEMENTATION}\" as SYCL implementation.")
+    message(STATUS "Using \"${SYCL_LSH_IMPLEMENTATION}\" as SYCL implementation.")
 endif ()
 
 
 # set compiler wrapper based on used SYCL implementation
-if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
+if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     set(CMAKE_CXX_COMPILER syclcc-clang)
-elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
+elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     set(CMAKE_CXX_COMPILER compute++)
 endif()
 
@@ -121,7 +121,7 @@ target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYC
 
 
 # set SYCL implementation specific options
-if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
+if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     if (SYCL_LSH_TARGET MATCHES "CPU")
         # TODO: using this line results in many linker errors
 #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
@@ -130,7 +130,7 @@ if (SYCL_IMPLEMENTATION MATCHES "hipSYCL")
     elseif (SYCL_LSH_TARGET MATCHES "AMD")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
     endif ()
-elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
+elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     if (SYCL_LSH_TARGET MATCHES "NVIDIA")
         set(COMPUTECPP_BITCODE ptx64)
     endif ()
@@ -157,8 +157,8 @@ endif ()
 
 
 # unset variables
-unset(SUPPORTED_SYCL_IMPLEMENTATIONS)
-unset(SYCL_IMPLEMENTATION)
+unset(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS)
+unset(SYCL_LSH_IMPLEMENTATION)
 #unset(SUPPORTED_TIMERS)
 #unset(TIMER)
 unset(SUPPORTED_SYCL_LSH_TARGETS)
