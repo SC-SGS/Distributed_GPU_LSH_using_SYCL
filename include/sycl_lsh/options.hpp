@@ -4,6 +4,7 @@
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/detail/arithmetic_type_name.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
+#include <sycl_lsh/mpi/logger.hpp>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -87,14 +88,16 @@ namespace sycl_lsh {
         /**
          * @brief Construct a @ref sycl_lsh::options class using the command line parser @p parser.
          * @details If an options file was specified via the command line arguments, reads all options from the given file.
-         *          Afterwards overrides all read options by options directly given to the command line via (`--your_opt your_val`).
+         *          Afterwards overrides all read options by options directly given to the command line via (`--your_opt your_val`). \n
+         *          Uses the @ref sycl_lsh::mpi::logger @p logger to log additional information.
          * @param[in] parser the @ref sycl_lsh::argv_parser
+         * @param[in] logger the @ref sycl_lsh::mpi::logger
          *
          * @throws std::invalid_argument if the file specified by the command line argument `options_file` doesn't exist or isn't a
          *         regular file.
          * @throws std::invalid_argument if any command line argument in the file is illegal.
          */
-        explicit options(const argv_parser& parser);
+        explicit options(const argv_parser& parser, const mpi::logger& logger);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -102,22 +105,26 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Saves the currently set compile time and runtime options only on the MPI master rank to the file parsed from the command
-         *        line arguments @ref sycl_lsh::argv_parser @p parser via the command line argument `options_save_file`.
-         * @param[in] comm the @ref sycl_lsh::communicator
+         *        line arguments @ref sycl_lsh::argv_parser @p parser via the command line argument `options_save_file`. \n
+         *          Uses the @ref sycl_lsh::mpi::logger @p logger to log additional information.
+         * @param[in] comm the @ref sycl_lsh::mpi::communicator
          * @param[in] parser the @ref sycl_lsh::argv_parser
+         * @param[in] logger the @ref sycl_lsh::mpi::logger
          *
          * @throws std::invalid_argument if the command line argument `options_save_file` isn't present in @p parser.
          * @throws std::runtime_error if the file couldn't be written
          */
-        void save(const mpi::communicator& comm, const argv_parser& parser) const;
+        void save(const mpi::communicator& comm, const argv_parser& parser, const mpi::logger& logger) const;
         /**
-         * @brief Saves the currently set compile time and runtime options only on the current MPI master rank to the @p file.
-         * @param[in] comm the @ref sycl_lsh::communicator
+         * @brief Saves the currently set compile time and runtime options only on the current MPI master rank to the @p file.\n
+         *        Uses the @ref sycl_lsh::mpi::logger @p logger to log additional information.
+         * @param[in] comm the @ref sycl_lsh::mpi::communicator
          * @param[in] file the file
+         * @param[in] logger the @ref sycl_lsh::mpi::logger
          *
          * @throws std::runtime_error if the @p file couldn't be written
          */
-        void save(const mpi::communicator& comm, const std::string& file) const;
+        void save(const mpi::communicator& comm, const std::string& file, const mpi::logger& logger) const;
 
     };
 
@@ -165,7 +172,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename real_t, typename index_t, typename hash_value_t>
-    options<real_t, index_t, hash_value_t>::options(const argv_parser& parser) {
+    options<real_t, index_t, hash_value_t>::options(const argv_parser& parser, const mpi::logger& logger) {
         // parse command line options given through the (optionally) specified file
         if (parser.has_argv("options_file")) {
             const std::string& file = parser.argv_as<std::string>("options_file");
@@ -173,6 +180,8 @@ namespace sycl_lsh {
             if (!std::filesystem::exists(file) || !std::filesystem::is_regular_file(file)) {
                 throw std::invalid_argument(fmt::format("Illegal options file '{}'!", file));
             }
+
+            logger.log("Reading options from file: '{}'\n\n", file);
 
             // parse file
             std::ifstream in(file);
@@ -236,18 +245,18 @@ namespace sycl_lsh {
     //                                                save options                                                //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename real_t, typename index_t, typename hash_value_t>
-    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const argv_parser& parser) const {
+    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const argv_parser& parser, const mpi::logger& logger) const {
         if (comm.master_rank()) {
-            if (parser.has_argv("options_save_file")) {
-                save(comm, parser.argv_as<std::string>("options_save_file"));
-            } else {
+            if (!parser.has_argv("options_save_file")) {
                 throw std::invalid_argument("Required command line argument 'options_save_file' not provided!");
             }
+            
+            save(comm, parser.argv_as<std::string>("options_save_file"), logger);
         }
     }
 
     template <typename real_t, typename index_t, typename hash_value_t>
-    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const std::string& file) const {
+    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const std::string& file, const mpi::logger& logger) const {
         if (comm.master_rank()) {
             std::ofstream out(file, std::ofstream::trunc);
             if (out.bad()) {
@@ -256,6 +265,8 @@ namespace sycl_lsh {
             }
             out << *this << std::endl;
         }
+
+        logger.log("Saved options to: '{}'\n\n", file);
     }
 
 #undef SYCL_LSH_PARSE_OPTION
