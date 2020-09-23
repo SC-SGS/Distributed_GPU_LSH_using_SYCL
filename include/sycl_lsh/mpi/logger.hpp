@@ -46,30 +46,38 @@ namespace sycl_lsh::mpi {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Log the given message @p msg **only** on the specified MPI rank @p comm_rank.
+         * @tparam the types of the placeholders
          * @param[in] comm_rank the MPI rank to log on
          * @param[in] msg the message to log
+         * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
          */
         template <typename... Args>
-        void log(int comm_rank, std::string_view msg, Args&&... args);
+        void log(int comm_rank, std::string_view msg, Args&&... args) const;
         /**
          * @brief Log the given message @p msg **only** on the MPI rank 0 (master rank).
+         * @tparam the types of the placeholders
          * @param[in] msg the message to log
+         * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
          */
         template <typename... Args>
-        void log(std::string_view msg, Args&&... args);
+        void log(std::string_view msg, Args&&... args) const;
         /**
          * @brief Log the given message @p msg **only** in the MPI rank 0 (master rank).
+         * @tparam the types of the placeholders
          * @param[in] msg the message to log
+         * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
          */
         template <typename... Args>
-        void log_on_master(std::string_view msg, Args&&... args);
+        void log_on_master(std::string_view msg, Args&&... args) const;
         /**
          * @brief Log the given messages @p msg on all MPI ranks.
          * @details Gathers all messages on MPI rank 0 (master rank) to enable a deterministic output.
+         * @tparam the types of the placeholders
          * @param[in] msg the message to log
+         * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
          */
         template <typename... Args>
-        void log_on_all(std::string_view msg, Args&&... args);
+        void log_on_all(std::string_view msg, Args&&... args) const;
 
     private:
         const communicator& comm_;
@@ -83,7 +91,7 @@ namespace sycl_lsh::mpi {
     //                                                  logging                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename... Args>
-    void logger::log(const int comm_rank, const std::string_view msg, Args&&... args) {
+    void logger::log(const int comm_rank, const std::string_view msg, Args&&... args) const {
         SYCL_LSH_DEBUG_ASSERT(0 <= comm_rank && comm_rank < comm_.size(),
                               "Illegal MPI rank! Should be in [0, %i) but is %i", comm_.size(), comm_rank);
 
@@ -94,19 +102,19 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename... Args>
-    void logger::log(const std::string_view msg, Args&&... args) {
+    void logger::log(const std::string_view msg, Args&&... args) const {
         // print message only in master rank (MPI rank 0)
         log(0, msg, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void logger::log_on_master(const std::string_view msg, Args&&... args) {
+    void logger::log_on_master(const std::string_view msg, Args&&... args) const {
         // print message only in master rank (MPI rank 0)
         log(0, msg, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void logger::log_on_all(const std::string_view msg, Args&&... args) {
+    void logger::log_on_all(const std::string_view msg, Args&&... args) const {
         // get the sizes of each message
         std::vector<int> sizes(comm_.size());
         const std::string msg_substituted = fmt::format(msg, std::forward<Args>(args)...);
