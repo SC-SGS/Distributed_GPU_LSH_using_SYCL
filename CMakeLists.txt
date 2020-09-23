@@ -137,7 +137,7 @@ elseif (SYCL_IMPLEMENTATION MATCHES "ComputeCpp")
     else ()
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
     endif ()
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
 endif()
 
 

@@ -20,6 +20,7 @@
 #include <sycl_lsh/mpi/main.hpp>
 
 #include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/options.hpp>
 
 /// The main namespace. Nearly all functions are located in this namespace.
 namespace sycl_lsh { }

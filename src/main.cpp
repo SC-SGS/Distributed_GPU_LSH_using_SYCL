@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-09-23
  *
  * @brief The main file containing the main logic.
  */
@@ -34,6 +34,10 @@ int custom_main(int argc, char** argv) {
             logger.log(sycl_lsh::argv_parser::description());
             return EXIT_SUCCESS;
         }
+
+        const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser);
+        logger.log(fmt::format("{}\n", opt));
+        opt.save(comm, parser);
 
     } catch (const std::exception& e) {
         logger.log(e.what());
