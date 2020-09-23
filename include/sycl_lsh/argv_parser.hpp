@@ -26,12 +26,12 @@ namespace sycl_lsh {
      * | command line argument | description                                                                                           |
      * |:----------------------|:------------------------------------------------------------------------------------------------------|
      * | help                  | Prints the help screen.                                                                               |
-     * | data                  | Path to the data file (**required**).                                                                 |
+     * | data_file             | Path to the data file (**required**).                                                                 |
      * | k                     | The number of nearest-neighbors to search for (**required**).                                         |
-     * | options               | Path to the options file to load.                                                                     |
-     * | save_options          | Path to the file to save the currently used options to.                                               |
-     * | save_knn              | Path to the file to save the found k-nearest-neighbors to.                                            |
-     * | evaluate_knn          | Path to the file containing the correct k-nearest-neighbors.                                          |
+     * | options_file          | Path to the options file to load.                                                                     |
+     * | save_options_file     | Path to the file to save the currently used options to.                                               |
+     * | save_knn_file         | Path to the file to save the found k-nearest-neighbors to.                                            |
+     * | evaluate_knn_file     | Path to the file containing the correct k-nearest-neighbors.                                          |
      * | hash_pool_size        | The number of hash functions in the hash pool.                                                        |
      * | num_hash_functions    | The number of hash functions to calculate the hash values with.                                       |
      * | num_hash_tables       | The number of used hash tables.                                                                       |
