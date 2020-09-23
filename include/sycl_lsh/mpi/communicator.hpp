@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-09-23
  *
  * @brief Minimalistic wrapper class around a MPI communicator.
  */
@@ -85,6 +85,10 @@ namespace sycl_lsh::mpi {
          * @return `true` if the current MPI rank is rank 0, `false` otherwise
          */
         bool master_rank() const;
+        /**
+         * @brief Waits for all MPI processes in this communicator.
+         */
+        void wait() const;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
