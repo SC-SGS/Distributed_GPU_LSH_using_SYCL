@@ -24,6 +24,7 @@ int custom_main(int argc, char** argv) {
 
     // create default logger (logs to std::cout)
     sycl_lsh::mpi::logger logger(comm);
+    logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
     try {
 
@@ -35,9 +36,16 @@ int custom_main(int argc, char** argv) {
             return EXIT_SUCCESS;
         }
 
-        const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser);
-        logger.log("{}\n", opt);
-//        opt.save(comm, parser);
+        // parse options and print
+        const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser, logger);
+        logger.log("Used options: \n{}\n", opt);
+
+        // optionally save generated options to file
+        if (parser.has_argv("options_save_file")) {
+            opt.save(comm, parser, logger);
+        }
+
+        
 
     } catch (const std::exception& e) {
         logger.log(e.what());
