@@ -8,12 +8,6 @@
 
 #include <sycl_lsh/core.hpp>
 
-#include <fmt/format.h>
-#include <mpi.h>
-
-#include <iostream>
-
-
 
 int custom_main(int argc, char** argv) {
     // create MPI communicator
