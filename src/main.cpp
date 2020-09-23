@@ -40,7 +40,7 @@ int custom_main(int argc, char** argv) {
         }
 
     } catch (const std::exception& e) {
-        logger.log("{}\n", e.what());
+        logger.log("Exception thrown on rank {}: {}\n", comm.rank(), e.what());
         return EXIT_FAILURE;
     }
 
