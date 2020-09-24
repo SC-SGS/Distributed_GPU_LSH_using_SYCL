@@ -120,7 +120,7 @@ target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYC
 #target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
 
 
-# set SYCL implementation specific options
+# set SYCL implementation specific options # TODO: doesn't work as expected!
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     if (SYCL_LSH_TARGET MATCHES "CPU")
         # TODO: using this line results in many linker errors
@@ -136,12 +136,10 @@ elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     if (SYCL_LSH_TARGET MATCHES "NVIDIA")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-target ptx64)
     endif ()
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-host-only)
-    else ()
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
+    if (NOT SYCL_LSH_TARGET MATCHES "CPU")
+        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -no-serial-memop)
     endif ()
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -no-serial-memop)
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
 endif()
 
