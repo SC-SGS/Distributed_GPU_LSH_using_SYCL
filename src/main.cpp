@@ -17,7 +17,6 @@ int custom_main(int argc, char** argv) {
 
     // create default logger (logs to std::cout)
     sycl_lsh::mpi::logger logger(comm);
-    logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
     try {
 
@@ -28,6 +27,9 @@ int custom_main(int argc, char** argv) {
             logger.log(sycl_lsh::argv_parser::description());
             return EXIT_SUCCESS;
         }
+
+        // log current number of MPI ranks
+        logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
         // parse options and print
         const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser, logger);
