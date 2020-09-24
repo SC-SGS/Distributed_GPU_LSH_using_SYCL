@@ -3,6 +3,7 @@
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/detail/arithmetic_type_name.hpp>
+#include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
@@ -239,6 +240,14 @@ namespace sycl_lsh {
         SYCL_LSH_PARSE_OPTION(parser, hash_table_size);
         SYCL_LSH_PARSE_OPTION(parser, w);
         SYCL_LSH_PARSE_OPTION(parser, num_cut_off_points);
+
+        // assert sanity of command line parameters
+        SYCL_LSH_DEBUG0_ASSERT(hash_pool_size > 0, "Illegal hash_pool_size! The hash pool size must be greater than 0.");
+        SYCL_LSH_DEBUG0_ASSERT(num_hash_functions > 0, "Illegal num_hash_functions! The number of hash functions must be greater than 0.");
+        SYCL_LSH_DEBUG0_ASSERT(num_hash_tables > 0, "Illegal num_hash_tables! The number of hash tables must be greater than 0.");
+        SYCL_LSH_DEBUG0_ASSERT(hash_table_size > 0, "Illegal hash_table_size! The hash table size must be greater than 0.");
+        SYCL_LSH_DEBUG0_ASSERT(w > 0, "Illegal w! The random projections hash functions parameter w must be greater than 0.");
+        SYCL_LSH_DEBUG0_ASSERT(num_cut_off_points > 0, "Illegal num_cut_off_points! The entropy-based hash functions parameter must be greater than 0.");
     }
 
 
