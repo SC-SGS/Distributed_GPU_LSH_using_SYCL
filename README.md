@@ -40,13 +40,15 @@ $ make -j $(nprocs)
 
 Provided configuration options are:
 
-| option                 | default value | description                                                                                             |
-|------------------------|:-------------:|---------------------------------------------------------------------------------------------------------|
-| `SYCL_IMPLEMENTATION`  | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL` or `ComputeCpp`.                        |
-| `SYCL_TARGET`          | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                       | 
-| `TIMER`                | `DETAILED`    | Specify which timer functionality should be used. Must be one of: `NONE`, `REDUCED_FILE` or `DETAILED`. |
-| `ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                             |
-| `FMT_HEADER_ONLY`      | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                    |
+| option                          | default value | description                                                                                                                  |
+|---------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_IMPLEMENTATION`       | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL` or `ComputeCpp`.                                             |
+| `SYCL_LSH_TARGET`               | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                            | 
+| `SYCL_LSH_TIMER`                | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                      |
+| `SYCL_LSH_BENCHMARK`            |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name. |
+| `SYCL_LSH_ENABLE_DEBUG`         | `OFF`         | Enables the debugging macros.                                                                                                |
+| `SYCL_LSH_ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                  |
+| `FMT_HEADER_ONLY`               | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                     |
 
 
 ## Building the documentation
@@ -60,19 +62,19 @@ $ make doc
 After a successful `make` an executable file named `./prog` is available:
 ```bash
 $ ./prog --help
-Usage: ./prog --data "path-to-data_set" --k "number-of-knn" [options]
+Usage: ./prog --data "path-tp-data_set" --k "number-of-knn" [options]
 options:
-   --data                path to the data file (required)
-   --evaluate_knn        read the correct nearest-neighbors and evaluate computed nearest-neighbors
-   --hash_pool_size      number of hash functions in the hash pool
-   --hash_table_size     size of each hash table (must be a prime)
-   --help                help screen
-   --k                   the number of nearest-neighbors to search for (required)
-   --num_cut_off_points  number of cut-off points for the entropy-based hash functions
-   --num_hash_functions  number of hash functions per hash table
-   --num_hash_tables     number of hash tables to create
-   --options             path to options file
-   --save_knn            save the calculate nearest-neighbors to path
-   --save_options        save the currently used options to path
-   --w                   constant used in the hash functions 
+   --data_file            path to the data file (required)
+   --evaluate_knn_file    read the correct nearest-neighbors and evaluate calculated nearest-neighbors 
+   --hash_pool_size       number of hash functions in the hash pool 
+   --hash_table_size      size of each hash table 
+   --help                 help screen 
+   --k                    the number of nearest-neighbors to search for (required)
+   --knn_save_file        save the calculated nearest-neighbors to path 
+   --num_cut_off_points   number of cut-off points for the entropy-based hash functions 
+   --num_hash_functions   number of hash functions per hash table 
+   --num_hash_tables      number of hash tables to create 
+   --options_file         path to options file 
+   --options_save_file    save the currently used options to the given path 
+   --w                    segment size for the random projections hash functions     
 ```
