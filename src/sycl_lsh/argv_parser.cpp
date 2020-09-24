@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-24
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -102,7 +102,7 @@ std::string sycl_lsh::argv_parser::description() {
 
     // write command line arguments and their respective description
     for (const auto& [key, desc] : list_of_argvs_) {
-        fmt::format_to(buf, "  --{:<{}} {} {}\n", key, alignment_size, desc.first, desc.second ? "(required)" : "");
+        fmt::format_to(buf, "   --{:<{}} {} {}\n", key, alignment_size, desc.first, desc.second ? "(required)" : "");
     }
 
     return fmt::to_string(buf);
