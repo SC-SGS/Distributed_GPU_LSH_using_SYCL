@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-24
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -53,7 +53,7 @@ namespace sycl_lsh::detail {
             int wrote_size;
 
             // write source location message to buffer
-            wrote_size = snprintf(buffer, buffer_size, "Assertion '%s' failed!\n"
+            wrote_size = snprintf(buffer, buffer_size, "\nAssertion '%s' failed!\n"
                    "  in file '%s'\n"
                    "  in function '%s'\n"
                    "  @ line %i\n\n",
@@ -65,7 +65,7 @@ namespace sycl_lsh::detail {
             }
 
             // print buffer to stderr
-            fprintf(stderr, "%s\n", buffer);
+            fprintf(stderr, "%s\n\n", buffer);
 
             // if the current target is CPU, abort the program after a failed assertion
 #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU
