@@ -32,16 +32,20 @@ option(SYCL_LSH_ENABLE_DEBUG "Enable debugging macros" OFF)
 option(SYCL_LSH_ENABLE_DOCUMENTATION "Generate documentation" OFF)
 
 
-# set timer behaviour
-#set(SUPPORTED_TIMERS NONE REDUCED_FILE DETAILED) # NONE = 0, REDUCED_FILE = 1, DETAILED = 2
-#if (NOT TIMER)
-#    set(TIMER DETAILED)
-#endif ()
-#if (NOT ${TIMER} IN_LIST SUPPORTED_TIMERS)
-#    message(FATAL_ERROR "Timer \"${TIMER}\" not supported!")
-#else ()
-#    message(STATUS "Using \"${TIMER}\" as timer.")
-#endif ()
+# set timer behavior
+set(SUPPORTED_SYCL_LSH_TIMERS NONE NON_BLOCKING BLOCKING) # NONE = 0, NON_BLOCKING = 1, BLOCKING = 2
+if (NOT DEFINED SYCL_LSH_TIMER)
+    set(SYCL_LSH_TIMER BLOCKING)
+endif ()
+if (NOT ${SYCL_LSH_TIMER} IN_LIST SUPPORTED_SYCL_LSH_TIMERS)
+    message(FATAL_ERROR "Timer \"${SYCL_LSH_TIMER}\" not supported!")
+else ()
+    message(STATUS "Using \"${SYCL_LSH_TIMER}\" as timer.")
+endif ()
+# in order to benchmark the code, a timer must be enabled
+if (DEFINED SYCL_LSH_BENCHMARK AND ${SYCL_LSH_TIMER} MATCHES "NONE")
+    message(FATAL_ERROR "In order to benchmark, a timer (NON_BLOCKING or BLOCKING) must be enabled!")
+endif ()
 
 
 # set supported SYCL targets
@@ -114,10 +118,17 @@ if (SYCL_LSH_ENABLE_DEBUG)
 #    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
 #    target_link_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
 endif ()
+# enable benchmark if requested
+if (NOT DEFINED SYCL_LSH_BENCHMARK)
+    message(STATUS "Disabled benchmarking.")
+else ()
+    message(STATUS "Enabled benchmarking. Results will be written to: \"${SYCL_LSH_BENCHMARK}\"")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
+endif ()
 list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
 target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
-#list(FIND SUPPORTED_TIMERS "${TIMER}" TIMER_IDX)
-#target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC TIMER=${TIMER_IDX})
+list(FIND SUPPORTED_SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL_LSH_TIMER_IDX})
 
 
 # set SYCL implementation specific options # TODO: doesn't work as expected!
@@ -160,8 +171,8 @@ endif ()
 # unset variables
 unset(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS)
 unset(SYCL_LSH_IMPLEMENTATION)
-#unset(SUPPORTED_TIMERS)
-#unset(TIMER)
+unset(SUPPORTED_SYCL_LSH_TIMERS)
+unset(SYCL_LSH_TIMER)
 unset(SUPPORTED_SYCL_LSH_TARGETS)
 unset(SYCL_LSH_TARGET)
 unset(SYCL_LSH_ENABLE_DOCUMENTATION)

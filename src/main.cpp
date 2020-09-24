@@ -1,13 +1,12 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-24
  *
  * @brief The main file containing the main logic.
  */
 
 #include <sycl_lsh/core.hpp>
-
 
 int custom_main(int argc, char** argv) {
     // create MPI communicator
@@ -38,6 +37,15 @@ int custom_main(int argc, char** argv) {
         if (parser.has_argv("options_save_file")) {
             opt.save(comm, parser, logger);
         }
+
+
+        // TODO 2020-09-24 14:47 marcel: move at the end of actual k-nearest-neighbor function
+#if defined(SYCL_LSH_BENCHMARK)
+        if (comm.master_rank()) {
+            sycl_lsh::mpi::timer::benchmark_out() << opt.hash_pool_size << ',' << opt.num_hash_functions << ',' << opt.num_hash_tables << ','
+                                                  << opt.hash_table_size << ',' << opt.w << ',' << opt.num_cut_off_points << '\n';
+        }
+#endif
 
     } catch (const std::exception& e) {
         logger.log("Exception thrown on rank {}: {}\n", comm.rank(), e.what());

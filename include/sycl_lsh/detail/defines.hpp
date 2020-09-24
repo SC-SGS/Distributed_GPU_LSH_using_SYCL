@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-24
  *
  * @brief Defines helper values, classes, defines, etc. used in various places.
  */
@@ -14,6 +14,10 @@
 #define SYCL_LSH_TARGET_NVIDIA 1
 #define SYCL_LSH_TARGET_AMD 2
 
+// defines values to test against the SYCL_LSH_TIMER
+#define SYCL_LSH_NO_TIMER 0
+#define SYCL_LSH_NON_BLOCKING_TIMER 1
+#define SYCL_LSH_BLOCKING_TIMER 2
 
 namespace sycl_lsh::detail {
 

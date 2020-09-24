@@ -5,6 +5,7 @@
 #include <sycl_lsh/mpi/type_cast.hpp>
 
 #include <chrono>
+#include <fstream>
 #include <type_traits>
 
 namespace sycl_lsh::mpi {
@@ -13,56 +14,73 @@ namespace sycl_lsh::mpi {
         using clock = std::chrono::steady_clock;
         using time_point = std::chrono::time_point<clock>;
     public:
-        timer() : start_(clock::now()) { }
-        virtual ~timer() = default;
-
-        void restart() noexcept { start_ = clock::now(); }
-
-        template <typename unit = std::chrono::seconds>
-        auto elapsed() const {
-            return std::chrono::duration_cast<unit>(clock::now() - start_);
+        explicit timer([[maybe_unused]] const communicator& comm)
+#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER || defined(SYCL_LSH_BENCHMARK)
+            : comm_(comm)
+#endif
+        {
+            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
+                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+                    comm_.wait();
+                #endif
+                start_ = clock::now();
+            #endif
         }
 
-    private:
-        time_point start_;
-    };
-
-    class barrier_timer {
-        using clock = std::chrono::steady_clock;
-        using time_point = std::chrono::time_point<clock>;
-    public:
-        explicit barrier_timer(const communicator& comm) : comm_(comm) {
-            comm_.wait();
-            start_ = clock::now();
-        }
-
-        void restart() noexcept {
-            comm_.wait();
-            start_ = clock::now();
+        void restart() {
+            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
+                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+                    comm_.wait();
+                #endif
+                start_ = clock::now();
+            #endif
         }
 
         template <typename unit = std::chrono::seconds>
         auto elapsed() const {
-            auto dur = std::chrono::duration_cast<unit>(clock::now() - start_).count();
+            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
+                unit dur = std::chrono::duration_cast<unit>(clock::now() - start_);
 
-            decltype(dur) dur_sum = 0;
-            MPI_Allreduce(&dur, &dur_sum, 1, type_cast<decltype(dur)>(), MPI_SUM, comm_.get());
-            
-            return unit{dur_sum / comm_.size()};
+                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+                    decltype(dur.count()) dur_sum = 0;
+                    MPI_Allreduce(&dur, &dur_sum, 1, type_cast<decltype(dur_sum)>(), MPI_SUM, comm_.get());
+                    dur = unit{dur_sum / comm_.size()};
+                #endif
+
+                #if defined(SYCL_LSH_BENCHMARK)
+                    if (comm_.master_rank()) {
+                        benchmark_out_ << dur.count() << ',';
+                    }
+                #endif
+
+                return dur;
+            #else
+                return 0;
+            #endif
         }
 
+#if defined(SYCL_LSH_BENCHMARK)
+    [[nodiscard]]
+    static std::ofstream& benchmark_out() noexcept { return benchmark_out_; }
+#endif
+
     private:
+#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER || defined(SYCL_LSH_BENCHMARK)
         const communicator& comm_;
+#endif
+#if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
         time_point start_;
+#endif
+#if defined(SYCL_LSH_BENCHMARK)
+        static std::ofstream benchmark_out_;
+#endif
     };
 
+#if defined(SYCL_LSH_BENCHMARK)
+    std::ofstream timer::benchmark_out_ = std::ofstream{SYCL_LSH_BENCHMARK, std::ostream::app};
+#endif
+    
 }
-
-
-
-
-
-
 
 
 template<class rep, class period>
