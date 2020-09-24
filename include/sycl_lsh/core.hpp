@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-24
  *
  * @brief Core header which includes every other necessary header file, i.e. \c \#include` <sycl_lsh/core.hpp>` is sufficient to use every
  *        important function or class.
@@ -10,6 +10,8 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CORE_HPP
 
 // include all necessary library headers
+#include <sycl_lsh/detail/fmt_chrono.hpp>
+
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
 #include <sycl_lsh/exceptions/file_exception.hpp>
 #include <sycl_lsh/exceptions/window_exception.hpp>

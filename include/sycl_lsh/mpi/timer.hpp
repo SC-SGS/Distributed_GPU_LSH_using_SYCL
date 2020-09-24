@@ -1,65 +1,88 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-09-24
+ *
+ * @brief Implements a simple timer class that can be configured via [CMake](https://cmake.org/).
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMER_HPP
 
 #include <sycl_lsh/mpi/communicator.hpp>
-#include <sycl_lsh/mpi/type_cast.hpp>
 
 #include <chrono>
 #include <fstream>
-#include <type_traits>
 
 namespace sycl_lsh::mpi {
 
+    /**
+     * @brief Simple timer class that can be configured via [CMake](https://cmake.org/).
+     * @details The timer exhibits different behavior based on the specified *SYCL_LSH_TIMER* during [CMake](https://cmake.org/)'s
+     *          configuration step:
+     *          - *NONE*: no timing at all
+     *          - *NON_BLOCKING*: functions will be timed, but without calls to MPI_Barrier;
+     *                            the elapsed times are reported separately per MPI rank
+     *          - *BLOCKING*: explicit calls to MPI_Barrier on timinig start (and an implcit call AFTER timing end);
+     *                        the elapsed times are averaged over all MPI ranks
+     *
+     *          Additionally if the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK* is set, the timings are also logged to
+     *          the specified file in a machine readable way.
+     */
     class timer {
+        /// The used [`std::chrono`](https://en.cppreference.com/w/cpp/chrono) clock.
         using clock = std::chrono::steady_clock;
+        /// The [`std::chrono::time_point`](https://en.cppreference.com/w/cpp/chrono/time_point) depending on the used clock type.
         using time_point = std::chrono::time_point<clock>;
     public:
-        explicit timer([[maybe_unused]] const communicator& comm)
-#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER || defined(SYCL_LSH_BENCHMARK)
-            : comm_(comm)
-#endif
-        {
-            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
-                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
-                    comm_.wait();
-                #endif
-                start_ = clock::now();
-            #endif
-        }
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                                constructor                                                 //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Construct a new timer.
+         * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
+         *          - *NONE*: nothing happens (nop)
+         *          - *NON_BLOCKING*: directly starts timing
+         *          - *BLOCKING*: calls MPI_Barrier(), afterwards starts timing
+         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+         */
+        explicit timer([[maybe_unused]] const communicator& comm);
 
-        void restart() {
-            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
-                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
-                    comm_.wait();
-                #endif
-                start_ = clock::now();
-            #endif
-        }
 
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                                   timing                                                   //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Reset and restart the timing.
+         * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
+         *          - *NONE*: nothing happens (nop)
+         *          - *NON_BLOCKING*: directly starts timing
+         *          - *BLOCKING*: calls MPI_Barrier(), afterwards starts timing
+         */
+        void restart();
+        /**
+         * @brief Returns the elapsed time since the construction of this timer or the last call to @ref sycl_lsh::mpi::timer::restart().
+         * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
+         *          - *NONE*: returns `0`
+         *          - *NON_BLOCKING*: returns the elapsed time on the current MPI rank
+         *          - *BLOCKING*: calls MPI_Barrier(), afterwards returns the average elapsed time on all MPI ranks
+         *
+         *          Additionally if the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK* is set, the timings are also logged to
+         *          the specified file in a machine readable way.
+         * @tparam unit the [`std::chrono::duration`](https://en.cppreference.com/w/cpp/chrono/duration) type to use
+         * @return the elapsed time with the time unit @p unit ([[nodiscard]])
+         */
         template <typename unit = std::chrono::seconds>
-        auto elapsed() const {
-            #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
-                unit dur = std::chrono::duration_cast<unit>(clock::now() - start_);
+        [[nodiscard]] 
+        unit elapsed() const;
 
-                #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
-                    decltype(dur.count()) dur_sum = 0;
-                    MPI_Allreduce(&dur, &dur_sum, 1, type_cast<decltype(dur_sum)>(), MPI_SUM, comm_.get());
-                    dur = unit{dur_sum / comm_.size()};
-                #endif
-
-                #if defined(SYCL_LSH_BENCHMARK)
-                    if (comm_.master_rank()) {
-                        benchmark_out_ << dur.count() << ',';
-                    }
-                #endif
-
-                return dur;
-            #else
-                return 0;
-            #endif
-        }
-
+        
 #if defined(SYCL_LSH_BENCHMARK)
+    /**
+     * @brief If nechmarking is enabled (via the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK*) returns the used
+     *        [`std::ofstream`](https://en.cppreference.com/w/cpp/io/basic_ofstream) to log the timings.
+     * @return the output stream ([[nodiscard]])
+     */
     [[nodiscard]]
     static std::ofstream& benchmark_out() noexcept { return benchmark_out_; }
 #endif
@@ -75,38 +98,7 @@ namespace sycl_lsh::mpi {
         static std::ofstream benchmark_out_;
 #endif
     };
-
-#if defined(SYCL_LSH_BENCHMARK)
-    std::ofstream timer::benchmark_out_ = std::ofstream{SYCL_LSH_BENCHMARK, std::ostream::app};
-#endif
     
 }
-
-
-template<class rep, class period>
-struct fmt::formatter<std::chrono::duration<rep, period>> {
-
-    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-
-    template <typename FormatContext>
-    auto format(std::chrono::duration<rep, period> dur, FormatContext& ctx) {
-        if constexpr (std::is_same_v<decltype(dur), std::chrono::nanoseconds>) {
-            return format_to(ctx.out(), "{}ns", dur.count());
-        } else if constexpr (std::is_same_v<decltype(dur), std::chrono::microseconds>) {
-            return format_to(ctx.out(), "{}us", dur.count());
-        } else if constexpr (std::is_same_v<decltype(dur), std::chrono::milliseconds>) {
-            return format_to(ctx.out(), "{}ms", dur.count());
-        } else if constexpr (std::is_same_v<decltype(dur), std::chrono::seconds>) {
-            return format_to(ctx.out(), "{}s", dur.count());
-        } else if constexpr (std::is_same_v<decltype(dur), std::chrono::minutes>) {
-            return format_to(ctx.out(), "{}min", dur.count());
-        } else if constexpr (std::is_same_v<decltype(dur), std::chrono::hours>) {
-            return format_to(ctx.out(), "{}h", dur.count());
-        } else {
-            return format_to(ctx.out(), "{}", dur.count());
-        }
-    }
-    
-};
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMER_HPP
