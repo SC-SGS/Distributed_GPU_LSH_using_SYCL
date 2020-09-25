@@ -23,6 +23,8 @@
 #include <sycl_lsh/mpi/timer.hpp>
 #include <sycl_lsh/mpi/main.hpp>
 
+#include <sycl_lsh/mpi/file_parser/base_parser.hpp>
+
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/options.hpp>
 
