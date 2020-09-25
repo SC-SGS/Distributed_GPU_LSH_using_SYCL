@@ -108,19 +108,19 @@ namespace sycl_lsh::mpi {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Get the underlying MPI communicator.
-         * @return the MPI communicator wrapped in this @ref sycl_lsh::mpi::communicator object (`[nodiscard]]`)
+         * @return the MPI communicator wrapped in this @ref sycl_lsh::mpi::communicator object (`[[nodiscard]]`)
          */
         [[nodiscard]]
         const MPI_Comm& get() const noexcept { return comm_; }
         /**
          * @brief Get the underlying MPI communicator.
-         * @return the MPI communicator wrapped in this @ref sycl_lsh::mpi::communicator object (`[nodiscard]]`)
+         * @return the MPI communicator wrapped in this @ref sycl_lsh::mpi::communicator object (`[[nodiscard]]`)
          */
         [[nodiscard]]
         MPI_Comm& get() noexcept { return comm_; }
         /**
          * @brief Returns whether the underlying MPI communicator gets automatically freed upon destruction.
-         * @return `true` if *MPI_Comm_free* gets called upon destruction, `false` otherwise (`[nodiscard]]`)
+         * @return `true` if *MPI_Comm_free* gets called upon destruction, `false` otherwise (`[[nodiscard]]`)
          */
         [[nodiscard]]
         bool freeable() const noexcept { return is_freeable_; }
