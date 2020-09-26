@@ -19,7 +19,6 @@
 #include <fmt/format.h>
 #include <mpi.h>
 
-#include <cmath>
 #include <cstdlib>
 #include <string_view>
 

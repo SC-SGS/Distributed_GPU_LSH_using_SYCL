@@ -15,6 +15,7 @@
 #include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 
+#include <cmath>
 #include <string_view>
 #include <type_traits>
 
