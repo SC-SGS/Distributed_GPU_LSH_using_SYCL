@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 
 # specify used SYCL implementation
 set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp)
@@ -23,8 +23,7 @@ endif()
 project("Distributed GPU LSH implementation using SYCL"
         VERSION 1.0.0
         LANGUAGES CXX
-        DESCRIPTION "master theses Marcel Breyer"
-        HOMEPAGE_URL "https://gitlab-sim.informatik.uni-stuttgart.de/breyerml/distributed_gpu_lsh_using_sycl")
+        DESCRIPTION "master theses Marcel Breyer")
 
 
 # cmake configuration options
