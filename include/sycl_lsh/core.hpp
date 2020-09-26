@@ -14,6 +14,7 @@
 
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
 #include <sycl_lsh/exceptions/file_exception.hpp>
+#include <sycl_lsh/exceptions/not_implemented.hpp>
 #include <sycl_lsh/exceptions/window_exception.hpp>
 
 #include <sycl_lsh/mpi/communicator.hpp>
