@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-09-26
  *
  * @brief The main file containing the main logic.
  */
@@ -40,6 +40,17 @@ int custom_main(int argc, char** argv) {
             opt.save(comm, parser, logger);
         }
 
+
+        sycl_lsh::mpi::binary_parser<decltype(opt), typename decltype(opt)::real_type> parser_file(parser.argv_as<std::string>("data_file"), comm, logger);
+
+        logger.log_on_all("total size: {} -> {}\n", comm.rank(), parser_file.parse_total_size());
+        logger.log_on_all("rank size: {} -> {}\n", comm.rank(), parser_file.parse_rank_size());
+        logger.log_on_all("dims: {} -> {}\n", comm.rank(), parser_file.parse_dims());
+
+        std::vector<float> buf(parser_file.parse_rank_size() * parser_file.parse_dims());
+        parser_file.parse_content(buf.data());
+        logger.log_on_all("content: {} -> {}\n", comm.rank(), fmt::join(buf, ", "));
+        
 
         // TODO 2020-09-24 14:47 marcel: move at the end of actual k-nearest-neighbor function
 #if defined(SYCL_LSH_BENCHMARK)
