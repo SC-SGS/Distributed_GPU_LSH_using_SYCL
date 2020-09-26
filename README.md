@@ -21,8 +21,8 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 
 
 ## Prerequisite
-* A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL) 
-  or [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) (currently not working).
+* A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL), 
+  [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) or [oneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html).
 * A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
 * The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
@@ -40,15 +40,15 @@ $ make -j $(nprocs)
 
 Provided configuration options are:
 
-| option                          | default value | description                                                                                                                  |
-|---------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------|
-| `SYCL_LSH_IMPLEMENTATION`       | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL` or `ComputeCpp`.                                             |
-| `SYCL_LSH_TARGET`               | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                            | 
-| `SYCL_LSH_TIMER`                | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                      |
-| `SYCL_LSH_BENCHMARK`            |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name. |
-| `SYCL_LSH_ENABLE_DEBUG`         | `OFF`         | Enables the debugging macros.                                                                                                |
-| `SYCL_LSH_ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                  |
-| `FMT_HEADER_ONLY`               | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                     |
+| option                          | default value | description                                                                                                                                                                        |
+|---------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_IMPLEMENTATION`       | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL`, `ComputeCpp` or `oneAPI` (in case of `oneAPI`: the env variable `DPCPP_GCC_TOOLCHAIN` must be set to a GCC >= 8). |
+| `SYCL_LSH_TARGET`               | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                                                                                  | 
+| `SYCL_LSH_TIMER`                | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                                                                            |
+| `SYCL_LSH_BENCHMARK`            |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name.                                                       |
+| `SYCL_LSH_ENABLE_DEBUG`         | `OFF`         | Enables the debugging macros.                                                                                                                                                      |
+| `SYCL_LSH_ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                                                                        |
+| `FMT_HEADER_ONLY`               | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                                                                           |
 
 
 ## Building the documentation

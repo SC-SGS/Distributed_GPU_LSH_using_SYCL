@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # specify used SYCL implementation
-set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp)
+set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp oneAPI)
 if (NOT SYCL_LSH_IMPLEMENTATION)
     set(SYCL_LSH_IMPLEMENTATION hipSYCL)
 endif ()
@@ -17,6 +17,8 @@ if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     set(CMAKE_CXX_COMPILER syclcc-clang)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     set(CMAKE_CXX_COMPILER compute++)
+elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
+    set(CMAKE_CXX_COMPILER dpcpp)
 endif()
 
 
@@ -153,6 +155,9 @@ elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     endif ()
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
+elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --gcc-toolchain=$ENV{DPCPP_GCC_TOOLCHAIN})
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl)
 endif()
 
 
