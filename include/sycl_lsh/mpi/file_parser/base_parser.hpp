@@ -76,7 +76,7 @@ namespace sycl_lsh::mpi {
          */
         virtual void parse_content(parsing_type* buffer) const = 0;
 
-    private:
+    protected:
         const communicator& comm_;
         file file_;
     };
