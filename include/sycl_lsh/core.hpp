@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-26
+ * @date 2020-09-28
  *
  * @brief Core header which includes every other necessary header file, i.e. \c \#include` <sycl_lsh/core.hpp>` is sufficient to use every
  *        important function or class.
@@ -28,6 +28,7 @@
 #include <sycl_lsh/mpi/timer.hpp>
 
 #include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/data.hpp>
 #include <sycl_lsh/options.hpp>
 
 /// The main namespace. Nearly all functions are located in this namespace.
