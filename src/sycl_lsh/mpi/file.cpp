@@ -1,9 +1,10 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-25
+ * @date 2020-09-28
  */
 
+#include <sycl_lsh/detail/filesystem.hpp>
 #include <sycl_lsh/mpi/file.hpp>
 
 
@@ -12,7 +13,7 @@
 // ---------------------------------------------------------------------------------------------------------- //
 sycl_lsh::mpi::file::file(const std::string_view file_name, const sycl_lsh::mpi::communicator& comm, const mode m) {
     // check if the file exists
-    if (m == mode::read && !std::filesystem::exists(file_name.data())) {
+    if (m == mode::read && !fs::exists(file_name.data())) {
         throw std::invalid_argument(fmt::format("Illegal file '{}'!", file_name));
     }
     // open the file

@@ -31,6 +31,7 @@ project("Distributed GPU LSH implementation using SYCL"
 # cmake configuration options
 option(SYCL_LSH_ENABLE_DEBUG "Enable debugging macros" OFF)
 option(SYCL_LSH_ENABLE_DOCUMENTATION "Generate documentation" OFF)
+option(SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM "Use the '<experimental/filesystem>' header instead of '<filesystem>'" OFF)
 
 
 # set timer behavior
@@ -128,6 +129,12 @@ else ()
     message(STATUS "Enabled benchmarking. Results will be written to: \"${SYCL_LSH_BENCHMARK}\"")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
 endif ()
+# enable <experimental/filesystem> header if requested
+if (SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
+    # silence LLVM deprecated warning
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM)
+endif ()
 list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
 target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
 list(FIND SUPPORTED_SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
@@ -157,7 +164,7 @@ elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --gcc-toolchain=$ENV{DPCPP_GCC_TOOLCHAIN})
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl -lstdc++fs)
 endif()
 
 

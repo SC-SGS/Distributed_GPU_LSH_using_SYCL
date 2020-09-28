@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-25
+ * @date 2020-09-28
  *
  * @brief Minimalistic wrapper class around a MPI file.
  */
@@ -15,7 +15,6 @@
 #include <fmt/format.h>
 #include <mpi.h>
 
-#include <filesystem>
 #include <string_view>
 
 namespace sycl_lsh::mpi {

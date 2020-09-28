@@ -5,13 +5,13 @@
 #include <sycl_lsh/detail/arithmetic_type_name.hpp>
 #include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
+#include <sycl_lsh/detail/filesystem.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -179,7 +179,7 @@ namespace sycl_lsh {
         if (parser.has_argv("options_file")) {
             const std::string& file = parser.argv_as<std::string>("options_file");
             // check if file exists and is a regular file
-            if (!std::filesystem::exists(file) || !std::filesystem::is_regular_file(file)) {
+            if (!fs::exists(file) || !fs::is_regular_file(file)) {
                 throw std::invalid_argument(fmt::format("Illegal options file '{}'!", file));
             }
 
