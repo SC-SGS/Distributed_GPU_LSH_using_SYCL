@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-21
+ * @date 2020-09-28
  */
 
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
@@ -40,16 +40,6 @@ namespace {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                        constructors and destructor                                         //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::mpi::errhandler::errhandler(MPI_Comm_errhandler_function func) : type_(type::comm), is_freeable_(true) {
-    MPI_Comm_create_errhandler(func, &errhandler_);
-}
-sycl_lsh::mpi::errhandler::errhandler(MPI_File_errhandler_function func) : type_(type::file), is_freeable_(true) {
-    MPI_File_create_errhandler(func, &errhandler_);
-}
-sycl_lsh::mpi::errhandler::errhandler(MPI_Win_errhandler_function func) : type_(type::win), is_freeable_(true) {
-    MPI_Win_create_errhandler(func, &errhandler_);
-}
-
 sycl_lsh::mpi::errhandler::errhandler(const type t) : type_(t), is_freeable_(true) {
     switch (type_) {
         case type::comm:

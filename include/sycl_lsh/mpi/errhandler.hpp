@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-09-28
  *
  * @brief Minimalistic wrapper class around a MPI errhandler.
  */
@@ -34,20 +34,13 @@ namespace sycl_lsh::mpi {
         //                                        constructors and destructor                                         //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
-         * @brief Construct a new communicator errhandler with the handler function @p func.
-         * @param[in] func the handler function to call
+         * @brief Construct a new errhandler of type @p t with the error handler function @p func.
+         * @tparam Func type of the MPI_Errhandler function
+         * @param[in] func the MPI_Errhandler function
+         * @param[in] t the type of the errhandler
          */
-        explicit errhandler(MPI_Comm_errhandler_function func);
-        /**
-         * @brief Construct a new file errhandler with the handler function @p func.
-         * @param[in] func the handler function to call
-         */
-        explicit errhandler(MPI_File_errhandler_function func);
-        /**
-         * @brief Construct a new window errhandler with the handler function @p func.
-         * @param[in] func the handler function to call
-         */
-        explicit errhandler(MPI_Win_errhandler_function func);
+        template <typename Func>
+        errhandler(Func func, type t);
         /**
          * @brief Construct a new errhandler of type @p t with a default exception error handler function.
          * @param[in] t the type of the errhandler
@@ -118,6 +111,25 @@ namespace sycl_lsh::mpi {
         const type type_;
         bool is_freeable_;
     };
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                        constructors and destructor                                         //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <typename Func>
+    errhandler::errhandler(Func func, type t) : type_(t), is_freeable_(true) {
+        switch (type_) {
+            case type::comm:
+                MPI_Comm_create_errhandler(func, &errhandler_);
+                break;
+            case type::file:
+                MPI_File_create_errhandler(func, &errhandler_);
+                break;
+            case type::win:
+                MPI_Win_create_errhandler(func, &errhandler_);
+                break;
+        }
+    }
 
 }
 
