@@ -6,6 +6,7 @@
  * @brief Core header which includes every other necessary header file, i.e. \c \#include` <sycl_lsh/core.hpp>` is sufficient to use every
  *        important function or class.
  */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CORE_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_CORE_HPP
 
