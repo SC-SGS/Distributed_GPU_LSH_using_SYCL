@@ -22,10 +22,16 @@
  * @brief Defines a macro to parse the @p option using the @ref sycl_lsh::argv_parser @p parser and assign it to the correct struct field.
  * @param[in] parser the @p sycl_lsh::argv_parser
  * @param[in] option the option to parse and assign
+ * @param[in] sanity_cond sanity check for the options value @p option
+ *
+ * @throws std::invalid_argument if the sanity check fails.
  */
-#define SYCL_LSH_PARSE_OPTION(parser, option)           \
-if (parser.has_argv(#option)) {                         \
-    option = parser.argv_as<decltype(option)>(#option); \
+#define SYCL_LSH_PARSE_OPTION(parser, option, sanity_cond)                                                                              \
+if (parser.has_argv(#option)) {                                                                                                         \
+    option = parser.argv_as<decltype(option)>(#option);                                                                                 \
+}                                                                                                                                       \
+if (!(sanity_cond)) {                                                                                                                   \
+    throw std::invalid_argument(fmt::format("Illegal {} value ({})! Legal values must fulfill: '{}'.", #option, option, #sanity_cond)); \
 }
 
 namespace sycl_lsh {
@@ -98,6 +104,7 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if the file specified by the command line argument `options_file` doesn't exist or isn't a
          *         regular file.
          * @throws std::invalid_argument if any command line argument in the file is illegal.
+         * @throws std::invalid_argument if any parsed value is illegal.
          */
         explicit options(const argv_parser& parser, const mpi::logger& logger);
 
@@ -233,21 +240,13 @@ namespace sycl_lsh {
 
         // TODO 2020-09-22 17:49 marcel: check whether loaded save file has been saved with the same hash function type
 
-        // parse command line options given directly through the command line arguments
-        SYCL_LSH_PARSE_OPTION(parser, hash_pool_size);
-        SYCL_LSH_PARSE_OPTION(parser, num_hash_functions);
-        SYCL_LSH_PARSE_OPTION(parser, num_hash_tables);
-        SYCL_LSH_PARSE_OPTION(parser, hash_table_size);
-        SYCL_LSH_PARSE_OPTION(parser, w);
-        SYCL_LSH_PARSE_OPTION(parser, num_cut_off_points);
-
-        // assert sanity of command line parameters
-        SYCL_LSH_DEBUG0_ASSERT(hash_pool_size > 0, "Illegal hash_pool_size! The hash pool size must be greater than 0.");
-        SYCL_LSH_DEBUG0_ASSERT(num_hash_functions > 0, "Illegal num_hash_functions! The number of hash functions must be greater than 0.");
-        SYCL_LSH_DEBUG0_ASSERT(num_hash_tables > 0, "Illegal num_hash_tables! The number of hash tables must be greater than 0.");
-        SYCL_LSH_DEBUG0_ASSERT(hash_table_size > 0, "Illegal hash_table_size! The hash table size must be greater than 0.");
-        SYCL_LSH_DEBUG0_ASSERT(w > 0, "Illegal w! The random projections hash functions parameter w must be greater than 0.");
-        SYCL_LSH_DEBUG0_ASSERT(num_cut_off_points > 0, "Illegal num_cut_off_points! The entropy-based hash functions parameter must be greater than 0.");
+        // parse command line options given directly through the command line arguments and perform sanity checks
+        SYCL_LSH_PARSE_OPTION(parser, hash_pool_size,     hash_pool_size > 0);
+        SYCL_LSH_PARSE_OPTION(parser, num_hash_functions, num_hash_functions > 0);
+        SYCL_LSH_PARSE_OPTION(parser, num_hash_tables,    num_hash_tables > 0);
+        SYCL_LSH_PARSE_OPTION(parser, hash_table_size,    hash_table_size > 0);
+        SYCL_LSH_PARSE_OPTION(parser, w,                  w > 0);
+        SYCL_LSH_PARSE_OPTION(parser, num_cut_off_points, num_cut_off_points > 0);
     }
 
 
