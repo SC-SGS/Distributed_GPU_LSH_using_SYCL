@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-09-28
  *
  * @brief Defines helper values, classes, defines, etc. used in various places.
  */
@@ -25,6 +25,10 @@ namespace sycl_lsh::detail {
      * @brief Empty base class for the @ref sycl_lsh::options class. Only used in static_asserts.
      */
     class options_base {};
+    /**
+     * @brief Empty base class for the @ref sycl_lsh::data class. Only used in static_asserts.
+     */
+    class data_base {};
 
 }
 
