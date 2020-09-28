@@ -34,30 +34,33 @@ namespace sycl_lsh::detail {
      * @param[in] args the arguments to fill the `printf` placeholders in the custom error message
      */
     template <typename... Args>
-    inline void assert_function(const char* file, const char* function, const int line,
-                                const bool cond, const char* cond_str, const char* msg, Args&&... args)
+    inline void assert_function([[maybe_unused]] const char* file, [[maybe_unused]] const char* function, [[maybe_unused]] const int line,
+                                [[maybe_unused]] const bool cond, [[maybe_unused]] const char* cond_str, [[maybe_unused]] const char* msg, [[maybe_unused]] Args&&... args)
     {
         // check if the assertion holds
         if (!cond) {
-            // create static sized buffer
-            constexpr int buffer_size = 2048;
-            char buffer[buffer_size];
-            int wrote_size;
+//            // create static sized buffer
+//            constexpr int buffer_size = 2048;
+//            char buffer[buffer_size];
+//            int wrote_size;
+//
+//            // write source location message to buffer
+//            wrote_size = snprintf(buffer, buffer_size, "\nAssertion '%s' failed!\n"
+//                   "  in file '%s'\n"
+//                   "  in function '%s'\n"
+//                   "  @ line %i\n\n",
+//                   cond_str, file, function, line);
+//
+//            // write assertion message to buffer if space is left
+//            if (wrote_size >= 0 && wrote_size < buffer_size) {
+//                snprintf(buffer + wrote_size, buffer_size - wrote_size, msg, std::forward<Args>(args)...);
+//            }
+//
+//            // print buffer to stderr
+//            printf("%s\n\n", buffer);
 
-            // write source location message to buffer
-            wrote_size = snprintf(buffer, buffer_size, "\nAssertion '%s' failed!\n"
-                   "  in file '%s'\n"
-                   "  in function '%s'\n"
-                   "  @ line %i\n\n",
-                   cond_str, file, function, line);
-
-            // write assertion message to buffer if space is left
-            if (wrote_size >= 0 && wrote_size < buffer_size) {
-                snprintf(buffer + wrote_size, buffer_size - wrote_size, msg, std::forward<Args>(args)...);
-            }
-
-            // print buffer to stderr
-            fprintf(stderr, "%s\n\n", buffer);
+            // TODO 2020-09-28 17:37 marcel: 
+            printf("AN ERROR OCCURRED!\n");
 
             // if the current target is CPU, abort the program after a failed assertion
 #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU
