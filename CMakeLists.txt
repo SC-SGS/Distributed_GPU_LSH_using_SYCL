@@ -123,6 +123,7 @@ if (SYCL_LSH_ENABLE_DEBUG)
 #    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
 #    target_link_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
 endif ()
+
 # enable benchmark if requested
 if (NOT DEFINED SYCL_LSH_BENCHMARK)
     message(STATUS "Disabled benchmarking.")
@@ -130,12 +131,15 @@ else ()
     message(STATUS "Enabled benchmarking. Results will be written to: \"${SYCL_LSH_BENCHMARK}\"")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
 endif ()
+
 # enable <experimental/filesystem> header if requested
 if (SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
+    message(STATUS "Using <experimental/filesystem> instead of <filesystem>.")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
     # silence LLVM deprecated warning
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM)
 endif ()
+
 list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
 target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
 list(FIND SUPPORTED_SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
