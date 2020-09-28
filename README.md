@@ -40,16 +40,16 @@ $ make -j $(nprocs)
 
 Provided configuration options are:
 
-| option                          | default value | description                                                                                                                                                                        |
-|---------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SYCL_LSH_IMPLEMENTATION`       | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL`, `ComputeCpp` or `oneAPI` (in case of `oneAPI`: the env variable `DPCPP_GCC_TOOLCHAIN` must be set to a GCC >= 8). |
-| `SYCL_LSH_TARGET`               | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                                                                                  | 
-| `SYCL_LSH_TIMER`                | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                                                                            |
-| `SYCL_LSH_BENCHMARK`            |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name.                                                       |
-| `SYCL_LSH_ENABLE_DEBUG`         | `OFF`         | Enables the debugging macros.                                                                                                                                                      |
-| `SYCL_LSH_ENABLE_DOCUMENTATION` | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                                                                        |
-| `FMT_HEADER_ONLY`               | `0`           | If set to 1, enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                                                                           |
-
+| option                                 | default value | description                                                                                                                                                                        |
+|----------------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_IMPLEMENTATION`              | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL`, `ComputeCpp` or `oneAPI` (in case of `oneAPI`: the env variable `DPCPP_GCC_TOOLCHAIN` must be set to a GCC >= 8). |
+| `SYCL_LSH_TARGET`                      | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                                                                                  | 
+| `SYCL_LSH_TIMER`                       | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                                                                            |
+| `SYCL_LSH_BENCHMARK`                   |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name.                                                       |
+| `SYCL_LSH_ENABLE_DEBUG`                | `OFF`         | Enables the debugging macros.                                                                                                                                                      |
+| `SYCL_LSH_ENABLE_DOCUMENTATION`        | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                                                                        |
+| `SYCL_LSH_FMT_HEADER_ONLY`             | `OFF`         | Enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                                                                                        |
+| `SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM` | `OFF`         | Enables the `<experimental/filesystem>` header instead of the C++17 `<filesystem>` header.                                                                                         |
 
 ## Building the documentation
 After the call to `cmake -DENABLE_DOCUMENTATION=ON ..` use:
