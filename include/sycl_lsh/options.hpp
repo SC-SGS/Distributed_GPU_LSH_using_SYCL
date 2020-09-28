@@ -1,3 +1,11 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-09-28
+ *
+ * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_OPTIONS_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_OPTIONS_HPP
 
