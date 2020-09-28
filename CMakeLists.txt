@@ -31,6 +31,7 @@ project("Distributed GPU LSH implementation using SYCL"
 # cmake configuration options
 option(SYCL_LSH_ENABLE_DEBUG "Enable debugging macros" OFF)
 option(SYCL_LSH_ENABLE_DOCUMENTATION "Generate documentation" OFF)
+option(SYCL_LSH_FMT_HEADER_ONLY "Use the header only mode of the fmt library" OFF)
 option(SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM "Use the '<experimental/filesystem>' header instead of '<filesystem>'" OFF)
 
 
@@ -100,12 +101,12 @@ target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
 
 # find fmt lib and add it to the target
 find_package(fmt REQUIRED)
-if (NOT DEFINED FMT_HEADER_ONLY OR ${FMT_HEADER_ONLY} MATCHES "0")
-    message(STATUS "Linking against fmt lib.")
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
-else ()
+if (SYCL_LSH_FMT_HEADER_ONLY)
     message(STATUS "Using fmt lib in its header only mode.")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC FMT_HEADER_ONLY=1)
+else ()
+    message(STATUS "Linking against fmt lib.")
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
 endif ()
 
 
