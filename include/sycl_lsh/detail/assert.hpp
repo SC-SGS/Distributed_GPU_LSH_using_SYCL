@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-09-28
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -18,14 +18,6 @@
 #include <utility>
 
 namespace sycl_lsh::detail {
-
-    /**
-     * @brief A dummy function such that the compiler can catch potential format string errors.
-     * @details This functions never gets called!
-     * @param[in] format the `printf` format string
-     * @param[in] ... the arguments to fill the `printf` placeholders in the formatting string
-     */
-    void check_args(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
 
     /**
      * @brief Custom assertion function called in the `SYCL_LSH_DEBUG_ASSERT` and `SYCL_LSH_DEBUG0_ASSERT` macros.
@@ -109,7 +101,6 @@ namespace sycl_lsh::detail {
  */
 #if SYCL_LSH_DEBUG
 #define SYCL_LSH_DEBUG_ASSERT(cond, msg, ...)                                                                       \
-  if (false) sycl_lsh::detail::check_args(msg, __VA_ARGS__);                                                        \
   sycl_lsh::detail::assert_function(__FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, cond, #cond, msg, __VA_ARGS__)
 #define SYCL_LSH_DEBUG0_ASSERT(cond, msg) sycl_lsh::detail::assert_function(__FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, cond, #cond, msg)
 #else
