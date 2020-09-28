@@ -117,7 +117,7 @@ namespace sycl_lsh::mpi {
     //                                        constructors and destructor                                         //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename Func>
-    errhandler::errhandler(Func func, type t) : type_(t), is_freeable_(true) {
+    errhandler::errhandler(Func func, const type t) : type_(t), is_freeable_(true) {
         switch (type_) {
             case type::comm:
                 MPI_Comm_create_errhandler(func, &errhandler_);
