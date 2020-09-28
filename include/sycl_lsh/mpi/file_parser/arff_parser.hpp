@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-26
+ * @date 2020-09-28
  *
  * @brief File parser for parsing `.arff` data files.
  */
@@ -19,6 +19,12 @@
 
 namespace sycl_lsh::mpi {
 
+    /**
+     * @brief File parser class for the **arff** data format.
+     * @details Not yet implemented.
+     * @tparam Options  type of the used @ref sycl_lsh::options class
+     * @tparam T the type of the data to parse
+     */
     template <typename Options, typename T>
     class arff_parser final : public file_parser<Options, T> {
         using base_type = file_parser<Options, T>;
