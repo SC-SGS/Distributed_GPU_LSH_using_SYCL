@@ -76,9 +76,9 @@ namespace sycl_lsh {
     template <memory_layout layout, typename index_type>
     std::ostream& operator<<(std::ostream& out, const data_attributes<layout, index_type>& data_attr) {
         out << fmt::format("memory_layout '{}'\n", layout);
-        out << fmt::format("total_size {}\n", data_opt.total_size);
-        out << fmt::format("rank_size {}\n", data_opt.rank_size);
-        out << fmt::format("dims {}\n", data_opt.dims);
+        out << fmt::format("total_size {}\n", data_attr.total_size);
+        out << fmt::format("rank_size {}\n", data_attr.rank_size);
+        out << fmt::format("dims {}\n", data_attr.dims);
         return out;
     }
 
