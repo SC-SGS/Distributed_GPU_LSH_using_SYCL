@@ -17,6 +17,7 @@
 #include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/options.hpp>
 #include <sycl_lsh/data_attributes.hpp>
+#include <sycl_lsh/mpi/file_parser/file_parser.hpp>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -48,7 +49,7 @@ namespace sycl_lsh {
     [[nodiscard]]
     inline auto make_data(const argv_parser& parser, const Options& opt, const mpi::communicator& comm, const mpi::logger& logger) {
         using real_type = typename Options::real_type;
-        auto file_parser = std::make_unique<mpi::binary_parser<Options, real_type>>(parser.argv_as<std::string>("data_file"), comm, logger);
+        auto file_parser = mpi::make_file_parser<real_type, Options>(parser, comm, logger);
         return data<layout, Options>(*file_parser, opt, comm, logger);
     }
 
