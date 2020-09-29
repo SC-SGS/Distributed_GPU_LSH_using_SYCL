@@ -15,6 +15,7 @@
 const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser::list_of_argvs_ = {
         { "help",               { "help screen", false } },
         { "data_file",          { "path to the data file", true } },
+        { "file_parser",        { "type of the file parser", false } },
         { "k",                  { "the number of nearest-neighbors to search for", true } },
         { "options_file",       { "path to options file", false } },
         { "options_save_file",  { "save the currently used options to the given path", false } },
