@@ -33,7 +33,6 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options>
     class data;
 
-    // TODO 2020-09-29 16:10 marcel: use correct parser
     /**
      * @brief Factory function for the @ref sycl_lsh::data class.
      * @details Used to be able to automatically deduce the @ref sycl_lsh::options type.
