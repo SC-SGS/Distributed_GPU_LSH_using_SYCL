@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-25
+ * @date 2020-09-29
  *
  * @brief Base class for all different file parsers.
  * @details Pure virtual.
@@ -86,6 +86,11 @@ namespace sycl_lsh::mpi {
          * @param[out] buffer to write the data to
          */
         virtual void parse_content(parsing_type* buffer) const = 0;
+        /**
+         * @brief Write the content in @p buffer to the file.
+         * @param buffer the data to write to the file
+         */
+        virtual void write_content(parsing_type* buffer) const = 0;
 
     protected:
         const communicator& comm_;

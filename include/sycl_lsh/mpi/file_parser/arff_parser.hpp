@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-09-29
  *
  * @brief File parser for parsing `.arff` data files.
  */
@@ -76,6 +76,14 @@ namespace sycl_lsh::mpi {
          * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
          */
         void parse_content(parsing_type* buffer) const override;
+        /**
+         * @brief Write the content in @p buffer to the file.
+         * @param buffer the data to write to the file
+         *
+         * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+         */
+        void write_content(parsing_type* buffer) const override;
+
     };
 
 
@@ -107,6 +115,11 @@ namespace sycl_lsh::mpi {
 
     template <typename Options, typename T>
     void arff_parser<Options, T>::parse_content([[maybe_unused]] parsing_type* buffer) const {
+        throw sycl_lsh::not_implemented();
+    }
+
+    template <typename Options, typename T>
+    void arff_parser<Options, T>::write_content([[maybe_unused]] parsing_type* buffer) const {
         throw sycl_lsh::not_implemented();
     }
 

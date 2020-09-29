@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_BINARY_PARSER_HPP
 
 #include <sycl_lsh/detail/assert.hpp>
+#include <sycl_lsh/exceptions/not_implemented.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file_parser/base_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
@@ -87,6 +88,13 @@ namespace sycl_lsh::mpi {
          * @param[out] buffer to write the data to
          */
         void parse_content(parsing_type* buffer) const override;
+        /**
+         * @brief Write the content in @p buffer to the file.
+         * @param buffer the data to write to the file
+         *
+         * @throws sycl_lsh::not_implemented since writing to files isn't currently supported.
+         */
+        void write_content(parsing_type* buffer) const override;
     };
 
 
@@ -176,6 +184,11 @@ namespace sycl_lsh::mpi {
         }
         
         base_type::logger_.log("Parsed the data file in {}.\n", t.elapsed());
+    }
+
+    template <typename Options, typename T>
+    void binary_parser<Options, T>::write_content([[maybe_unused]] parsing_type* buffer) const {
+        throw sycl_lsh::not_implemented();
     }
 
 }
