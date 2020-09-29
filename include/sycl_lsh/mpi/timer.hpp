@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-09-29
  *
  * @brief Implements a simple timer class that can be configured via [CMake](https://cmake.org/).
  */
@@ -46,7 +46,7 @@ namespace sycl_lsh::mpi {
          *          - *BLOCKING*: calls MPI_Barrier(), afterwards starts timing
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          */
-        explicit timer([[maybe_unused]] const communicator& comm);
+        explicit timer(const communicator& comm [[maybe_unused]]);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
