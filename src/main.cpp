@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-09-29
  *
  * @brief The main file containing the main logic.
  */
@@ -56,24 +56,25 @@ int custom_main(int argc, char** argv) {
 
         logger.log("{}\n", SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU);
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::soa>(parser, opt, comm, logger);
+        logger.log("{}\n", data);
 
-        std::vector<float> vec(data.get_data_options().rank_size);
+        std::vector<float> vec(data.get_data_attributes().rank_size);
         {
             sycl_lsh::sycl::queue queue(sycl_lsh::sycl::default_selector{});
             logger.log("{}\n", queue.get_device().get_info<sycl_lsh::sycl::info::device::name>());
 
             sycl_lsh::sycl::buffer<float, 1> buf(vec.data(), vec.size());
             queue.submit([&](sycl_lsh::sycl::handler& cgh) {
-                auto acc = data.get_gpu_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
+                auto acc = data.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
                 auto acc_res = buf.get_access<sycl_lsh::sycl::access::mode::discard_write>(cgh);
-                const auto data_opt = data.get_data_options();
+                const auto data_attr = data.get_data_attributes();
 
-                cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_opt.rank_size), [=](sycl_lsh::sycl::item<> item){
+                cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_attr.rank_size), [=](sycl_lsh::sycl::item<> item){
                     const std::uint32_t idx = item.get_linear_id();
 
                     float val = 0;
-                    for (std::uint32_t dim = 0; dim < data_opt.dims; ++dim) {
-                        val += acc[sycl_lsh::get_linear_id__data(idx, dim, data_opt)];
+                    for (std::uint32_t dim = 0; dim < data_attr.dims; ++dim) {
+                        val += acc[sycl_lsh::get_linear_id__data(idx, dim, data_attr)];
                     }
                     acc_res[idx] = val;
                 });
