@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-09-29
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -68,11 +68,8 @@ namespace sycl_lsh {
     template <memory_layout layout, typename index_type>
     [[nodiscard]]
     constexpr index_type get_linear_id__data(const index_type point, const index_type dim, const data_options<layout, index_type>& data_opt) noexcept {
-        SYCL_LSH_DEBUG0_ASSERT(0 <= point && point < data_opt.rank_size,
-                "Out-of-bounce access for data point!\n");
-//        SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < data_opt.dims,
-//                "Out-of-bounce access for dimension!: 0 <= %lld < %lld\n",
-//                static_cast<long long int>(dim), static_cast<long long int>(data_opt.dims));
+        SYCL_LSH_DEBUG_ASSERT(0 <= point && point < data_opt.rank_size, "Out-of-bounce access for data point!\n");
+        SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < data_opt.dims, "Out-of-bounce access for dimension!\n");
 
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
@@ -82,15 +79,6 @@ namespace sycl_lsh {
             return point + dim * data_opt.rank_size;
         }
     }
-
-//    template <memory_layout layout, typename index_type>
-//    constexpr std::uint32_t get_linear_id__data(const index_type point, const index_type dim, const data_options<layout, index_type> opt) noexcept {
-//        if constexpr (layout == memory_layout::aos) {
-//            return 0;
-//        } else {
-//            return 1;
-//        }
-//    }
 
 
     template <memory_layout layout, typename Options>

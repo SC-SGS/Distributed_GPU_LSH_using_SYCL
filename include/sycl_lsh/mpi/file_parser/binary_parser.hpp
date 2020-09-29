@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-26
+ * @date 2020-09-29
  *
  * @brief File parser for parsing plain binary data files.
  */
@@ -132,9 +132,9 @@ namespace sycl_lsh::mpi {
         const int comm_rank = base_type::comm_.rank();
 
         // perform minimal sanity checks
-        SYCL_LSH_DEBUG0_ASSERT(0 < total_size, "Illegal total size!");
-        SYCL_LSH_DEBUG0_ASSERT(0 < rank_size, "Illegal rank size!");
-        SYCL_LSH_DEBUG0_ASSERT(0 < dims, "Illegal number of dimensions!");
+        SYCL_LSH_DEBUG_ASSERT(0 < total_size, "Illegal total size!");
+        SYCL_LSH_DEBUG_ASSERT(0 < rank_size, "Illegal rank size!");
+        SYCL_LSH_DEBUG_ASSERT(0 < dims, "Illegal number of dimensions!");
 
         // check for correct type
         MPI_Offset file_size;

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-09-29
  *
  * @brief Implements a simple MPI aware logger class.
  */
@@ -93,7 +93,7 @@ namespace sycl_lsh::mpi {
     template <typename... Args>
     void logger::log(const int comm_rank, const std::string_view msg, Args&&... args) const {
         SYCL_LSH_DEBUG_ASSERT(0 <= comm_rank && comm_rank < comm_.size(),
-                              "Illegal MPI rank! Should be in [0, %i) but is %i", comm_.size(), comm_rank);
+                "Illegal MPI rank! Must be greater or equal than 0 and less than comm.size().");
 
         // print message only on requested MPI rank
         if (comm_rank == comm_.rank()) {

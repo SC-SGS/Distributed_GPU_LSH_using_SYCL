@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-09-29
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -33,8 +33,8 @@ const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser:
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 sycl_lsh::argv_parser::argv_parser(const int argc, char** argv) {
-    SYCL_LSH_DEBUG_ASSERT(argc >= 1, "Illegal number of command line arguments! Must be greater or equal than 1, but is %i.", argc);
-    SYCL_LSH_DEBUG0_ASSERT(argv != nullptr, "Illegal command line argument parameter! Must not be the nullptr.");
+    SYCL_LSH_DEBUG_ASSERT(argc >= 1, "Illegal number of command line arguments! Must be greater or equal than 1.");
+    SYCL_LSH_DEBUG_ASSERT(argv != nullptr, "Illegal command line argument parameter! Must not be the nullptr.");
 
     for (int i = 1; i < argc; ++i) {
         std::string key = argv[i];
