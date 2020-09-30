@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-09-30
  *
  * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
  */
@@ -14,6 +14,7 @@
 #include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/filesystem.hpp>
+#include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 
@@ -70,9 +71,13 @@ namespace sycl_lsh {
         /// The used integral type for hash values.
         using hash_value_type = hash_value_t;
 
+        // TODO 2020-09-30 11:47 marcel: doesn't make sense the way it is
+
         /// The blocking size used in the SYCL kernels.
         static constexpr index_type blocking_size = 10;
-        // TODO: type of the hash functions
+        /// The hash functions type used in the SYCL kernels.
+        static constexpr auto hash_functions_type = hash_functions::random_projection;
+//        static constexpr auto hash_functions_type = hash_functions::entropy_based;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -170,16 +175,19 @@ namespace sycl_lsh {
         out << fmt::format("real_type '{}' ({} byte)\n", detail::arithmetic_type_name<real_type>(), sizeof(real_type));
         out << fmt::format("index_type '{}' ({} byte)\n", detail::arithmetic_type_name<index_type>(), sizeof(index_type));
         out << fmt::format("hash_value_type '{}' ({} byte)\n", detail::arithmetic_type_name<hash_value_type>(), sizeof(hash_value_type));
-        out << fmt::format("blocking_size {}\n\n", options_type::blocking_size);
+        out << fmt::format("blocking_size {}\n", options_type::blocking_size);
+        out << fmt::format("hash_functions_type '{}'\n\n", options_type::hash_functions_type);
 
         // runtime options
-        // TODO 2020-09-22 18:02 marcel: only print values used in the currently specified hash functions type
         out << fmt::format("hash_pool_size {}\n", opt.hash_pool_size);
         out << fmt::format("num_hash_functions {}\n", opt.num_hash_functions);
         out << fmt::format("num_hash_tables {}\n", opt.num_hash_tables);
         out << fmt::format("hash_table_size {}\n", opt.hash_table_size);
-        out << fmt::format("w {}\n", opt.w);
-        out << fmt::format("num_cut_off_points {}\n", opt.num_cut_off_points);
+        if constexpr (std::is_same_v<std::remove_cv_t<decltype(options_type::hash_functions_type)>, hash_functions::RandomProjection>) {
+            out << fmt::format("w {}\n", opt.w);
+        } else if constexpr (std::is_same_v<std::remove_cv_t<decltype(options_type::hash_functions_type)>, hash_functions::EntropyBased>) {
+            out << fmt::format("num_cut_off_points {}\n", opt.num_cut_off_points);
+        }
 
         return out;
     }
@@ -227,6 +235,13 @@ namespace sycl_lsh {
                 if (opt == "real_type" || opt == "index_type" || opt == "hash_value_type" || opt == "blocking_size") {
                     // can't read compile time options from file
                     continue;
+                } else if (opt == "hash_functions_type") {
+                    // check whether the hash functions types match
+                    if (value != fmt::format("'{}'", hash_functions_type)) {
+                        throw std::logic_error(fmt::format("The read hash_functions_type is {}, but the currently set hash_functions_type is '{}'!",
+                                value, hash_functions_type));
+                    }
+                    continue;
                 } else if (opt == "hash_pool_size") {
                     hash_pool_size = detail::convert_to<decltype(hash_pool_size)>(value);
                 } else if (opt == "num_hash_functions") {
@@ -245,8 +260,6 @@ namespace sycl_lsh {
                 }
             }
         }
-
-        // TODO 2020-09-22 17:49 marcel: check whether loaded save file has been saved with the same hash function type
 
         // parse command line options given directly through the command line arguments and perform sanity checks
         SYCL_LSH_PARSE_OPTION(parser, hash_pool_size,     hash_pool_size > 0);
