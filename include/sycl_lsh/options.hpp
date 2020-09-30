@@ -50,15 +50,18 @@ namespace sycl_lsh {
      * @tparam real_t a floating point type
      * @tparam index_t an integral type (used for indices)
      * @tparam hash_value_t an integral type (use for hash values)
+     * @tparam blocking_size_v the blocking size used in SYCL kernels
+     * @tparam hash_functions_t the type of the used hash functions in the LSH algorithm
      */
-    template <typename real_t, typename index_t, typename hash_value_t>
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
     struct options : private detail::options_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
-        static_assert(std::is_floating_point_v<real_t>, "The first template parameter must be a floating point type!");
-        static_assert(std::is_integral_v<index_t>, "The second template parameter must be an integral type!");
-        static_assert(std::is_integral_v<hash_value_t>, "The third template parameter must be an integral type!");
+        static_assert(std::is_floating_point_v<real_t>, "The first template parameter (real_type) must be a floating point type!");
+        static_assert(std::is_integral_v<index_t>, "The second template parameter (index_type) must be an integral type!");
+        static_assert(std::is_integral_v<hash_value_t>, "The third template parameter (hash_value_type) must be an integral type!");
+        static_assert(blocking_size_v > 0, "The fourth template parameter (blocking_size) must be greater than 0!");
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -71,25 +74,22 @@ namespace sycl_lsh {
         /// The used integral type for hash values.
         using hash_value_type = hash_value_t;
 
-        // TODO 2020-09-30 11:47 marcel: doesn't make sense the way it is
-
         /// The blocking size used in the SYCL kernels.
-        static constexpr index_type blocking_size = 10;
-        /// The hash functions type used in the SYCL kernels.
-        static constexpr auto hash_functions_type = hash_functions::random_projection;
-//        static constexpr auto hash_functions_type = hash_functions::entropy_based;
+        static constexpr index_type blocking_size = blocking_size_v;
+        /// The used hash functions type in the LSH algorithm.
+        static constexpr hash_functions_type type_of_hash_functions = hash_functions_t;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
         //                                              runtime options                                               //
         // ---------------------------------------------------------------------------------------------------------- //
         // TODO 2020-09-22 17:23 marcel: set meaningful defaults
-        
+
         /// The number of hash functions in the hash pool.
         index_type hash_pool_size = 10;
         /// The number of hash functions per hash table.
         index_type num_hash_functions = 4;
-        /// The number of used hash tables. 
+        /// The number of used hash tables.
         index_type num_hash_tables = 2;
         /// The size of each hash table.
         hash_value_type hash_table_size = 105619;
@@ -159,14 +159,16 @@ namespace sycl_lsh {
      * @tparam real_t a floating point type
      * @tparam index_t an integral type (used for indices)
      * @tparam hash_value_t an integral type (used for hash values)
+     * @tparam blocking_size_v the blocking size used in SYCL kernels
+     * @tparam hash_functions_t the type of the used hash functions in the LSH algorithm
      * @param[in,out] out the output stream
      * @param[in] opt the @ref sycl_lsh::options
      * @return the output stream
      */
-    template <typename real_t, typename index_t, typename hash_value_t>
-    std::ostream& operator<<(std::ostream& out, const options<real_t, index_t, hash_value_t>& opt) {
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    std::ostream& operator<<(std::ostream& out, const options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>& opt) {
         // get types
-        using options_type = options<real_t, index_t, hash_value_t>;
+        using options_type = options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>;
         using real_type = typename options_type::real_type;
         using index_type = typename options_type::index_type;
         using hash_value_type = typename options_type::hash_value_type;
@@ -176,16 +178,16 @@ namespace sycl_lsh {
         out << fmt::format("index_type '{}' ({} byte)\n", detail::arithmetic_type_name<index_type>(), sizeof(index_type));
         out << fmt::format("hash_value_type '{}' ({} byte)\n", detail::arithmetic_type_name<hash_value_type>(), sizeof(hash_value_type));
         out << fmt::format("blocking_size {}\n", options_type::blocking_size);
-        out << fmt::format("hash_functions_type '{}'\n\n", options_type::hash_functions_type);
+        out << fmt::format("hash_functions_type '{}'\n\n", options_type::type_of_hash_functions);
 
         // runtime options
         out << fmt::format("hash_pool_size {}\n", opt.hash_pool_size);
         out << fmt::format("num_hash_functions {}\n", opt.num_hash_functions);
         out << fmt::format("num_hash_tables {}\n", opt.num_hash_tables);
         out << fmt::format("hash_table_size {}\n", opt.hash_table_size);
-        if constexpr (std::is_same_v<std::remove_cv_t<decltype(options_type::hash_functions_type)>, hash_functions::RandomProjection>) {
+        if constexpr (options_type::type_of_hash_functions == hash_functions_type::random_projections) {
             out << fmt::format("w {}\n", opt.w);
-        } else if constexpr (std::is_same_v<std::remove_cv_t<decltype(options_type::hash_functions_type)>, hash_functions::EntropyBased>) {
+        } else if constexpr (options_type::type_of_hash_functions == hash_functions_type::entropy_based) {
             out << fmt::format("num_cut_off_points {}\n", opt.num_cut_off_points);
         }
 
@@ -196,8 +198,8 @@ namespace sycl_lsh {
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
-    template <typename real_t, typename index_t, typename hash_value_t>
-    options<real_t, index_t, hash_value_t>::options(const argv_parser& parser, const mpi::logger& logger) {
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::options(const argv_parser& parser, const mpi::logger& logger) {
         // parse command line options given through the (optionally) specified file
         if (parser.has_argv("options_file")) {
             const std::string& file = parser.argv_as<std::string>("options_file");
@@ -237,9 +239,9 @@ namespace sycl_lsh {
                     continue;
                 } else if (opt == "hash_functions_type") {
                     // check whether the hash functions types match
-                    if (value != fmt::format("'{}'", hash_functions_type)) {
+                    if (value != fmt::format("'{}'", type_of_hash_functions)) {
                         throw std::logic_error(fmt::format("The read hash_functions_type is {}, but the currently set hash_functions_type is '{}'!",
-                                value, hash_functions_type));
+                                value, type_of_hash_functions));
                     }
                     continue;
                 } else if (opt == "hash_pool_size") {
@@ -274,19 +276,23 @@ namespace sycl_lsh {
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                save options                                                //
     // ---------------------------------------------------------------------------------------------------------- //
-    template <typename real_t, typename index_t, typename hash_value_t>
-    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const argv_parser& parser, const mpi::logger& logger) const {
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    void options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::save(const mpi::communicator& comm, const argv_parser& parser,
+                                                                                         const mpi::logger& logger) const
+    {
         if (comm.master_rank()) {
             if (!parser.has_argv("options_save_file")) {
                 throw std::invalid_argument("Required command line argument 'options_save_file' not provided!");
             }
-            
+
             save(comm, parser.argv_as<std::string>("options_save_file"), logger);
         }
     }
 
-    template <typename real_t, typename index_t, typename hash_value_t>
-    void options<real_t, index_t, hash_value_t>::save(const mpi::communicator& comm, const std::string& file, const mpi::logger& logger) const {
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    void options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::save(const mpi::communicator& comm, const std::string& file,
+                                                                                         const mpi::logger& logger) const
+    {
         if (comm.master_rank()) {
             std::ofstream out(file, std::ofstream::trunc);
             if (out.bad()) {

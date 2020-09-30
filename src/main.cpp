@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-09-30
  *
  * @brief The main file containing the main logic.
  */
@@ -34,7 +34,7 @@ int custom_main(int argc, char** argv) {
         logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
         // parse options and print
-        const sycl_lsh::options<float, std::uint32_t, std::uint32_t> opt(parser, logger);
+        const sycl_lsh::options<float, std::uint32_t, std::uint32_t, 10, sycl_lsh::hash_functions_type::random_projections> opt(parser, logger);
         logger.log("Used options: \n{}\n", opt);
 
         // optionally save generated options to file
