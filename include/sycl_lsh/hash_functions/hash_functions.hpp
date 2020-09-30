@@ -9,6 +9,8 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTIONS_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTIONS_HPP
 
+#include <fmt/ostream.h>
+
 #include <ostream>
 
 namespace sycl_lsh {
