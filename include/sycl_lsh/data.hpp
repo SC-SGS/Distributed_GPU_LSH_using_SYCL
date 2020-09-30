@@ -130,20 +130,20 @@ namespace sycl_lsh {
          * @return the @ref sycl_lsh::data_attributes (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        const data_attributes_type& get_data_attributes() const noexcept { return data_attributes_; }
+        const data_attributes_type& get_attributes() const noexcept { return data_attributes_; }
 
         /**
          * @brief Returns the device buffer used in the SYCL kernels.
          * @return the device buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        device_buffer_type get_device_buffer() noexcept { return device_buffer_; }
+        device_buffer_type& get_device_buffer() noexcept { return device_buffer_; }
         /**
          * @brief Returns the host buffer used to hide the MPI communication.
          * @return the host buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        host_buffer_type get_host_buffer() noexcept { return host_buffer_active_; }
+        host_buffer_type& get_host_buffer() noexcept { return host_buffer_active_; }
 
     private:
         // befriend the factory function
@@ -187,7 +187,7 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options>
     std::ostream& operator<<(std::ostream& out, const data<layout, Options>& data) {
-        return out << data.get_data_attributes();
+        return out << data.get_attributes();
     }
 
 
@@ -196,9 +196,9 @@ namespace sycl_lsh {
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options>
     data<layout, Options>::data(const mpi::file_parser<Options, typename Options::real_type>& parser,
-                              const Options& opt,
-                              const mpi::communicator& comm,
-                              const mpi::logger& logger)
+                                const Options& opt,
+                                const mpi::communicator& comm,
+                                const mpi::logger& logger)
             : options_(opt), comm_(comm), logger_(logger),
               data_attributes_(parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims()),
               device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
