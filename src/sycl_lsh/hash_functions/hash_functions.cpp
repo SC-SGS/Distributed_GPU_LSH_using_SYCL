@@ -9,9 +9,11 @@
 #include <ostream>
 
 
-std::ostream& sycl_lsh::operator<<(std::ostream& out, sycl_lsh::hash_functions::EntropyBased) {
-    return out << "entropy_based";
-}
-std::ostream& sycl_lsh::operator<<(std::ostream& out, sycl_lsh::hash_functions::RandomProjection) {
-    return out << "random_projections";
+std::ostream& sycl_lsh::operator<<(std::ostream& out, const sycl_lsh::hash_functions_type type) {
+    switch (type) {
+        case hash_functions_type::random_projections:
+            return out << "random_projections";
+        case hash_functions_type::entropy_based:
+            return out << "entropy_based";
+    }
 }

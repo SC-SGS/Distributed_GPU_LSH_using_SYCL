@@ -15,16 +15,24 @@
 
 namespace sycl_lsh {
 
-    struct hash_functions {
-
-        static struct RandomProjection{} random_projection;
-        static struct EntropyBased{} entropy_based;
-
+    /**
+     * @brief Enum class for the different hash function types.
+     */
+    enum class hash_functions_type {
+        /** random projections hash functions */
+        random_projections,
+        /** entropy based hash functions */
+        entropy_based
     };
 
-    std::ostream& operator<<(std::ostream& out, hash_functions::EntropyBased);
-    std::ostream& operator<<(std::ostream& out, hash_functions::RandomProjection);
-
+    /**
+     * @brief Print the @p type of the hash functions to the output stream @p out.
+     * @param[in,out] out the output stream
+     * @param[in] type the hash functions type
+     * @return the output stream
+     */
+    std::ostream& operator<<(std::ostream& out, const hash_functions_type type);
+    
 }
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_FUNCTIONS_HPP
