@@ -19,6 +19,7 @@
 #include <sycl_lsh/exceptions/window_exception.hpp>
 
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
+#include <sycl_lsh/hash_functions/random_projections.hpp>
 
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
