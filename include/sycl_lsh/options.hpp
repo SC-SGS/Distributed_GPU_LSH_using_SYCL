@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-01
  *
  * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
  */
@@ -49,7 +49,7 @@ namespace sycl_lsh {
      * @brief Class containing and managing all compile time and runtime hyperparameters to change the behavior of the LSH algorithm.
      * @tparam real_t a floating point type
      * @tparam index_t an integral type (used for indices)
-     * @tparam hash_value_t an integral type (use for hash values)
+     * @tparam hash_value_t an unsigned type (used for hash values)
      * @tparam blocking_size_v the blocking size used in SYCL kernels
      * @tparam hash_functions_t the type of the used hash functions in the LSH algorithm
      */
@@ -60,7 +60,7 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         static_assert(std::is_floating_point_v<real_t>, "The first template parameter (real_type) must be a floating point type!");
         static_assert(std::is_integral_v<index_t>, "The second template parameter (index_type) must be an integral type!");
-        static_assert(std::is_integral_v<hash_value_t>, "The third template parameter (hash_value_type) must be an integral type!");
+        static_assert(std::is_unsigned_v<hash_value_t>, "The third template parameter (hash_value_type) must be an unsigned type!");
         static_assert(blocking_size_v > 0, "The fourth template parameter (blocking_size) must be greater than 0!");
 
 
@@ -71,7 +71,7 @@ namespace sycl_lsh {
         using real_type = real_t;
         /// The used integral type for indices.
         using index_type = index_t;
-        /// The used integral type for hash values.
+        /// The used unsigned type for hash values.
         using hash_value_type = hash_value_t;
 
         /// The blocking size used in the SYCL kernels.
@@ -158,7 +158,7 @@ namespace sycl_lsh {
      * @brief Print all options (compile time and runtime) set in @p opt to the output stream @p out.
      * @tparam real_t a floating point type
      * @tparam index_t an integral type (used for indices)
-     * @tparam hash_value_t an integral type (used for hash values)
+     * @tparam hash_value_t an unsigned type (used for hash values)
      * @tparam blocking_size_v the blocking size used in SYCL kernels
      * @tparam hash_functions_t the type of the used hash functions in the LSH algorithm
      * @param[in,out] out the output stream

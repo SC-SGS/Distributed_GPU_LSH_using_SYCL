@@ -121,7 +121,7 @@ namespace sycl_lsh {
         using real_type = typename options_type::real_type;
         /// The used integral type for indices.
         using index_type = typename options_type::index_type;
-        /// The used integral type for the hash values.
+        /// The used unsigned type for the hash values.
         using hash_value_type = typename options_type::hash_value_type;
 
         /// The type of the device buffer used by SYCL.
