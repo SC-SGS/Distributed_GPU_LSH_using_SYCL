@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-10-01
  *
  * @brief Implements an enum class to determine the memory layout type: Array of Structs or Struct of Arrays.
  */
@@ -34,10 +34,13 @@ namespace sycl_lsh {
     inline std::ostream& operator<<(std::ostream& out, const memory_layout layout) {
         switch (layout) {
             case memory_layout::aos:
-                return out << "Array of Structs";
+                out << "Array of Structs";
+                break;
             case memory_layout::soa:
-                return out << "Struct of Arrays";
+                out << "Struct of Arrays";
+                break;
         }
+        return out;
     }
 
 }

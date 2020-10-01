@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-01
  *
  * @brief Implements the factory functions for the hash functions classes.
  */
@@ -31,7 +31,17 @@ namespace sycl_lsh {
      * @param[in] type the hash functions type
      * @return the output stream
      */
-    std::ostream& operator<<(std::ostream& out, const hash_functions_type type);
+    inline std::ostream& operator<<(std::ostream& out, const hash_functions_type type) {
+        switch (type) {
+            case hash_functions_type::random_projections:
+                out << "random_projections";
+                break;
+            case hash_functions_type::entropy_based:
+                out << "entropy_based";
+                break;
+        }
+        return out;
+    }
     
 }
 
