@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-01
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -11,6 +11,7 @@
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/detail/defines.hpp>
+#include <sycl_lsh/detail/linear_id.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
@@ -53,31 +54,46 @@ namespace sycl_lsh {
     }
 
     /**
-     * @brief Convert the multi-dimensional index to an one-dimensional index.
+     * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::data class to convert a multi-dimensional
+     *        index to an one-dimensional.
      * @tparam layout the @ref sycl_lsh::memory_layout type
-     * @tparam index_type an integral type (used for indices)
-     * @param[in] point the requested data point
-     * @param[in] dim the requested dimension of @p point
-     * @param[in] data_attr the attributes of the used data set
-     * @return the one-dimensional index (`[[nodiscard]]`)
-     *
-     * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
-     * @pre @p dim must be in the range `[0, number of dimensions per data point)`
+     * @tparam Options the @ref sycl_lsh::options type
      */
-    template <memory_layout layout, typename index_type>
-    [[nodiscard]]
-    constexpr index_type get_linear_id__data(const index_type point, const index_type dim, const data_attributes<layout, index_type>& data_attr) noexcept {
-        SYCL_LSH_DEBUG_ASSERT(0 <= point && point < data_attr.rank_size, "Out-of-bounce access for data point!\n");
-        SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < data_attr.dims, "Out-of-bounce access for dimension!\n");
+    template <memory_layout layout, typename Options>
+    struct get_linear_id<data<layout, Options>> {
 
-        if constexpr (layout == memory_layout::aos) {
-            // Array of Structs
-            return dim + point * data_attr.dims;
-        } else {
-            // Struct of Arrays
-            return point + dim * data_attr.rank_size;
+        /// The used @ref sycl_lsh::data type.
+        using data_type = data<layout, Options>;
+        /// The used integral type (used for indices).
+        using index_type = typename data_type ::index_type;
+        /// The used @ref sycl_lsh::data_attributes type.
+        using data_attributes_type = typename data_type::data_attributes_type;
+
+        /**
+         * @brief Convert the multi-dimensional index to an one-dimensional index.
+         * @param[in] point the requested data point
+         * @param[in] dim the requested dimension of @p point
+         * @param[in] attr the attributes of the used data set
+         * @return the one-dimensional index (`[[nodiscard]]`)
+         *
+         * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
+         * @pre @p dim must be in the range `[0, number of dimensions per data point)`
+         */
+        [[nodiscard]]
+        index_type operator()(const index_type point, const index_type dim, const data_attributes_type& attr) const noexcept {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!\n");
+
+            if constexpr (layout == memory_layout::aos) {
+                // Array of Structs
+                return point * attr.dims + dim;
+            } else {
+                // Struct of Arrays
+                return point + dim * attr.rank_size;
+            }
         }
-    }
+
+    };
 
 
     /**
@@ -214,10 +230,12 @@ namespace sycl_lsh {
         if constexpr (layout == memory_layout::soa) {
             data_attributes<memory_layout::aos, index_type> parsed_data_attributes(data_attributes_);
 
+            const get_linear_id<data<memory_layout::soa, options_type>> get_linear_id_soa;
+
             for (index_type point = 0; point < data_attributes_.rank_size; ++point) {
                 for (index_type dim = 0; dim < data_attributes_.dims; ++dim) {
-                    host_buffer_inactive_[get_linear_id__data(point, dim, data_attributes_)]
-                            = host_buffer_active_[get_linear_id__data(point, dim, parsed_data_attributes)];
+                    host_buffer_inactive_[get_linear_id_soa(point, dim, data_attributes_)]
+                            = host_buffer_active_[point * data_attributes_.dims + dim];
                 }
             }
 
