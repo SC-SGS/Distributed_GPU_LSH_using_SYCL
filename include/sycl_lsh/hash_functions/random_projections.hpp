@@ -10,7 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_RANDOM_PROJECTIONS_HPP
 
 #include <sycl_lsh/detail/defines.hpp>
-#include <sycl_lsh/detail/linear_id.hpp>
+#include <sycl_lsh/detail/get_linear_id.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/data.hpp>
 #include <sycl_lsh/memory_layout.hpp>

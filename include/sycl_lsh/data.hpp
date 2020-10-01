@@ -11,7 +11,7 @@
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/detail/defines.hpp>
-#include <sycl_lsh/detail/linear_id.hpp>
+#include <sycl_lsh/detail/get_linear_id.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
