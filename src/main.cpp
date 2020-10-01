@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-01
  *
  * @brief The main file containing the main logic.
  */
@@ -68,13 +68,14 @@ int custom_main(int argc, char** argv) {
                 auto acc = data.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
                 auto acc_res = buf.get_access<sycl_lsh::sycl::access::mode::discard_write>(cgh);
                 const auto data_attr = data.get_attributes();
+                sycl_lsh::get_linear_id<decltype(data)> functor{};
 
                 cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_attr.rank_size), [=](sycl_lsh::sycl::item<> item){
                     const std::uint32_t idx = item.get_linear_id();
 
                     float val = 0;
                     for (std::uint32_t dim = 0; dim < data_attr.dims; ++dim) {
-                        val += acc[sycl_lsh::get_linear_id__data(idx, dim, data_attr)];
+                        val += acc[functor(idx, dim, data_attr)];
                     }
                     acc_res[idx] = val;
                 });
