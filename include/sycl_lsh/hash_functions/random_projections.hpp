@@ -126,7 +126,7 @@ namespace sycl_lsh {
                 std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
                 for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
                     for (index_type dim = 0; dim < attr.dims; ++dim) {
-                        hash_pool[hash_function * (attr.dims + 1) + dim] = rnd_normal_pool_dist(rnd_uniform_pool_gen);
+                        hash_pool[hash_function * (attr.dims + 1) + dim] = rnd_normal_pool_dist(rnd_normal_pool_gen);
                     }
                     hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
                 }
@@ -149,7 +149,7 @@ namespace sycl_lsh {
                         const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
                         for (index_type dim = 0; dim <= attr.dims; ++dim) {
                             host_buffer[get_linear_id_functor(hash_table, hash_function, dim, opt, attr)]
-                                = hash_pool[pool_hash_function * (attr.dims + 1) * dim];
+                                = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
                         }
                     }
                 }
