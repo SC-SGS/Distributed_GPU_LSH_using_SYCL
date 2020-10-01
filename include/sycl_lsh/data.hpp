@@ -124,13 +124,13 @@ namespace sycl_lsh {
          * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        const options_type& get_options() const noexcept { return options_; }
+        options_type get_options() const noexcept { return options_; }
         /**
          * @brief Return the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
          * @return the @ref sycl_lsh::data_attributes (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        const data_attributes_type& get_attributes() const noexcept { return data_attributes_; }
+        data_attributes_type get_attributes() const noexcept { return data_attributes_; }
 
         /**
          * @brief Returns the device buffer used in the SYCL kernels.
