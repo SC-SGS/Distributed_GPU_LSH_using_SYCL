@@ -42,46 +42,41 @@ int custom_main(int argc, char** argv) {
             opt.save(comm, parser, logger);
         }
 
-
-        sycl_lsh::mpi::binary_parser<decltype(opt), typename decltype(opt)::real_type> parser_file(parser.argv_as<std::string>("data_file"), comm, logger);
-
-        logger.log_on_all("total size: {} -> {}\n", comm.rank(), parser_file.parse_total_size());
-        logger.log_on_all("rank size: {} -> {}\n", comm.rank(), parser_file.parse_rank_size());
-        logger.log_on_all("dims: {} -> {}\n", comm.rank(), parser_file.parse_dims());
-
-        std::vector<float> buf(parser_file.parse_rank_size() * parser_file.parse_dims());
-        parser_file.parse_content(buf.data());
-        logger.log_on_all("content: {} -> {}\n", comm.rank(), fmt::join(buf, ", "));
-
-
-        logger.log("{}\n", SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU);
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::soa>(parser, opt, comm, logger);
         logger.log("{}\n", data);
 
-        std::vector<float> vec(data.get_attributes().rank_size);
-        {
-            sycl_lsh::sycl::queue queue(sycl_lsh::sycl::default_selector{});
-            logger.log("{}\n", queue.get_device().get_info<sycl_lsh::sycl::info::device::name>());
+        auto hf = sycl_lsh::make_random_projection_hash_function<sycl_lsh::memory_layout::soa>(opt, data, comm, logger);
 
-            sycl_lsh::sycl::buffer<float, 1> buf(vec.data(), vec.size());
-            queue.submit([&](sycl_lsh::sycl::handler& cgh) {
-                auto acc = data.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
-                auto acc_res = buf.get_access<sycl_lsh::sycl::access::mode::discard_write>(cgh);
-                const auto data_attr = data.get_attributes();
-                sycl_lsh::get_linear_id<decltype(data)> functor{};
 
-                cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_attr.rank_size), [=](sycl_lsh::sycl::item<> item){
-                    const std::uint32_t idx = item.get_linear_id();
-
-                    float val = 0;
-                    for (std::uint32_t dim = 0; dim < data_attr.dims; ++dim) {
-                        val += acc[functor(idx, dim, data_attr)];
-                    }
-                    acc_res[idx] = val;
-                });
-            });
-        }
-        logger.log_on_all("{}\n", fmt::join(vec, ", "));
+//        std::vector<float> vec(data.get_attributes().rank_size);
+//        {
+//            sycl_lsh::sycl::queue queue(sycl_lsh::sycl::default_selector{});
+//            logger.log("{}\n", queue.get_device().get_info<sycl_lsh::sycl::info::device::name>());
+//
+//            sycl_lsh::sycl::buffer<float, 1> buf(vec.data(), vec.size());
+//            queue.submit([&](sycl_lsh::sycl::handler& cgh) {
+//                auto acc = data.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
+//                auto acc_hf = hf.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
+//                auto acc_res = buf.get_access<sycl_lsh::sycl::access::mode::discard_write>(cgh);
+//                const auto data_attr = data.get_attributes();
+//                sycl_lsh::get_linear_id<decltype(data)> data_functor{};
+//                sycl_lsh::get_linear_id<decltype(hf)> hf_functor{};
+//
+//                cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_attr.rank_size), [=](sycl_lsh::sycl::item<> item){
+//                    const std::uint32_t idx = item.get_linear_id();
+//
+//                    float val = 0;
+//                    for (std::uint32_t hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+//                        for (std::uint32_t dim = 0; dim < data_attr.dims; ++dim) {
+//                            val += acc_hf[hf_functor(0, hash_function, dim, opt, data_attr)] * acc[data_functor(idx, dim, data_attr)];
+//                        }
+//                    }
+//
+//                    acc_res[idx] = val;
+//                });
+//            });
+//        }
+//        logger.log_on_all("{}\n", fmt::join(vec, ", "));
 
 
         // TODO 2020-09-24 14:47 marcel: move at the end of actual k-nearest-neighbor function
