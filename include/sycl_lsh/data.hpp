@@ -76,8 +76,8 @@ namespace sycl_lsh {
          * @param[in] attr the attributes of the used data set
          * @return the one-dimensional index (`[[nodiscard]]`)
          *
-         * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
-         * @pre @p dim must be in the range `[0, number of dimensions per data point)`
+         * @pre @p point must be in the range `[0, number of data points on the current MPI rank)` (currently disabled).
+         * @pre @p dim must be in the range `[0, number of dimensions per data point)` (currently disabled).
          */
         [[nodiscard]]
         index_type operator()(const index_type point, const index_type dim, const data_attributes_type& attr) const noexcept {
