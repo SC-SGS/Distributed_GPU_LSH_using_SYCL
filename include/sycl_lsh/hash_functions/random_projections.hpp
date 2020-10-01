@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-01
  *
  * @brief Implements the random projections hash function as the used LSH hash functions.
  */
@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_RANDOM_PROJECTIONS_HPP
 
 #include <sycl_lsh/detail/defines.hpp>
+#include <sycl_lsh/detail/linear_id.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/data.hpp>
 #include <sycl_lsh/memory_layout.hpp>
@@ -36,24 +37,31 @@ namespace sycl_lsh {
         return random_projections<layout, Options, Data>(opt, data, comm, logger);
     }
 
-    // TODO 2020-09-30 14:02 marcel: get linear id: template parameter? other hash function???
-    template <memory_layout layout, typename index_type, typename Options>
-    [[nodiscard]]
-    constexpr index_type get_linear_id__hash_function(const index_type hash_table, const index_type hash_function, const index_type dim,
-                                                      const Options& opt, const data_attributes<layout, index_type>& data_attr) noexcept
-    {
-        SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
-        SYCL_LSH_DEBUG_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!\n");
-        SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < data_attr.dims, "Out-of-bounce access for dimension!\n");
 
-        if constexpr (layout == memory_layout::aos) {
-            // Array of Structs
-            return hash_table * opt.num_hash_functions * (data_attr.dims + 1) + hash_function * (data_attr.dims + 1) + dim;
-        } else {
-            // Struct of Arrays
-            return hash_table * opt.num_hash_functions * (data_attr.dims + 1) + dim * opt.num_hash_functions + hash_function;
+    template <memory_layout layout, typename Options, typename Data>
+    struct get_linear_id<random_projections<layout, Options, Data>> {
+
+        using index_type = typename Options::index_type;
+        using data_attributes_type = typename Data::data_attributes_type;
+
+        [[nodiscard]]
+        index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim,
+                              const Options& opt, const data_attributes_type& data_attr) const noexcept
+        {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < data_attr.dims, "Out-of-bounce access for dimension!\n");
+
+            if constexpr (layout == memory_layout::aos) {
+                // Array of Structs
+                return hash_table * opt.num_hash_functions * (data_attr.dims + 1) + hash_function * (data_attr.dims + 1) + dim;
+            } else {
+                // Struct of Arrays
+                return hash_table * opt.num_hash_functions * (data_attr.dims + 1) + dim * opt.num_hash_functions + hash_function;
+            }
         }
-    }
+
+    };
 
 
     template <memory_layout layout, typename Options, typename Data>
@@ -76,12 +84,12 @@ namespace sycl_lsh {
         [[nodiscard]]
         constexpr memory_layout get_memory_layout() const noexcept { return layout; }
         [[nodiscard]]
-        const options_type& get_options() const noexcept { return options_; }
+        const options_type get_options() const noexcept { return options_; }
         [[nodiscard]]
         const data_type& get_data() const noexcept { return data_; }
 
         [[nodiscard]]
-        device_buffer_type& get_device_buffer() const noexcept { return device_buffer_; }
+        device_buffer_type& get_device_buffer() noexcept { return device_buffer_; }
 
     private:
         // befriend factory function
@@ -134,11 +142,13 @@ namespace sycl_lsh {
                 #endif
                 std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size - 1);
 
+                const get_linear_id<random_projections<layout, options_type, data_type>> get_linear_id_functor;
+
                 for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
                     for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                         const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
                         for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                            host_buffer[get_linear_id__hash_function(hash_table, hash_function, dim, opt, attr)]
+                            host_buffer[get_linear_id_functor(hash_table, hash_function, dim, opt, attr)]
                                 = hash_pool[pool_hash_function * (attr.dims + 1) * dim];
                         }
                     }
