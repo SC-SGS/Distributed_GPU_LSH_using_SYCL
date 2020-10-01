@@ -13,10 +13,11 @@ namespace sycl_lsh {
 
     /**
      * @brief Template class to specialize the calculation of the hash value for a specific @ref sycl_lsh::hash_functions_type.
+     * @details This template class **can't** get implicitly instantiated!
      * @tparam T the type to specialize
      */
     template <typename T>
-    struct lsh_hash { };
+    struct lsh_hash;
 
 }
 

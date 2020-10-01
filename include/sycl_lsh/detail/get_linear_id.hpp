@@ -13,10 +13,11 @@ namespace sycl_lsh {
 
     /**
      * @brief Template class to specialize the conversion from a multi-dimensional index to an one-dimensional.
+     * @details This template class **can't** get implicitly instantiated!
      * @tparam T the type to specialize
      */
     template <typename T>
-    struct get_linear_id { };
+    struct get_linear_id;
 
 }
 
