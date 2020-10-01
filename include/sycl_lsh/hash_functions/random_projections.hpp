@@ -11,6 +11,7 @@
 
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/get_linear_id.hpp>
+#include <sycl_lsh/detail/lsh_hash.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/data.hpp>
 #include <sycl_lsh/memory_layout.hpp>
@@ -91,6 +92,47 @@ namespace sycl_lsh {
                 // Struct of Arrays
                 return hash_table * opt.num_hash_functions * (attr.dims + 1) + dim * opt.num_hash_functions + hash_function;
             }
+        }
+
+    };
+
+    template <memory_layout layout, typename Options, typename Data>
+    struct lsh_hash<random_projections<layout, Options, Data>> {
+
+        using options_type = Options;
+        using real_type = typename options_type::real_type;
+        using index_type = typename options_type::index_type;
+        using hash_value_type = typename options_type::hash_value_type;
+
+        using data_type = Data;
+        using data_attributes_type = typename data_type::data_attributes_type;
+
+        using hash_function_type = random_projections<layout, Options, Data>;
+
+        template <typename AccData, typename AccHashFunctions>
+        [[nodiscard]]
+        hash_value_type operator()(const index_type hash_table, const index_type point,
+                                   AccData& acc_data, AccHashFunctions& acc_hash_functions,
+                                   const options_type& opt, const data_attributes_type& attr) const
+
+        {
+
+            const get_linear_id<hash_function_type> get_linear_id_hash_function{};
+            const get_linear_id<data_type> get_linear_id_data{};
+
+            hash_value_type combined_hash = opt.num_hash_functions;
+            for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                real_type hash = acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
+                for (index_type dim = 0; dim < attr.dims; ++dim) {
+                    hash += acc_data[get_linear_id_data(point, dim, attr)]
+                            * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
+                }
+                combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
+                                + static_cast<hash_value_type>(0x9e3779b9)
+                                + (combined_hash << static_cast<hash_value_type>(6))
+                                + (combined_hash >> static_cast<hash_value_type>(2));
+            }
+            return combined_hash % opt.hash_table_size;
         }
 
     };
