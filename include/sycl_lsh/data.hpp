@@ -55,7 +55,7 @@ namespace sycl_lsh {
 
     /**
      * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::data class to convert a multi-dimensional
-     *        index to an one-dimensional.
+     *        index to an one-dimensional one.
      * @tparam layout the @ref sycl_lsh::memory_layout type
      * @tparam Options the @ref sycl_lsh::options type
      */
@@ -65,7 +65,7 @@ namespace sycl_lsh {
         /// The used @ref sycl_lsh::data type.
         using data_type = data<layout, Options>;
         /// The used integral type (used for indices).
-        using index_type = typename data_type ::index_type;
+        using index_type = typename data_type::index_type;
         /// The used @ref sycl_lsh::data_attributes type.
         using data_attributes_type = typename data_type::data_attributes_type;
 
