@@ -9,6 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_RANDOM_PROJECTIONS_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_RANDOM_PROJECTIONS_HPP
 
+#include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/get_linear_id.hpp>
 #include <sycl_lsh/detail/lsh_hash.hpp>
