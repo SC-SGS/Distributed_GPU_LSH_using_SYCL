@@ -209,8 +209,6 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         /// The type of the @ref sycl_lsh::options object.
         using options_type = Options;
-        /// The type of the @ref sycl_lsh::data object.
-        using data_type = Data;
         /// The used floating point type for the hash functions.
         using real_type = typename options_type::real_type;
         /// The used integral type for indices.
@@ -218,6 +216,9 @@ namespace sycl_lsh {
         /// The used unsigned type for the hash values.
         using hash_value_type = typename options_type::hash_value_type;
 
+        /// The type of the @ref sycl_lsh::data object.
+        using data_type = Data;
+        /// The type of the @ref sycl_lsh::data_attributes_type object.
         using data_attributes_type = typename data_type::data_attributes_type;
 
         /// The type of the device buffer used by SYCL.
@@ -392,7 +393,7 @@ namespace sycl_lsh {
         }
 
         // select actual hash functions
-        std::vector<real_type> host_buffer(options_.num_hash_tables * options_.num_hash_functions * (attr.dims + options_.num_cut_off_points - 1));
+        std::vector<real_type> host_buffer(device_buffer_.get_count());
         if (comm_.master_rank()) {
             // create random generator
             #if SYCL_LSH_DEBUG
