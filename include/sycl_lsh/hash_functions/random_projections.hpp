@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-01
+ * @date 2020-10-02
  *
  * @brief Implements the random projections hash function as the used LSH hash functions.
  */
@@ -59,10 +59,15 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     struct get_linear_id<random_projections<layout, Options, Data>> {
 
+        /// The used @ref sycl_lsh::options type.
+        using options_type = Options;
         /// The used integral type (used for indices).
-        using index_type = typename Options::index_type;
+        using index_type = typename options_type::index_type;
+
+        /// The used @ref sycl_lsh::data type.
+        using data_type = Data;
         /// The used @ref sycl_lsh::data_attributes type.
-        using data_attributes_type = typename Data::data_attributes_type;
+        using data_attributes_type = typename data_type::data_attributes_type;
 
         /**
          * @brief Convert the multi-dimensional index to an one-dimensional index.
@@ -79,7 +84,7 @@ namespace sycl_lsh {
          */
         [[nodiscard]]
         index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim,
-                              const Options& opt, const data_attributes_type& attr) const noexcept
+                              const options_type& opt, const data_attributes_type& attr) const noexcept
         {
 //            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
 //            SYCL_LSH_DEBUG_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!\n");
@@ -96,19 +101,48 @@ namespace sycl_lsh {
 
     };
 
+    /**
+     * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::random_projections class to calculate the
+     *        hash value.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the @ref sycl_lsh::options type
+     * @tparam Data the @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
     struct lsh_hash<random_projections<layout, Options, Data>> {
 
+        /// The used @ref sycl_lsh::options type.
         using options_type = Options;
+        /// The used floating point type (used for the data points and hash functions).
         using real_type = typename options_type::real_type;
+        /// The used integral type (used for indices).
         using index_type = typename options_type::index_type;
+        /// The used unsigned type (used for the calculated hash value).
         using hash_value_type = typename options_type::hash_value_type;
 
+        /// The used @ref sycl_lsh::data type.
         using data_type = Data;
+        /// The used @ref sycl_lsh::data_attributes type.
         using data_attributes_type = typename data_type::data_attributes_type;
 
+        /// The used hash functions type (random projections for this specialization).
         using hash_function_type = random_projections<layout, Options, Data>;
 
+        /**
+         * @brief Calculates the hash value of the data point @p point in hash table @p hash_tables using random projections.
+         * @tparam AccData the type of the data set `sycl::accessor`
+         * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
+         * @param[in] hash_table the provided hash table
+         * @param[in] point the provided data point
+         * @param[in] acc_data the data set `sycl::accessor`
+         * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the used @ref sycl_lsh::data_attributes
+         * @return the calculated hash value using random projections (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
+         */
         template <typename AccData, typename AccHashFunctions>
         [[nodiscard]]
         hash_value_type operator()(const index_type hash_table, const index_type point,
@@ -116,17 +150,22 @@ namespace sycl_lsh {
                                    const options_type& opt, const data_attributes_type& attr) const
 
         {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
+            // get indexing functions
             const get_linear_id<hash_function_type> get_linear_id_hash_function{};
             const get_linear_id<data_type> get_linear_id_data{};
 
             hash_value_type combined_hash = opt.num_hash_functions;
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                // calculate hash for current hash function
                 real_type hash = acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
                 for (index_type dim = 0; dim < attr.dims; ++dim) {
                     hash += acc_data[get_linear_id_data(point, dim, attr)]
                             * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
                 }
+                // combine hashes
                 combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
                                 + static_cast<hash_value_type>(0x9e3779b9)
                                 + (combined_hash << static_cast<hash_value_type>(6))
