@@ -42,12 +42,11 @@ int custom_main(int argc, char** argv) {
             opt.save(comm, parser, logger);
         }
 
-        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::soa>(parser, opt, comm, logger);
+        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(parser, opt, comm, logger);
         logger.log("\nUsed data set:\n{}\n", data);
 
 //        auto hf = sycl_lsh::make_random_projections_hash_functions<sycl_lsh::memory_layout::soa>(opt, data, comm, logger);
-        auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::soa>(opt, data, comm, logger);
-
+        auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
 
 //        std::vector<float> vec(data.get_attributes().rank_size);
 //        {
