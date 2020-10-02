@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-01
+ * @date 2020-10-02
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -117,6 +117,7 @@ namespace sycl_lsh {
         using real_type = typename options_type::real_type;
         /// The used integral type for indices.
         using index_type = typename options_type::index_type;
+        
         /// The type of the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
         using data_attributes_type = data_attributes<layout, index_type>;
 
