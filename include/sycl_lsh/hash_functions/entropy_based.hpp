@@ -36,21 +36,57 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     class entropy_based;
 
+    /**
+     * @brief Factory function for the @ref sycl_lsh::entropy_based hash functions class.
+     * @details Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
+     * @tparam layout the used @ref sycl_lsh::memory_layout type
+     * @tparam Options the used @ref sycl_lsh::options type
+     * @tparam Data the used @ref sycl_lsh::data type
+     * @param[in] opt the used @ref sycl_lsh::options
+     * @param[in] data the used @ref sycl_lsh::data
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] logger hte used @ref sycl_lsh::mpi::logger
+     * @return the @ref sycl_lsh::entropy_based hash functions used in the LSH algorithm (`[[nodiscard]]`)
+     */
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
     inline auto make_entropy_based_hash_functions(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
         return entropy_based<layout, Options, Data>(opt, data, comm, logger);
     }
 
+    /**
+     * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::entropy_based class to convert a
+     *        multi-dimensional index to an one-dimensional one.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the @ref sycl_lsh::options type
+     * @tparam Data the @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
     struct get_linear_id<entropy_based<layout, Options, Data>> {
 
+        /// The used @ref sycl_lsh::options type.
         using options_type = Options;
+        /// The used integral type (used for indices).
         using index_type = typename options_type::index_type;
 
+        /// The used @ref sycl_lsh::data type.
         using data_type = Data;
+        /// The used @ref sycl_lsh::data_attributes type.
         using data_attributes_type = typename data_type::data_attributes_type;
 
+        /**
+         * @brief Convert the multi-dimensional index to an one-dimensional index.
+         * @param[in] hash_table the requested hash table
+         * @param[in] hash_function the requested hash function
+         * @param[in] dim the requested dimension of @p hash_function
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the attributes of the used data set
+         * @return the one-dimensional index (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
+         * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
+         */
         [[nodiscard]]
         index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim,
                               const options_type& opt, const data_attributes_type& attr) const noexcept
@@ -75,9 +111,82 @@ namespace sycl_lsh {
         
     };
 
+    /**
+     * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::entropy_based class to calculate the
+     *        hash value.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the @ref sycl_lsh::options type
+     * @tparam Data the @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
     struct lsh_hash<entropy_based<layout, Options, Data>> {
-        // TODO 2020-10-02 12:25 marcel: implement
+
+        /// The used @ref sycl_lsh::options type.
+        using options_type = Options;
+        /// The used floating point type (used for the data points and hash functions).
+        using real_type = typename options_type::real_type;
+        /// The used integral type (used for indices).
+        using index_type = typename options_type::index_type;
+        /// The used unsigned type (used for the calculated hash value).
+        using hash_value_type = typename options_type::hash_value_type;
+
+        /// The used @ref sycl_lsh::data type.
+        using data_type = Data;
+        /// The used @ref sycl_lsh::data_attributes type.
+        using data_attributes_type = typename data_type::data_attributes_type;
+
+        /// The used hash functions type (entropy based for this specialization).
+        using hash_function_type = entropy_based<layout, Options, Data>;
+
+        /**
+         * @brief Calculates the hash value of the data point @p point in hash table @p hash_tables using entropy based hash functions.
+         * @tparam AccData the type of the data set `sycl::accessor`
+         * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
+         * @param[in] hash_table the provided hash table
+         * @param[in] point the provided data point
+         * @param[in] acc_data the data set `sycl::accessor`
+         * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the used @ref sycl_lsh::data_attributes
+         * @return the calculated hash value using entropy based hash functions (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
+         */
+        template <typename AccData, typename AccHashFunctions>
+        [[nodiscard]]
+        hash_value_type  operator()(const index_type hash_table, const index_type point,
+                                    AccData& acc_data, AccHashFunctions& acc_hash_functions,
+                                    const options_type& opt, const data_attributes_type& attr) const
+        {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
+
+            // get indexing functions
+            const get_linear_id<hash_function_type> get_linear_id_hash_function{};
+            const get_linear_id<data_type> get_linear_id_data{};
+
+            hash_value_type combined_hash = opt.num_hash_functions;
+            for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                // calculate dot product for current hash function
+                real_type hash = 0.0;
+                for (index_type dim = 0; dim < attr.dims; ++dim) {
+                    hash += acc_data[get_linear_id_data(point, dim, attr)]
+                            * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
+                }
+                // calculate entropy hash for current hash function
+                hash_value_type entropy_hash = 0;
+                for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
+                    entropy_hash += hash > acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims + cop, opt, attr)];
+                }
+                // combine hashes
+                combined_hash ^= entropy_hash
+                                 + static_cast<hash_value_type>(0x9e3779b9)
+                                 + (combined_hash << static_cast<hash_value_type>(6))
+                                 + (combined_hash >> static_cast<hash_value_type>(2));
+            }
+            return combined_hash % opt.hash_table_size;
+        }
     };
 
 
@@ -177,7 +286,7 @@ namespace sycl_lsh {
     entropy_based<layout, Options, Data>::entropy_based(const Options& opt, Data& data,
                                                         const mpi::communicator& comm, const mpi::logger& logger)
             : options_(opt), data_(data), comm_(comm), logger_(logger),
-              device_buffer_(1)
+              device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + opt.num_cut_off_points - 1))
     {
         mpi::timer t(comm_);
 
@@ -226,7 +335,7 @@ namespace sycl_lsh {
 
         // calculate cut-off points
         {
-            // TODO 2020-10-02 13:16 marcel: change + CMake?
+            // TODO 2020-10-02 13:16 marcel: change to custom selector
             sycl::queue queue(sycl::default_selector{});
             sycl::buffer<real_type, 1> hash_functions_pool_buffer(hash_functions_pool.data(), hash_functions_pool.size());
 
@@ -255,18 +364,17 @@ namespace sycl_lsh {
 
                 // sort hash_values vector in a distributed fashion
                 mpi::odd_even_sort(hash_values, comm);
-
+                
                 std::vector<real_type> cut_off_points(options.num_cut_off_points - 1, 0.0);
 
                 // calculate cut-off points indices
                 std::vector<index_type> cut_off_points_idx(cut_off_points.size());
-                const index_type jump = attr.total_size / options.num_cut_off_points;
+                const index_type jump = (attr.rank_size * comm.size()) / options.num_cut_off_points;
                 for (index_type cop = 0; cop < cut_off_points_idx.size(); ++cop) {
                     cut_off_points_idx[cop] = (cop + 1) * jump;
                 }
 
                 // fill cut-off points which are located on the current MPI rank
-                // TODO 2020-10-02 14:18 marcel: out of bounce access??
                 for (index_type cop = 0; cop < options.num_cut_off_points - 1; ++cop) {
                     // check if index belongs to current MPI rank
                     if (cut_off_points_idx[cop] >= attr.rank_size * comm.rank() && cut_off_points_idx[cop] < attr.rank_size * (comm.rank() + 1)) {
@@ -276,6 +384,7 @@ namespace sycl_lsh {
 
                 // combine to final cut-off points on all MPI ranks
                 MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), mpi::type_cast<real_type>(), MPI_SUM, comm.get());
+
                 // copy current cut-off points to pool
                 std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
             }
