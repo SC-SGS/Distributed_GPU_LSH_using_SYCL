@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-02
  *
  * @brief Core header which includes every other necessary header file, i.e. \c \#include` <sycl_lsh/core.hpp>` is sufficient to use every
  *        important function or class.
@@ -20,6 +20,7 @@
 
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/hash_functions/random_projections.hpp>
+#include <sycl_lsh/hash_functions/entropy_based.hpp>
 
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
