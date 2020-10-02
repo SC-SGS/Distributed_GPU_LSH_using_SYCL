@@ -46,7 +46,7 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    inline auto make_random_projections_hash_functions(const Options& opt, const Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
+    inline auto make_random_projections_hash_functions(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
         return random_projections<layout, Options, Data>(opt, data, comm, logger);
     }
 
@@ -197,14 +197,17 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         /// The type of the @ref sycl_lsh::options object.
         using options_type = Options;
-        /// The type of the @ref sycl_lsh::data object.
-        using data_type = Data;
         /// The used floating point type for the hash functions.
         using real_type = typename options_type::real_type;
         /// The used integral type for indices.
         using index_type = typename options_type::index_type;
         /// The used unsigned type for the hash values.
         using hash_value_type = typename options_type::hash_value_type;
+
+        /// The type of the @ref sycl_lsh::data object.
+        using data_type = Data;
+        /// The type of the @ref sycl_lsh::data_attributes_type object.
+        using data_attributes_type = typename data_type::data_attributes_type;
 
         /// The type of the device buffer used by SYCL.
         using device_buffer_type = sycl::buffer<real_type, 1>;
@@ -241,7 +244,7 @@ namespace sycl_lsh {
 
     private:
         // befriend factory function
-        friend auto make_random_projections_hash_functions<layout, Options, Data>(const options_type&, const data_type&, const mpi::communicator&, const mpi::logger&);
+        friend auto make_random_projections_hash_functions<layout, Options, Data>(const options_type&, data_type&, const mpi::communicator&, const mpi::logger&);
 
         // ---------------------------------------------------------------------------------------------------------- //
         //                                                constructor                                                 //
@@ -253,11 +256,11 @@ namespace sycl_lsh {
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          */
-        random_projections(const options_type& opt, const data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
+        random_projections(const options_type& opt, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
 
 
         const options_type& options_;
-        const data_type& data_;
+        data_type& data_;
         const mpi::communicator& comm_;
         const mpi::logger& logger_;
 
@@ -269,14 +272,14 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    random_projections<layout, Options, Data>::random_projections(const Options& opt, const Data& data,
+    random_projections<layout, Options, Data>::random_projections(const Options& opt, Data& data,
                                                                   const mpi::communicator& comm, const mpi::logger& logger)
             : options_(opt), data_(data), comm_(comm), logger_(logger),
               device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1))
     {
         mpi::timer t(comm_);
 
-        const auto& attr = data.get_attributes();
+        const data_attributes_type& attr = data_.get_attributes();
 
         std::vector<real_type> host_buffer(device_buffer_.get_count());
 
@@ -294,11 +297,11 @@ namespace sycl_lsh {
                 std::mt19937 rnd_uniform_pool_gen(rnd_pool_device());
             #endif
             std::normal_distribution<real_type> rnd_normal_pool_dist;
-            std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, opt.w);
+            std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, options_.w);
 
             // fill hash pool
-            std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
-            for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
+            std::vector<real_type> hash_pool(options_.hash_pool_size * (attr.dims + 1));
+            for (index_type hash_function = 0; hash_function < options_.hash_pool_size; ++hash_function) {
                 for (index_type dim = 0; dim < attr.dims; ++dim) {
                     // TODO 2020-10-02 12:47 marcel: abs?
                     hash_pool[hash_function * (attr.dims + 1) + dim] = rnd_normal_pool_dist(rnd_normal_pool_gen);
@@ -315,15 +318,15 @@ namespace sycl_lsh {
                 std::random_device rnd_device;
                 std::mt19937 rnd_uniform_gen(rnd_device());
             #endif
-            std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size - 1);
+            std::uniform_int_distribution<index_type> rnd_uniform_dist(0, options_.hash_pool_size - 1);
 
             const get_linear_id<random_projections<layout, options_type, data_type>> get_linear_id_functor;
 
-            for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-                for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+            for (index_type hash_table = 0; hash_table < options_.num_hash_tables; ++hash_table) {
+                for (index_type hash_function = 0; hash_function < options_.num_hash_functions; ++hash_function) {
                     const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
                     for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                        host_buffer[get_linear_id_functor(hash_table, hash_function, dim, opt, attr)]
+                        host_buffer[get_linear_id_functor(hash_table, hash_function, dim, options_, attr)]
                                 = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
                     }
                 }
