@@ -43,7 +43,7 @@ int custom_main(int argc, char** argv) {
         }
 
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::soa>(parser, opt, comm, logger);
-        logger.log("{}\n", data);
+        logger.log("\nUsed data set:\n{}\n", data);
 
 //        auto hf = sycl_lsh::make_random_projections_hash_functions<sycl_lsh::memory_layout::soa>(opt, data, comm, logger);
         auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::soa>(opt, data, comm, logger);
