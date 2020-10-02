@@ -16,7 +16,7 @@ endif ()
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     set(CMAKE_CXX_COMPILER syclcc-clang)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-    set(CMAKE_CXX_COMPILER compute++)
+#    set(CMAKE_CXX_COMPILER compute++)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
     set(CMAKE_CXX_COMPILER dpcpp)
 endif()
@@ -26,6 +26,13 @@ project("Distributed GPU LSH implementation using SYCL"
         VERSION 1.0.0
         LANGUAGES CXX
         DESCRIPTION "master theses Marcel Breyer")
+
+if (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/marcel/Programs/computecpp-sdk/cmake/Modules")
+    include(FindComputeCpp)
+    include_directories(${COMPUTE_CPP_INCLUDE_DIRECTORIES})
+endif ()
 
 
 # cmake configuration options
@@ -159,14 +166,16 @@ if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
     # disable -Wunused-parameter if compiling for hipSYCL
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-target ptx64)
-    endif ()
-    if (NOT SYCL_LSH_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -no-serial-memop)
-    endif ()
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
+#    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
+#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-target ptx64)
+#    endif ()
+#    if (NOT SYCL_LSH_TARGET MATCHES "CPU")
+#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -no-serial-memop)
+#    endif ()
+#    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
+#    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lstdc++fs)
+    list(APPEND COMPUTECPP_USER_FLAGS -no-serial-memop)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --gcc-toolchain=$ENV{DPCPP_GCC_TOOLCHAIN})
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl -lstdc++fs)
@@ -177,6 +186,10 @@ endif()
 add_executable(prog src/main.cpp)
 target_compile_options(prog PRIVATE -Wall -Wextra -pedantic)
 target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
+
+if (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
+    add_sycl_to_target(TARGET prog SOURCES src/main.cpp)
+endif ()
 
 
 # generate documentation if requested
