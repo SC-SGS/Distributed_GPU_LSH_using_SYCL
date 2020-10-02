@@ -218,7 +218,7 @@ namespace sycl_lsh {
 
         /// The type of the @ref sycl_lsh::data object.
         using data_type = Data;
-        /// The type of the @ref sycl_lsh::data_attributes_type object.
+        /// The type of the @ref sycl_lsh::data_attributes object.
         using data_attributes_type = typename data_type::data_attributes_type;
 
         /// The type of the device buffer used by SYCL.
