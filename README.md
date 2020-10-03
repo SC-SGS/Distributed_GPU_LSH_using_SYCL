@@ -20,13 +20,21 @@ work aims to create just such an LSH implementation, enabling the distributed co
 that are located over multiple compute nodes using MPI (or HPX as a modern alternative).
 
 
-## Prerequisite
+## Pre-requisite
 * A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL), 
   [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) or [oneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html).
 * A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
 * The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
+
+## Using ComputeCpp as SYCL implementation
+
+1. Be sure all pre-requisites are installed: https://developer.codeplay.com/products/computecpp/ce/guides.
+2. Download and install ComputeCpp: https://developer.codeplay.com/products/computecpp/ce/download.
+3. Clone the ComputeCpp SDK github repository: https://github.com/codeplaysoftware/computecpp-sdk.
+4. Export the environment variable `ComputeCpp_DIR` to the root directory of the ComputeCpp installation.
+5. Export the environment variable `ComputeCpp_SDK_DIR` to the root directory of the ComputeCpp SDK installation.
 
 ## Building the program
 To build the code use:
