@@ -13,13 +13,21 @@ endif ()
 
 
 # set compiler wrapper based on used SYCL implementation
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-    set(CMAKE_CXX_COMPILER syclcc-clang)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-#    set(CMAKE_CXX_COMPILER compute++)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
+if (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
     set(CMAKE_CXX_COMPILER dpcpp)
 endif()
+
+
+# set supported SYCL targets
+set(SUPPORTED_SYCL_LSH_TARGETS CPU NVIDIA AMD) # CPU = 0, NVIDIA = 1, AMD = 2
+if (NOT SYCL_LSH_TARGET)
+    set(SYCL_LSH_TARGET NVIDIA)
+endif ()
+if (NOT ${SYCL_LSH_TARGET} IN_LIST SUPPORTED_SYCL_LSH_TARGETS)
+    message(FATAL_ERROR "SYCL target \"${SYCL_LSH_TARGET}\" not supported!")
+else ()
+    message(STATUS "Using \"${SYCL_LSH_TARGET}\" as SYCL target.")
+endif ()
 
 
 project("Distributed GPU LSH implementation using SYCL"
@@ -27,9 +35,38 @@ project("Distributed GPU LSH implementation using SYCL"
         LANGUAGES CXX
         DESCRIPTION "master theses Marcel Breyer")
 
-if (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
+
+if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
+    set(hipSYCL_DIR /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/lib/cmake)
+    if (SYCL_LSH_TARGET MATCHES "CPU")
+        # TODO: using this line results in many linker errors
+        #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
+        set(HIPSYCL_PLATFORM cpu)
+    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
+        #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
+        set(HIPSYCL_PLATFORM cuda)
+        set(HIPSYCL_GPU_ARCH sm_75)
+    elseif (SYCL_LSH_TARGET MATCHES "AMD")
+        #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
+        set(HIPSYCL_PLATFORM rocm)
+    endif ()
+    find_package(hipSYCL REQUIRED)
+elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
+    # needed to be able to use ComputeCpp
     set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/marcel/Programs/computecpp-sdk/cmake/Modules")
+    
+    # set bitcode to ptx64 if targetting NVIDIA GPUs
+    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
+        set(COMPUTECPP_BITCODE ptx64 CACHE STRING "Must use ptx64 bitcode if targeting NVIDIA GPUs." FORCE)
+    endif ()
+
+    # MUST set ComputeCpp_DIR to the root directory of ComputeCpp
+    set(ComputeCpp_DIR $ENV{ComputeCpp_DIR} CACHE STRING "Path to " FORCE)
+    
+    # MUST set ComputeCpp_SDK_DIR to the root directory of the ComputeCpp SDK
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "$ENV{ComputeCpp_SDK_DIR}/cmake/Modules")
+
+    # find ComputeCpp
     include(FindComputeCpp)
     include_directories(${COMPUTE_CPP_INCLUDE_DIRECTORIES})
 endif ()
@@ -55,18 +92,6 @@ endif ()
 # in order to benchmark the code, a timer must be enabled
 if (DEFINED SYCL_LSH_BENCHMARK AND ${SYCL_LSH_TIMER} MATCHES "NONE")
     message(FATAL_ERROR "In order to benchmark, a timer (NON_BLOCKING or BLOCKING) must be enabled!")
-endif ()
-
-
-# set supported SYCL targets
-set(SUPPORTED_SYCL_LSH_TARGETS CPU NVIDIA AMD) # CPU = 0, NVIDIA = 1, AMD = 2
-if (NOT SYCL_LSH_TARGET)
-    set(SYCL_LSH_TARGET NVIDIA)
-endif ()
-if (NOT ${SYCL_LSH_TARGET} IN_LIST SUPPORTED_SYCL_LSH_TARGETS)
-    message(FATAL_ERROR "SYCL target \"${SYCL_LSH_TARGET}\" not supported!")
-else () 
-    message(STATUS "Using \"${SYCL_LSH_TARGET}\" as SYCL target.")
 endif ()
 
 
@@ -155,25 +180,21 @@ target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL
 
 # set SYCL implementation specific options # TODO: doesn't work as expected!
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        # TODO: using this line results in many linker errors
-#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
-    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
-    elseif (SYCL_LSH_TARGET MATCHES "AMD")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
-    endif ()
-    # disable -Wunused-parameter if compiling for hipSYCL
+#    if (SYCL_LSH_TARGET MATCHES "CPU")
+#        # TODO: using this line results in many linker errors
+##        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
+#        set(HIPSYCL_PLATFORM cpu)
+#    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
+##        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cuda)
+#        set(HIPSYCL_PLATFORM cuda)
+#    elseif (SYCL_LSH_TARGET MATCHES "AMD")
+##        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=rocm)
+#        set(HIPSYCL_PLATFORM rocm)
+#    endif ()
+#    # disable -Wunused-parameter if compiling for hipSYCL
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-#    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
-#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-target ptx64)
-#    endif ()
-#    if (NOT SYCL_LSH_TARGET MATCHES "CPU")
-#        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -no-serial-memop)
-#    endif ()
-#    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-driver)
-#    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lComputeCpp -lstdc++fs)
+    # add additional ComputeCpp specific flags
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lstdc++fs)
     list(APPEND COMPUTECPP_USER_FLAGS -no-serial-memop)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
@@ -187,7 +208,9 @@ add_executable(prog src/main.cpp)
 target_compile_options(prog PRIVATE -Wall -Wextra -pedantic)
 target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
 
-if (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
+
+# add necessary SYCL flags to the target
+if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL|ComputeCpp")
     add_sycl_to_target(TARGET prog SOURCES src/main.cpp)
 endif ()
 
