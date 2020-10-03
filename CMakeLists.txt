@@ -61,7 +61,7 @@ elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     endif ()
 
     # MUST set ComputeCpp_DIR to the root directory of ComputeCpp
-    set(ComputeCpp_DIR $ENV{ComputeCpp_DIR} CACHE STRING "Path to " FORCE)
+    set(ComputeCpp_DIR $ENV{ComputeCpp_DIR} CACHE STRING "Path to the root directory of the ComputeCpp installation." FORCE)
     
     # MUST set ComputeCpp_SDK_DIR to the root directory of the ComputeCpp SDK
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "$ENV{ComputeCpp_SDK_DIR}/cmake/Modules")
