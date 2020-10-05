@@ -17,6 +17,7 @@
 
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 namespace sycl_lsh::mpi {
 
@@ -86,7 +87,7 @@ namespace sycl_lsh::mpi {
          *
          * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
          */
-        void write_content(index_type size, index_type dims, parsing_type* buffer) const override;
+        void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const override;
 
     };
 
@@ -123,7 +124,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void arff_parser<Options, T>::write_content([[maybe_unused]] const index_type size, [[maybe_unused]] const index_type dims, [[maybe_unused]] parsing_type* buffer) const {
+    void arff_parser<Options, T>::write_content([[maybe_unused]] const index_type size, [[maybe_unused]] const index_type dims, [[maybe_unused]] const std::vector<parsing_type>& buffer) const {
         throw sycl_lsh::not_implemented();
     }
 

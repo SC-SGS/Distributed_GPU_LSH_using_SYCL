@@ -22,6 +22,7 @@
 
 #include <cstdlib>
 #include <string_view>
+#include <vector>
 
 namespace sycl_lsh::mpi {
 
@@ -99,7 +100,7 @@ namespace sycl_lsh::mpi {
          *
          * @throws std::logic_error if the file has been opened in read mode.
          */
-        void write_content(index_type size, index_type dims, parsing_type* buffer) const override;
+        void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const override;
     };
 
 
@@ -197,7 +198,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void binary_parser<Options, T>::write_content(const index_type size, const index_type dims, parsing_type* buffer) const {
+    void binary_parser<Options, T>::write_content(const index_type total_size, const index_type dims, const std::vector<parsing_type>& buffer) const {
         mpi::timer t(base_type::comm_);
 
         // throw if file has been opened in the wrong mode

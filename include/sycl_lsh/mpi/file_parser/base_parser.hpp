@@ -18,6 +18,7 @@
 #include <cmath>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 namespace sycl_lsh::mpi {
 
@@ -93,7 +94,7 @@ namespace sycl_lsh::mpi {
          * @param[in] dims the number of dimensions of each value
          * @param[in] buffer the data to write to the file
          */
-        virtual void write_content(index_type size, index_type dims, parsing_type* buffer) const = 0;
+        virtual void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const = 0;
 
     protected:
         const communicator& comm_;
