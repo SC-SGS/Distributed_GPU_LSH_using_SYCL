@@ -206,7 +206,20 @@ namespace sycl_lsh::mpi {
             throw std::logic_error("Can't write to file opened in read mode!");
         }
 
-        
+        // write header information
+        if (base_type::comm_.master_rank()) {
+            MPI_File_write(base_type::file_.get(), &total_size, 1, type_cast<index_type>(), MPI_STATUS_IGNORE);
+            MPI_File_write(base_type::file_.get(), &dims, 1, type_cast<index_type>(), MPI_STATUS_IGNORE);
+        }
+        base_type::comm_.wait();
+        MPI_File_seek_shared(base_type::file_.get(), 0, MPI_SEEK_END);
+
+        // write actual content
+        index_type correct_rank_size = buffer.size() / dims;
+        if (base_type::comm_.rank() == base_type::comm_.size() - 1) {
+            correct_rank_size = total_size - ((base_type::comm_.size() - 1) * correct_rank_size);
+        }
+        MPI_File_write_ordered(base_type::file_.get(), buffer.data(), correct_rank_size * dims, type_cast<parsing_type>(), MPI_STATUS_IGNORE);
 
         base_type::logger_.log("Wrote content to file in {}.\n", t.elapsed());
     }
