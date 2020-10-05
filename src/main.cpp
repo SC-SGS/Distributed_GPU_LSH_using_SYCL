@@ -45,25 +45,23 @@ int custom_main(int argc, char** argv) {
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(parser, opt, comm, logger);
         logger.log("\nUsed data set:\n{}\n", data);
 
+        // // TODO 2020-10-05 17:26 marcel: remove
+        auto knns = sycl_lsh::make_knn<sycl_lsh::memory_layout::aos>(parser, opt, data, comm, logger);
+
+        // optionally save calculated k-nearest-neighbor IDs
+        if (parser.has_argv("knn_save_file")) {
+            knns.save_knns(parser);
+        }
+        // optionally save calculated k-nearest-neighbor distances
+        if (parser.has_argv("knn_dist_save_file")) {
+            knns.save_distances();
+        }
+
+
+
         auto hf = sycl_lsh::make_random_projections_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
 //        auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
 
-        auto knns = sycl_lsh::make_knn<sycl_lsh::memory_layout::aos>(parser, opt, data, comm, logger);
-        knns.save_knns(parser);
-        knns.save_distances(parser);
-
-        using options_type = decltype(opt);
-        using index_type = typename options_type::index_type;
-        using real_type = typename options_type::real_type;
-        auto f1 = sycl_lsh::mpi::make_file_parser<index_type, options_type>("knn_save.txt", parser, sycl_lsh::mpi::file::mode::read, comm, logger);
-        std::vector<index_type> v1(f1->parse_rank_size() * f1->parse_dims());
-        f1->parse_content(v1);
-        logger.log_on_all("IDs:  {} -> {}\n", comm.rank(), fmt::join(v1, ", "));
-
-        auto f2 = sycl_lsh::mpi::make_file_parser<real_type, options_type>("dist_save.txt", parser, sycl_lsh::mpi::file::mode::read, comm, logger);
-        std::vector<real_type> v2(f2->parse_rank_size() * f2->parse_dims());
-        f2->parse_content(v2);
-        logger.log_on_all("Dist: {} -> {}\n", comm.rank(), fmt::join(v2, ", "));
 
         std::vector<float> vec(data.get_attributes().rank_size);
         {
