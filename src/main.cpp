@@ -49,11 +49,26 @@ int custom_main(int argc, char** argv) {
 //        auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
 
         auto knns = sycl_lsh::make_knn<sycl_lsh::memory_layout::aos>(parser, opt, data, comm, logger);
+        knns.save_knns(parser);
+        knns.save_distances(parser);
+
+        using options_type = decltype(opt);
+        using index_type = typename options_type::index_type;
+        using real_type = typename options_type::real_type;
+        auto f1 = sycl_lsh::mpi::make_file_parser<index_type, options_type>("knn_save.txt", parser, sycl_lsh::mpi::file::mode::read, comm, logger);
+        std::vector<index_type> v1(f1->parse_rank_size() * f1->parse_dims());
+        f1->parse_content(v1);
+        logger.log_on_all("IDs:  {} -> {}\n", comm.rank(), fmt::join(v1, ", "));
+
+        auto f2 = sycl_lsh::mpi::make_file_parser<real_type, options_type>("dist_save.txt", parser, sycl_lsh::mpi::file::mode::read, comm, logger);
+        std::vector<real_type> v2(f2->parse_rank_size() * f2->parse_dims());
+        f2->parse_content(v2);
+        logger.log_on_all("Dist: {} -> {}\n", comm.rank(), fmt::join(v2, ", "));
 
         std::vector<float> vec(data.get_attributes().rank_size);
         {
             sycl_lsh::sycl::queue queue(sycl_lsh::sycl::default_selector{});
-            logger.log("{}\n", queue.get_device().get_info<sycl_lsh::sycl::info::device::name>());
+            logger.log("\n{}\n", queue.get_device().get_info<sycl_lsh::sycl::info::device::name>());
 
             sycl_lsh::sycl::buffer<float, 1> buf(vec.data(), vec.size());
             queue.submit([&](sycl_lsh::sycl::handler& cgh) {
@@ -61,8 +76,8 @@ int custom_main(int argc, char** argv) {
                 auto acc_hf = hf.get_device_buffer().template get_access<sycl_lsh::sycl::access::mode::read>(cgh);
                 auto acc_res = buf.get_access<sycl_lsh::sycl::access::mode::discard_write>(cgh);
                 const auto data_attr = data.get_attributes();
-                sycl_lsh::get_linear_id<decltype(data)> get_linear_id_data{};
-                sycl_lsh::get_linear_id<decltype(hf)> get_linear_id_hash_function{};
+//                sycl_lsh::get_linear_id<decltype(data)> get_linear_id_data{};
+//                sycl_lsh::get_linear_id<decltype(hf)> get_linear_id_hash_function{};
                 sycl_lsh::lsh_hash<decltype(hf)> hasher{};
 
                 cgh.parallel_for<sycl_test>(sycl_lsh::sycl::range<>(data_attr.rank_size), [=](sycl_lsh::sycl::item<> item){
