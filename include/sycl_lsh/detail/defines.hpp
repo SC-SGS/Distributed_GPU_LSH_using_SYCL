@@ -34,6 +34,10 @@ namespace sycl_lsh::detail {
      */
     class hash_functions_base {};
     /**
+     * @brief Empty base class fot the hash table class. Only used in static_asserts.
+     */
+     class hash_table_base {};
+    /**
      * @brief Empty base class for the knn class. Only used in static_asserts.
      */
     class knn_base {};
