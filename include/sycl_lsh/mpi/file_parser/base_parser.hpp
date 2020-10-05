@@ -89,9 +89,11 @@ namespace sycl_lsh::mpi {
         virtual void parse_content(parsing_type* buffer) const = 0;
         /**
          * @brief Write the content in @p buffer to the file.
-         * @param buffer the data to write to the file
+         * @param[in] size the number of values to write
+         * @param[in] dims the number of dimensions of each value
+         * @param[in] buffer the data to write to the file
          */
-        virtual void write_content(parsing_type* buffer) const = 0;
+        virtual void write_content(index_type size, index_type dims, parsing_type* buffer) const = 0;
 
     protected:
         const communicator& comm_;
