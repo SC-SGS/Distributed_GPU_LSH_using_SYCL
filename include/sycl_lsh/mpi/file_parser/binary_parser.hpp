@@ -89,7 +89,9 @@ namespace sycl_lsh::mpi {
          *          number of values which should theoretically be used
          * @param[out] buffer to write the data to
          *
-         * @throws std::logic_error if the file has been opened in write mode.
+         * @note Calls MPI_Abort() if the file has been opened in write mode.
+         * @note Calls MPI_Abort() if the header information and type doesn't match with the file size.
+         * @note Calls MPI_Abort() if the buffer isn't big enough.
          */
         void parse_content(std::vector<parsing_type>& buffer) const override;
         /**
@@ -98,7 +100,7 @@ namespace sycl_lsh::mpi {
          * @param[in] dims the number of dimensions of each value
          * @param[in] buffer the data to write to the file
          *
-         * @throws std::logic_error if the file has been opened in read mode.
+         * @note Calls MPI_Abort() if the file has been opened in read mode.
          */
         void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const override;
     };
@@ -141,7 +143,10 @@ namespace sycl_lsh::mpi {
 
         // throw if file has been opened in the wrong mode
         if (base_type::mode_ == mpi::file::mode::write) {
-            throw std::logic_error("Can't read from file opened in write mode!");
+            if (base_type::comm_.rank() == 0) {
+                fmt::print(stderr, "\nCan't read from a file opened in write mode!\n\n");
+            }
+            MPI_Abort(base_type::comm_.get(), EXIT_FAILURE);
         }
 
         const index_type total_size = this->parse_total_size();
@@ -212,7 +217,10 @@ namespace sycl_lsh::mpi {
 
         // throw if file has been opened in the wrong mode
         if (base_type::mode_ == mpi::file::mode::read) {
-            throw std::logic_error("Can't write to file opened in read mode!");
+            if (base_type::comm_.rank() == 0) {
+                fmt::print(stderr, "\nCan't write to a file opened in read mode!\n\n");
+            }
+            MPI_Abort(base_type::comm_.get(), EXIT_FAILURE);
         }
 
         // write header information
