@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-05
  *
  * @brief Base class for all different file parsers.
  * @details Pure virtual.
@@ -43,10 +43,11 @@ namespace sycl_lsh::mpi {
         /**
          * @brief Construct a new @ref sycl_lsh::mpi::file_parser object and opens the file @p file_name.
          * @param[in] file_name the file to parse
+         * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          */
-        file_parser(std::string_view file_name, const communicator& comm, const logger& logger);
+        file_parser(std::string_view file_name, file::mode mode, const communicator& comm, const logger& logger);
         /**
          * @brief Virtual destructor to enable proper inheritance.
          */
@@ -96,6 +97,7 @@ namespace sycl_lsh::mpi {
         const communicator& comm_;
         const logger& logger_;
         file file_;
+        file::mode mode_;
     };
 
 
@@ -103,8 +105,8 @@ namespace sycl_lsh::mpi {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename Options, typename T>
-    file_parser<Options, T>::file_parser(const std::string_view file_name, const communicator& comm, const logger& logger)
-        : comm_(comm), logger_(logger), file_(file_name, comm, file::mode::read) { }
+    file_parser<Options, T>::file_parser(const std::string_view file_name, const file::mode mode, const communicator& comm, const logger& logger)
+        : comm_(comm), logger_(logger), file_(file_name, comm, mode), mode_(mode) { }
 
 
     // ---------------------------------------------------------------------------------------------------------- //

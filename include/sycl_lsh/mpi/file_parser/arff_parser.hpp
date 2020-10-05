@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-05
  *
  * @brief File parser for parsing `.arff` data files.
  */
@@ -11,6 +11,7 @@
 
 #include <sycl_lsh/exceptions/not_implemented.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
+#include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/file_parser/base_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 
@@ -42,12 +43,13 @@ namespace sycl_lsh::mpi {
          * @brief Construct a new @ref sycl_lsh::mpi::arff_parser object responsible for parsing
          *        [`.arff´](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
          * @param[in] file_name the file to parse
+         * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          *
          * @throws std::logic_error since `.arff` files aren't currently supported.
          */
-        arff_parser(std::string_view file_name, const communicator& comm, const logger& logger);
+        arff_parser(std::string_view file_name, file::mode mode, const communicator& comm, const logger& logger);
 
         
         // ---------------------------------------------------------------------------------------------------------- //
@@ -91,8 +93,8 @@ namespace sycl_lsh::mpi {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename Options, typename T>
-    arff_parser<Options, T>::arff_parser(const std::string_view file_name, const communicator& comm, const logger& logger)
-            : file_parser<Options, T>(file_name, comm, logger)
+    arff_parser<Options, T>::arff_parser(const std::string_view file_name, const file::mode mode, const communicator& comm, const logger& logger)
+            : file_parser<Options, T>(file_name, mode, comm, logger)
     {
         throw std::logic_error("Parsing an '.arff' file is currently no supported! Maybe run data_sets/convert_arff_to_binary.py first?");
     }

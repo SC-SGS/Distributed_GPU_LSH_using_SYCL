@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-05
  *
  * @brief File parser for parsing plain binary data files.
  */
@@ -56,10 +56,11 @@ namespace sycl_lsh::mpi {
         /**
          * @brief Construct a new @ref sycl_lsh::mpi::binary_parser object responsible for parsing the custom binary file format.
          * @param[in] file_name the file to parse
+         * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          */
-        binary_parser(std::string_view file_name, const communicator& comm, const logger& logger);
+        binary_parser(std::string_view file_name, file::mode mode, const communicator& comm, const logger& logger);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -86,13 +87,15 @@ namespace sycl_lsh::mpi {
          *          Calls *MPI_Abort()* if the file size doesn't match the header information or the values actual read diverge from the
          *          number of values which should theoretically be used
          * @param[out] buffer to write the data to
+         *
+         * @throws std::logic_error if the file has been opened in write mode.
          */
         void parse_content(parsing_type* buffer) const override;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param buffer the data to write to the file
          *
-         * @throws sycl_lsh::not_implemented since writing to files isn't currently supported.
+         * @throws std::logic_error if the file has been opened in read mode.
          */
         void write_content(parsing_type* buffer) const override;
     };
@@ -102,8 +105,8 @@ namespace sycl_lsh::mpi {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename Options, typename T>
-    binary_parser<Options, T>::binary_parser(const std::string_view file_name, const communicator& comm, const logger& logger)
-        : file_parser<Options, T>(file_name, comm, logger)
+    binary_parser<Options, T>::binary_parser(const std::string_view file_name, const file::mode mode, const communicator& comm, const logger& logger)
+        : file_parser<Options, T>(file_name, mode, comm, logger)
     {
         logger.log("Parsing the data file '{}' using the binary_parser together with MPI IO.\n", file_name);
     }
@@ -132,6 +135,11 @@ namespace sycl_lsh::mpi {
     template <typename Options, typename T>
     void binary_parser<Options, T>::parse_content(parsing_type* buffer) const {
         timer t(base_type::comm_);
+
+        // throw if file has been opened in the wrong mode
+        if (base_type::mode_ == mpi::file::mode::write) {
+            throw std::logic_error("Can't read from file opened in write mode!");
+        }
 
         const index_type total_size = this->parse_total_size();
         const index_type rank_size = this->parse_rank_size();
@@ -188,7 +196,16 @@ namespace sycl_lsh::mpi {
 
     template <typename Options, typename T>
     void binary_parser<Options, T>::write_content([[maybe_unused]] parsing_type* buffer) const {
-        throw sycl_lsh::not_implemented();
+        mpi::timer t(base_type::comm_);
+
+        // throw if file has been opened in the wrong mode
+        if (base_type::mode_ == mpi::file::mode::read) {
+            throw std::logic_error("Can't write to file opened in read mode!");
+        }
+
+        
+
+        base_type::logger_.log("Wrote content to file in {}.\n", t.elapsed());
     }
 
 }
