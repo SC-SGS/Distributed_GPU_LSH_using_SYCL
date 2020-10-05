@@ -102,7 +102,7 @@ namespace sycl_lsh::mpi {
          *
          * @note Calls MPI_Abort() if the file has been opened in read mode.
          */
-        void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const override;
+        void write_content(index_type total_size, index_type dims, const std::vector<parsing_type>& buffer) const override;
     };
 
 
