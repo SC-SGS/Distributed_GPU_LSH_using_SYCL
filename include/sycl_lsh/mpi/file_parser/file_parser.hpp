@@ -9,7 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_FILE_PARSER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_FILE_PARSER_HPP
 
-#include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/mpi/argv_parser.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/file_parser/arff_parser.hpp>
@@ -23,6 +23,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace sycl_lsh::mpi {
 
@@ -31,7 +32,8 @@ namespace sycl_lsh::mpi {
      * @details If the *file_parser* argument isn't provided, returns a @ref sycl_lsh::mpi::binary_parser as fall back.
      * @tparam parsing_type the type to parse
      * @tparam Options the used @ref sycl_lsh::options type
-     * @param[in] parser the used @ref sycl_lsh::argv_parser
+     * @param[in] file_name the name of the file to open
+     * @param[in] parser the @ref sycl_lsh::argv_parser
      * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
@@ -41,9 +43,9 @@ namespace sycl_lsh::mpi {
      */
     template <typename parsing_type, typename Options>
     [[nodiscard]]
-    inline std::unique_ptr<file_parser<Options, parsing_type>> make_file_parser(const sycl_lsh::argv_parser& parser, const file::mode mode, const communicator& comm, const logger& logger) {
-        const std::string& file_name = parser.argv_as<std::string>("data_file");
-
+    inline std::unique_ptr<file_parser<Options, parsing_type>> make_file_parser(const std::string_view file_name, const argv_parser& parser,
+                                                                                const file::mode mode, const communicator& comm, const logger& logger)
+    {
         std::string file_parser_name;
         // try getting the file parser name, if not provided fall back to the 'binary_parser'
         try {
