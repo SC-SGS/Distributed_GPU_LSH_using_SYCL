@@ -51,7 +51,7 @@ namespace sycl_lsh::mpi {
         try {
             file_parser_name = parser.argv_as<std::string>("file_parser");
         } catch (const std::invalid_argument&) {
-            logger.log("No file parser type specified! Using the 'binary_parser' as fall back.\n");
+            logger.log("\nNo file parser type specified! Using the 'binary_parser' as fall back.\n");
             return std::make_unique<binary_parser<Options, parsing_type>>(file_name, mode, comm, logger);
         }
 
