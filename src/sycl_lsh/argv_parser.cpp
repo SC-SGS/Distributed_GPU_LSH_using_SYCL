@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-05
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -20,6 +20,7 @@ const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser:
         { "options_file",       { "path to options file", false } },
         { "options_save_file",  { "save the currently used options to the given path", false } },
         { "knn_save_file",      { "save the calculated nearest-neighbors to path", false } },
+        { "knn_dist_save_file", { "save the calculated nearest-neighbor distances to path", false } },
         { "evaluate_knn_file",  { "read the correct nearest-neighbors and evaluate calculated nearest-neighbors", false } },
         { "hash_pool_size",     { "number of hash functions in the hash pool", false } },
         { "num_hash_functions", { "number of hash functions per hash table", false } },
