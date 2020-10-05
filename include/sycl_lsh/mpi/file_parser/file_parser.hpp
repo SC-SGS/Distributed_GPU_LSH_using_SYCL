@@ -9,7 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_FILE_PARSER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_FILE_PARSER_HPP
 
-#include <sycl_lsh/mpi/argv_parser.hpp>
+#include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/file_parser/arff_parser.hpp>
