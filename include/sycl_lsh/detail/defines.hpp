@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-30
+ * @date 2020-10-05
  *
  * @brief Defines helper values, classes, defines, etc. used in various places.
  */
@@ -33,6 +33,10 @@ namespace sycl_lsh::detail {
      * @brief Empty base class for the hash function classes. Only used in static_asserts.
      */
     class hash_functions_base {};
+    /**
+     * @brief Empty base class for the knn class. Only used in static_asserts.
+     */
+    class knn_base {};
 
 }
 
