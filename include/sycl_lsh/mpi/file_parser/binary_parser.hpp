@@ -172,6 +172,15 @@ namespace sycl_lsh::mpi {
         const index_type rank_offset = header_offset + comm_rank * rank_size * dims * sizeof(parsing_type);
         const index_type correct_rank_size = comm_rank  == comm_size - 1 ? (total_size - ((comm_size - 1) * rank_size)) : rank_size;
 
+        // check if the provided buffer is big enough
+        if (correct_rank_size * dims > buffer.size()) {
+            if (comm_rank == 0) {
+                fmt::print(stderr, "\nTrying to write {} values, but the size of the buffer is only {}!\n\n",
+                        correct_rank_size * dims, buffer.size());
+            }
+            MPI_Abort(base_type::comm_.get(), EXIT_FAILURE);
+        }
+
         // read data
         MPI_Status status;
         MPI_File_read_at(base_type::file_.get(), rank_offset, buffer.data(), correct_rank_size * dims, type_cast<parsing_type>(), &status);
