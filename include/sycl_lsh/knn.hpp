@@ -1,14 +1,22 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-10-05
+ *
+ * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
+ */
+
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
 
 #include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/data.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/mpi/timer.hpp>
-#include <sycl_lsh/data.hpp>
 #include <sycl_lsh/options.hpp>
 
 #include <algorithm>
