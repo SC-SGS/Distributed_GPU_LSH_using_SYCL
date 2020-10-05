@@ -5,11 +5,14 @@
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
+#include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/mpi/timer.hpp>
 #include <sycl_lsh/data.hpp>
 #include <sycl_lsh/options.hpp>
 
+#include <algorithm>
+#include <utility>
 #include <type_traits>
 #include <vector>
 
@@ -171,6 +174,29 @@ namespace sycl_lsh {
 
 
         // ---------------------------------------------------------------------------------------------------------- //
+        //                                                  save knn                                                  //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Saves the calculated k-nearest-neighbor IDs to the file parsed from the command line arguments
+         *        @ref sycl_lsh::argv_parser @p parser via the command line argument `knn_save_file`. \n
+         *        **Always** saves the k-nearest-neighbor IDs in *Array of Structs* layout.
+         * @param[in] parser the used @ref sycl_lsh::argv_parser
+         *
+         * @throws std::invalid_argument if the command line argument `knn_save_file` isn't present in @p parser.
+         */
+        void save_knns(const argv_parser& parser);
+        /**
+         * @brief Saves the calculated k-nearest-neighbor distances to the file parser from the command line arguments
+         *        @ref sycl_lsh::argv_parser @p parser via the command line argument `knn_dist_save_file`. \n
+         *        **Always** saves the k-nearest-neighbor distances in *Array of Structs* layout.
+         * @param[in] parser the used @ref sycl_lsh::argv_parser
+         *
+         * @throws std::invalid_argument if the command line argument `knn_dist_save_file` isn't present in @p parser.
+         */
+        void save_distances(const argv_parser& parser);
+
+        
+        // ---------------------------------------------------------------------------------------------------------- //
         //                                                   getter                                                   //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
@@ -200,6 +226,7 @@ namespace sycl_lsh {
         knn_host_buffer_type& get_knn_host_buffer() noexcept { return knn_host_buffer_active_; }
         /**
          * @brief Returns the host buffer containing the k-nearest-neighbor distances used to hide the MPI communication.
+         * @details The distances are calculated without the use of `std::sqrt`!
          * @return the knn distances host buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
@@ -278,7 +305,7 @@ namespace sycl_lsh {
             }
         }
 
-        logger_.log("Created knn object in {}.", t.elapsed());
+        logger_.log("Created knn object in {}.\n", t.elapsed());
     }
 
 
@@ -310,6 +337,100 @@ namespace sycl_lsh {
             res[nn] = dist_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)];
         }
         return res;
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                                  save knn                                                  //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options, typename Data>
+    void knn<layout, Options, Data>::save_knns(const argv_parser& parser) {
+        mpi::timer t(comm_);
+
+        // check if the required command line argument is present
+        if (!parser.has_argv("knn_save_file")) {
+            throw std::invalid_argument("Required command line argument 'knn_save_file' not provided!");
+        }
+
+        if constexpr (layout == memory_layout::soa) {
+            // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
+            const get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+            const get_linear_id<knn<memory_layout::soa, options_type, data_type>> get_linear_id_soa{};
+
+            for (index_type point = 0; point < attr_.rank_size; ++point) {
+                for (index_type nn = 0; nn < k_; ++nn) {
+                    knn_host_buffer_inactive_[get_linear_id_aos(point, nn, attr_, k_)]
+                            = knn_host_buffer_active_[get_linear_id_soa(point, nn, attr_, k_)];
+                }
+            }
+
+            // swap buffers such that the aos layout is active
+            using std::swap;
+            swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
+        }
+
+
+        // write content to the respective file
+        const std::string& file_name = parser.argv_as<std::string>("knn_save_file");
+        auto file_parser = mpi::make_file_parser<index_type, options_type>(file_name, parser, mpi::file::mode::write, comm_, logger_);
+        file_parser->write_content(attr_.total_size, k_, knn_host_buffer_active_);
+
+
+        if constexpr (layout == memory_layout::soa) {
+            // swap buffers back such that the correct layout is active
+            using std::swap;
+            swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
+        }
+
+        logger_.log("Saved k-nearest-neighbor IDs in {}.\n", t.elapsed());
+    }
+    template <memory_layout layout, typename Options, typename Data>
+    void knn<layout, Options, Data>::save_distances(const argv_parser& parser) {
+        mpi::timer t(comm_);
+
+        // check if the required command line argument is present
+        if (!parser.has_argv("knn_dist_save_file")) {
+            throw std::invalid_argument("Required command line argument 'knn_dist_save_file' not provided!");
+        }
+
+        if constexpr (layout == memory_layout::soa) {
+            // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
+            const get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+            const get_linear_id<knn<memory_layout::soa, options_type, data_type>> get_linear_id_soa{};
+
+            for (index_type point = 0; point < attr_.rank_size; ++point) {
+                for (index_type nn = 0; nn < k_; ++nn) {
+                    dist_host_buffer_inactive_[get_linear_id_aos(point, nn, attr_, k_)]
+                            = dist_host_buffer_active_[get_linear_id_soa(point, nn, attr_, k_)];
+                }
+            }
+
+            // swap buffers such that the aos layout is active
+            using std::swap;
+            swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+        } else {
+            // if the layout is correct, simply copy the values (because of the call to `std::sqrt` later on)
+            std::copy(dist_host_buffer_active_.begin(), dist_host_buffer_active_.end(), dist_host_buffer_inactive_.begin());
+
+            using std::swap;
+            swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+        }
+
+        // transform the values using `std::sqrt`
+        std::transform(dist_host_buffer_active_.begin(), dist_host_buffer_active_.end(), dist_host_buffer_active_.begin(),
+                       [](const real_type val) { return std::sqrt(val); });
+
+
+        // write content to the respective file
+        const std::string& file_name = parser.argv_as<std::string>("knn_dist_save_file");
+        auto file_parser = mpi::make_file_parser<real_type, options_type>(file_name, parser, mpi::file::mode::write, comm_, logger_);
+        file_parser->write_content(attr_.total_size, k_, dist_host_buffer_active_);
+
+
+        using std::swap;
+        swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+
+        logger_.log("Saved k-nearest-neighbor distances in {}.\n", t.elapsed());
     }
 
 }
