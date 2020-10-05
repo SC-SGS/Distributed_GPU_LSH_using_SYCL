@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-10-05
  */
 
 #include <sycl_lsh/detail/filesystem.hpp>
@@ -16,8 +16,15 @@ sycl_lsh::mpi::file::file(const std::string_view file_name, const sycl_lsh::mpi:
     if (m == mode::read && !fs::exists(file_name.data())) {
         throw std::invalid_argument(fmt::format("Illegal file '{}'!", file_name));
     }
+    
     // open the file
-    MPI_File_open(comm.get(), file_name.data(), static_cast<std::underlying_type_t<mode>>(m), MPI_INFO_NULL, &file_);
+    int err = MPI_File_open(comm.get(), file_name.data(), static_cast<std::underlying_type_t<mode>>(m), MPI_INFO_NULL, &file_);
+
+    // if the file already exists, delete and reopen it
+    if (m == mode::write && err != MPI_SUCCESS) {
+        MPI_File_delete(file_name.data(), MPI_INFO_NULL);
+        MPI_File_open(comm.get(), file_name.data(), static_cast<std::underlying_type_t<mode>>(m), MPI_INFO_NULL, &file_);
+    }
 }
 
 sycl_lsh::mpi::file::file(sycl_lsh::mpi::file&& other) noexcept : file_(std::move(other.file_)) {

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-10-05
  *
  * @brief Minimalistic wrapper class around a MPI file.
  */
@@ -30,8 +30,8 @@ namespace sycl_lsh::mpi {
         enum class mode {
             /** open file in read only mode */
             read = MPI_MODE_RDONLY,
-            /** open file in write only mode*/
-            write = MPI_MODE_WRONLY | MPI_MODE_APPEND | MPI_MODE_CREATE
+            /** open file in write only mode */
+            write = MPI_MODE_WRONLY | MPI_MODE_APPEND | MPI_MODE_CREATE | MPI_MODE_EXCL
         };
 
         
@@ -40,6 +40,7 @@ namespace sycl_lsh::mpi {
         // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Construct a new @ref sycl_lsh::mpi::file, i.e. open the file @p file_name ind the mode @p m.
+         * @details If the file should be opened in write mode and already exists, it gets deleted before the first write.
          * @param[in] file_name the file to open
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] m the open mode (read or write)
