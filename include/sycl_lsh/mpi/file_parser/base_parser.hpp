@@ -90,11 +90,11 @@ namespace sycl_lsh::mpi {
         virtual void parse_content(std::vector<parsing_type>& buffer) const = 0;
         /**
          * @brief Write the content in @p buffer to the file.
-         * @param[in] size the number of values to write
+         * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
          * @param[in] dims the number of dimensions of each value
          * @param[in] buffer the data to write to the file
          */
-        virtual void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const = 0;
+        virtual void write_content(index_type total_size, index_type dims, const std::vector<parsing_type>& buffer) const = 0;
 
     protected:
         const communicator& comm_;

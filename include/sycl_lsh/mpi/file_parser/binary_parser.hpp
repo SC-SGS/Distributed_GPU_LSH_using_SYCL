@@ -96,7 +96,7 @@ namespace sycl_lsh::mpi {
         void parse_content(std::vector<parsing_type>& buffer) const override;
         /**
          * @brief Write the content in @p buffer to the file.
-         * @param[in] size the number of values to write
+         * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
          * @param[in] dims the number of dimensions of each value
          * @param[in] buffer the data to write to the file
          *

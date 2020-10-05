@@ -81,13 +81,13 @@ namespace sycl_lsh::mpi {
         void parse_content(std::vector<parsing_type>& buffer) const override;
         /**
          * @brief Write the content in @p buffer to the file.
-         * @param[in] size the number of values to write
+         * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
          * @param[in] dims the number of dimensions of each value
          * @param[in] buffer the data to write to the file
          *
          * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
          */
-        void write_content(index_type size, index_type dims, const std::vector<parsing_type>& buffer) const override;
+        void write_content(index_type total_size, index_type dims, const std::vector<parsing_type>& buffer) const override;
 
     };
 
@@ -124,7 +124,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void arff_parser<Options, T>::write_content([[maybe_unused]] const index_type size, [[maybe_unused]] const index_type dims, [[maybe_unused]] const std::vector<parsing_type>& buffer) const {
+    void arff_parser<Options, T>::write_content([[maybe_unused]] const index_type total_size, [[maybe_unused]] const index_type dims, [[maybe_unused]] const std::vector<parsing_type>& buffer) const {
         throw sycl_lsh::not_implemented();
     }
 
