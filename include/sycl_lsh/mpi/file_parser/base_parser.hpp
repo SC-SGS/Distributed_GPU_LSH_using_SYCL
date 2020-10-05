@@ -87,7 +87,7 @@ namespace sycl_lsh::mpi {
          * @brief Parse the content of the file.
          * @param[out] buffer to write the data to
          */
-        virtual void parse_content(parsing_type* buffer) const = 0;
+        virtual void parse_content(std::vector<parsing_type>& buffer) const = 0;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param[in] size the number of values to write

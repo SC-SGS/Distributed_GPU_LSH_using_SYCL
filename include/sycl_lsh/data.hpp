@@ -226,7 +226,7 @@ namespace sycl_lsh {
         mpi::timer t(comm_);
 
         // parse content
-        parser.parse_content(host_buffer_active_.data());
+        parser.parse_content(host_buffer_active_);
 
         // change memory layout from aos to soa if requested
         if constexpr (layout == memory_layout::soa) {

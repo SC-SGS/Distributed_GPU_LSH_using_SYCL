@@ -91,7 +91,7 @@ namespace sycl_lsh::mpi {
          *
          * @throws std::logic_error if the file has been opened in write mode.
          */
-        void parse_content(parsing_type* buffer) const override;
+        void parse_content(std::vector<parsing_type>& buffer) const override;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param[in] size the number of values to write
@@ -136,7 +136,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void binary_parser<Options, T>::parse_content(parsing_type* buffer) const {
+    void binary_parser<Options, T>::parse_content(std::vector<parsing_type>& buffer) const {
         timer t(base_type::comm_);
 
         // throw if file has been opened in the wrong mode
@@ -174,7 +174,7 @@ namespace sycl_lsh::mpi {
 
         // read data
         MPI_Status status;
-        MPI_File_read_at(base_type::file_.get(), rank_offset, buffer, correct_rank_size * dims, type_cast<parsing_type>(), &status);
+        MPI_File_read_at(base_type::file_.get(), rank_offset, buffer.data(), correct_rank_size * dims, type_cast<parsing_type>(), &status);
 
         // check whether the correct number of values were read
         int read_count;
