@@ -144,6 +144,33 @@ namespace sycl_lsh {
 
 
         // ---------------------------------------------------------------------------------------------------------- //
+        //                                                knn results                                                 //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Returns the IDs (indices) of the k-nearest-neighbors found for @p point.
+         * @param[in] point the data point to return the nearest-neighbors for
+         * @return the indices of the found k-nearest-neighbors of @p point (`[[nodiscard]]`)
+         *
+         * @attention Copies the IDs to the result vector!
+         *
+         * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
+         */
+        [[nodiscard]]
+        knn_host_buffer_type get_knn_ids(const index_type point) const;
+        /**
+         * @brief Returns the distances of the k-nearest-neighbors found for @p point.
+         * @param[in] point the data point to return the nearest-neighbors for
+         * @return the distances of the found k-nearest-neighbors of @p point (`[[nodiscard]]`)
+         *
+         * @attention Copies the distances to the result vector!
+         *
+         * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
+         */
+        [[nodiscard]]
+        dist_host_buffer_type get_knn_dists(const index_type point) const;
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
         //                                                   getter                                                   //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
@@ -252,6 +279,37 @@ namespace sycl_lsh {
         }
 
         logger_.log("Created knn object in {}.", t.elapsed());
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                                knn results                                                 //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options, typename Data>
+    [[nodiscard]]
+    typename knn<layout, Options, Data>::knn_host_buffer_type knn<layout, Options, Data>::get_knn_ids(const typename Options::index_type point) const {
+        SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n");
+
+        const get_linear_id<knn<layout, options_type, data_type>> get_linear_id_functor{};
+
+        knn_host_buffer_type res(k_);
+        for (index_type nn = 0; nn < k_; ++nn) {
+            res[nn] = knn_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)];
+        }
+        return res;
+    }
+    template <memory_layout layout, typename Options, typename Data>
+    [[nodiscard]]
+    typename knn<layout, Options, Data>::dist_host_buffer_type knn<layout, Options, Data>::get_knn_dists(const typename Options::index_type point) const {
+        SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n")
+
+        const get_linear_id<knn<layout, options_type, data_type>> get_linear_id_functor{};
+
+        dist_host_buffer_type res(k_);
+        for (index_type nn = 0; nn < k_; ++nn) {
+            res[nn] = dist_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)];
+        }
+        return res;
     }
 
 }
