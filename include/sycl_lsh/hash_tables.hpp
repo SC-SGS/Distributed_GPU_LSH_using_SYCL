@@ -28,12 +28,33 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data, template <memory_layout, typename, typename> class HashFunctionType>
     class hash_tables;
 
+    /**
+     * @brief Factory function for the @ref sycl_lsh::hash_tables class.
+     * @brief Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
+     * @tparam layout the used @ref sycl_lsh::memory_layout type
+     * @tparam Options the used @ref sycl_lsh::options type
+     * @tparam Data the used @ref sycl_lsh::data type
+     * @param[in] opt the used @ref sycl_lsh::options
+     * @param[in] data the used @ref sycl_lsh::data representing the used data set
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] logger the used @ref sycl_lsh::mpi::logger
+     * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
+     */
     template <memory_layout layout, typename Options, typename Data>
+    [[nodiscard]] 
     auto make_hash_tables(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
+        // TODO 2020-10-06 17:31 marcel: implement correctly
         return hash_tables<layout, Options, Data, random_projections>(opt, data, comm, logger);
     }
 
 
+    /**
+     * @brief Class which represents the hash tables used om the LSH algorithm. Performs the actual calculation of the k-nearest-neighbors.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the used @ref sycl_lsh::options type
+     * @tparam Data the used @ref sycl_lsh::data type
+     * @tparam HashFunctionType the used type of hash functions in the LSH algorithm
+     */
     template <memory_layout layout, typename Options, typename Data, template <memory_layout, typename, typename> class HashFunctionType>
     class hash_tables : private detail::hash_tables_base {
         // ---------------------------------------------------------------------------------------------------------- //
@@ -95,6 +116,13 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                                constructor                                                 //
         // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] data the used @ref sycl_lsh::data representing the used data set
+         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+         * @param[in] logger the used @ref sycl_lsh::mpi::logger
+         */
         hash_tables(const options_type& opt, data_type& data, const mpi::communicator& comm, const mpi::logger& logger)
             : options_(opt), data_(data), attr_(data.get_attributes()), comm_(comm), logger_(logger),
               hash_functions_(opt, data, comm, logger),
@@ -120,6 +148,10 @@ namespace sycl_lsh {
             logger_.log("Created hash tables in {}.\n", t.elapsed());
         }
 
+        /**
+         * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
+         * @param[in,out] hash_values_count the number of data points per hash bucket
+         */
         void count_hash_values(device_buffer_type& hash_values_count) {
             // TODO 2020-10-06 16:25 marcel: use correct timer overload
             mpi::timer t(comm_);
@@ -147,7 +179,10 @@ namespace sycl_lsh {
 
             logger_.log("Counted hash values in {}.\n", t.elapsed());
         }
-
+        /**
+         * @brief Calculates the offset of each hash bucket in each hash table.
+         * @param[in] hash_values_count the number of data points per hash bucket
+         */
         void calculate_offsets(device_buffer_type& hash_values_count) {
             // TODO 2020-10-06 16:25 marcel: use correct timer overload
             mpi::timer t(comm_);
@@ -180,7 +215,9 @@ namespace sycl_lsh {
 
             logger_.log("Calculated offsets in {}.\n", t.elapsed());
         }
-
+        /**
+         * @brief Fill each hash table based on the previously calculated offsets.
+         */
         void fill_hash_tables() {
             // TODO 2020-10-06 16:25 marcel: use correct timer overload
             mpi::timer t(comm_);
