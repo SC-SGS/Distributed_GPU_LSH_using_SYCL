@@ -36,23 +36,6 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     class entropy_based;
 
-    /**
-     * @brief Factory function for the @ref sycl_lsh::entropy_based hash functions class.
-     * @details Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
-     * @tparam layout the used @ref sycl_lsh::memory_layout type
-     * @tparam Options the used @ref sycl_lsh::options type
-     * @tparam Data the used @ref sycl_lsh::data type
-     * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] data the used @ref sycl_lsh::data
-     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger hte used @ref sycl_lsh::mpi::logger
-     * @return the @ref sycl_lsh::entropy_based hash functions used in the LSH algorithm (`[[nodiscard]]`)
-     */
-    template <memory_layout layout, typename Options, typename Data>
-    [[nodiscard]]
-    inline auto make_entropy_based_hash_functions(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
-        return entropy_based<layout, Options, Data>(opt, data, comm, logger);
-    }
 
     /**
      * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::entropy_based class to convert a
@@ -226,6 +209,19 @@ namespace sycl_lsh {
 
 
         // ---------------------------------------------------------------------------------------------------------- //
+        //                                                constructor                                                 //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Construct a new @ref sycl_lsh::entropy_based object representing the hash functions used in the LSH algorithm.
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] data the used @ref sycl_lsh::data
+         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+         * @param[in] logger the used @ref sycl_lsh::mpi::logger
+         */
+        entropy_based(const options_type& opt, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
         //                                                   getter                                                   //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
@@ -255,22 +251,6 @@ namespace sycl_lsh {
         device_buffer_type& get_device_buffer() noexcept { return device_buffer_; }
 
     private:
-        // befriend factory function
-        friend auto make_entropy_based_hash_functions<layout, Options, Data>(const options_type&, data_type&, const mpi::communicator&, const mpi::logger&);
-
-        // ---------------------------------------------------------------------------------------------------------- //
-        //                                                constructor                                                 //
-        // ---------------------------------------------------------------------------------------------------------- //
-        /**
-         * @brief Construct a new @ref sycl_lsh::entropy_based object representing the hash functions used in the LSH algorithm.
-         * @param[in] opt the used @ref sycl_lsh::options
-         * @param[in] data the used @ref sycl_lsh::data
-         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-         * @param[in] logger the used @ref sycl_lsh::mpi::logger
-         */
-        entropy_based(const options_type& opt, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
-
-
         const options_type& options_;
         data_type& data_;
         const mpi::communicator& comm_;
