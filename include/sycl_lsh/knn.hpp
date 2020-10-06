@@ -222,6 +222,19 @@ namespace sycl_lsh {
          */
         [[nodiscard]]
         real_type recall(const argv_parser& parser);
+        /**
+         * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
+         * @param[in] parser the used @ref sycl_lsh::argv_parser
+         * @return a `std::tuple` containing the resulting error ratio, the number of points for which no k k-nearest-neighbors could be
+         *         found and the total number of nearest-neighbors that couldn't be found (`[[nodiscard]]`)
+         *
+         * @throws std::invalid_argument if the required command line argument `evaluate_knn_dist_file` isn't present in @p parser.
+         * @throws std::runtime_error if the parsed total number of points doesn't match with the current `total_size`.
+         * @throws std::runtime_error if the parsed number of points per MPI rank doesn't match with the current `rank_size`.
+         * @throws std::runtime_error if the parsed number of dimensions doesn't match with the current `dims`.
+         */
+        [[nodiscard]]
+        std::tuple<real_type, index_type, index_type> error_ratio(const argv_parser& parser);
 
         
         // ---------------------------------------------------------------------------------------------------------- //
@@ -518,6 +531,97 @@ namespace sycl_lsh {
         const real_type res = (static_cast<real_type>(mpi::sum(count, comm_)) / (attr_.total_size * k_)) * 100.0;
         logger_.log("\nCalculated recall in {}.\n", t.elapsed());
         return res;
+    }
+
+    template <memory_layout layout, typename Options, typename Data>
+    [[nodiscard]]
+    std::tuple<typename Options::real_type, typename Options::index_type, typename Options::index_type> knn<layout, Options, Data>::error_ratio(const argv_parser& parser) {
+        mpi::timer t(comm_);
+
+        // load correct k-nearest-neighbor distances
+        // check if the required command line argument is present
+        if (!parser.has_argv("evaluate_knn_dist_file")) {
+            throw std::invalid_argument("Required command line argument 'evaluate_knn_dist_file' not provided!");
+        }
+
+        // read correct k-nearest-neighbor distances from the respective file
+        const std::string& file_name = parser.argv_as<std::string>("evaluate_knn_dist_file");
+        auto file_parser = mpi::make_file_parser<real_type, options_type>(file_name, parser, mpi::file::mode::read, comm_, logger_);
+        const index_type parsed_total_size = file_parser->parse_total_size();
+        const index_type parsed_rank_size = file_parser->parse_rank_size();
+        const index_type parsed_dims = file_parser->parse_dims();
+        std::vector<real_type> correct_knn_dist(parsed_rank_size * parsed_dims);
+        file_parser->parse_content(correct_knn_dist);
+
+        // perform sanity checks
+        if (parsed_total_size != attr_.total_size) {
+            throw std::runtime_error(fmt::format("The total number of points in '{}' is {}, but should be {}!", file_name, parsed_total_size, attr_.total_size));
+        } else if (parsed_rank_size != attr_.rank_size) {
+            throw std::runtime_error(fmt::format("The number of points per MPI rank in '{}' is {}, but should be {}!", file_name, parsed_rank_size, attr_.rank_size));
+        } else if (parsed_dims != k_) {
+            throw std::runtime_error(fmt::format("The number of nearest-neighbor distances in '{}' is {}, but should be {}!", file_name, parsed_dims, k_));
+        }
+
+        const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
+
+        const sycl_lsh::get_linear_id<knn<layout, options_type, data_type>> get_linear_id_this{};
+        const sycl_lsh::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+
+        // calculate error ratio
+        index_type num_points = 0;
+        index_type num_knn_not_found = 0;
+        index_type mean_error_count = 0;
+        real_type mean_error_ratio = 0.0;
+
+        std::vector<real_type> calculated_knn_dist_sorted(k_);
+        std::vector<real_type> correct_knn_dist_sorted(k_);
+
+        for (index_type point = 0; point < correct_rank_size; ++point) {
+            // fill k-nearest-neighbor distances for current point
+            for (index_type nn = 0; nn < k_; ++nn) {
+                calculated_knn_dist_sorted[nn] = dist_host_buffer_active_[get_linear_id_this(point, nn, attr_, k_)];
+                correct_knn_dist_sorted[nn] = correct_knn_dist[get_linear_id_aos(point, nn, attr_, k_)];
+            }
+            // check whether k k-nearest-neighbor could be found
+            auto count_not_found = std::count(calculated_knn_dist_sorted.cbegin(), calculated_knn_dist_sorted.cend(), std::numeric_limits<real_type>::max());
+            if (count_not_found != 0) {
+                ++num_points;
+                num_knn_not_found += count_not_found;
+                continue;
+            }
+            // calculate `std::sqrt` distance
+            std::transform(calculated_knn_dist_sorted.begin(), calculated_knn_dist_sorted.end(), calculated_knn_dist_sorted.begin(),
+                           [](const real_type val) { return std::sqrt(val); });
+            // sort distances
+            std::sort(calculated_knn_dist_sorted.begin(), calculated_knn_dist_sorted.end());
+            std::sort(correct_knn_dist_sorted.begin(), correct_knn_dist_sorted.end());
+
+            // calculate error ratio
+            // TODO 2020-10-06 13:16 marcel: check again
+            index_type error_count = 0;
+            real_type error_ratio = 0.0;
+            for (index_type nn = 0; nn < k_; ++nn) {
+                if (calculated_knn_dist_sorted[nn] != 0.0 && correct_knn_dist_sorted[nn] != 0.0) {
+                    ++error_count;
+                    error_ratio += calculated_knn_dist_sorted[nn] / correct_knn_dist_sorted[nn];
+                } else {
+                    ++error_count;
+                    ++error_ratio;
+                }
+            }
+            if (error_count != 0) {
+                ++mean_error_count;
+                mean_error_ratio += error_ratio / error_count;
+            }
+        }
+
+        // collect results from each MPI rank
+        const real_type avg_mean_error_ratio = mpi::average(mean_error_ratio / mean_error_count, comm_);
+        const index_type total_num_points = mpi::sum(num_points, comm_);
+        const index_type total_num_knn_not_found = mpi::sum(num_knn_not_found, comm_);
+
+        logger_.log("\nCalculated error ration in {}.\n", t.elapsed());
+        return std::make_tuple(avg_mean_error_ratio, total_num_points, total_num_knn_not_found);
     }
 
 }

@@ -61,6 +61,15 @@ int custom_main(int argc, char** argv) {
         if (parser.has_argv("evaluate_knn_file")) {
             logger.log("recall: {} %\n", knns.recall(parser));
         }
+        // optionally calculate the error ration of the calculated k-nearest-neighbors
+        if (parser.has_argv("evaluate_knn_dist_file")) {
+            const auto [error_ratio, num_points, num_knn_not_found] = knns.error_ratio(parser);
+            if (num_points == 0) {
+                logger.log("error ratio: {}\n", error_ratio);
+            } else {
+                logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
+            }
+        }
 
 
 
