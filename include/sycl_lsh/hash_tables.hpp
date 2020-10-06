@@ -25,7 +25,7 @@ namespace sycl_lsh {
     class kernel_fill_hash_tables;
 
     // forward declare hash_tables class
-    template <memory_layout layout, typename Options, typename Data, template <memory_layout, typename, typename> class HashFunctionType>
+    template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     class hash_tables;
 
     /**
@@ -43,8 +43,8 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]] 
     auto make_hash_tables(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
-        // TODO 2020-10-06 17:31 marcel: implement correctly
-        return hash_tables<layout, Options, Data, random_projections>(opt, data, comm, logger);
+        using type_of_hash_functions = detail::get_hash_functions_type_t<layout, Options, Data, Options::type_of_hash_functions>;
+        return hash_tables<layout, Options, Data, type_of_hash_functions>(opt, data, comm, logger);
     }
 
 
@@ -55,13 +55,14 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      * @tparam HashFunctionType the used type of hash functions in the LSH algorithm
      */
-    template <memory_layout layout, typename Options, typename Data, template <memory_layout, typename, typename> class HashFunctionType>
+    template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     class hash_tables : private detail::hash_tables_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
         static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must be a sycl_lsh::options type!");
         static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must be a sycl_lsh::data type!");
+        static_assert(std::is_base_of_v<detail::hash_functions_base, HashFunctionType>, "The fourth template parameter must be a hash function type!");
     public:
         // ---------------------------------------------------------------------------------------------------------- //
         //                                                type aliases                                                //
@@ -81,10 +82,16 @@ namespace sycl_lsh {
         using data_attributes_type = typename data_type::data_attributes_type;
 
         /// The type of the used LSH hash functions.
-        using hash_function_type = HashFunctionType<layout, options_type, data_type>;
+        using hash_function_type = HashFunctionType;
 
         /// The type of the device buffer used by SYCL.
         using device_buffer_type = sycl::buffer<index_type, 1>;
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                       calculate k-nearest-neighbors                                        //
+        // ---------------------------------------------------------------------------------------------------------- //
+
 
 
         // ---------------------------------------------------------------------------------------------------------- //
