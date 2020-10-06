@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-06
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -15,9 +15,12 @@
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file.hpp>
+#include <sycl_lsh/mpi/math.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/mpi/timer.hpp>
 #include <sycl_lsh/options.hpp>
+
+#include <fmt/format.h>
 
 #include <algorithm>
 #include <utility>
@@ -202,6 +205,23 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if the command line argument `knn_dist_save_file` isn't present in @p parser.
          */
         void save_distances(const argv_parser& parser);
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                                evaluate knn                                                //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
+         * @param[in] parser the used @ref sycl_lsh::argv_parser
+         * @return the resulting recall (`[[nodiscard]]`)
+         *
+         * @throws std::invalid_argument if the required command line argument `evaluate_knn_file` isn't present in @p parser.
+         * @throws std::runtime_error if the parsed total number of points doesn't match with the current `total_size`.
+         * @throws std::runtime_error if the parsed number of points per MPI rank doesn't match with the current `rank_size`.
+         * @throws std::runtime_error if the parsed number of dimensions doesn't match with the current `dims`.
+         */
+        [[nodiscard]]
+        real_type recall(const argv_parser& parser);
 
         
         // ---------------------------------------------------------------------------------------------------------- //
@@ -439,6 +459,65 @@ namespace sycl_lsh {
         swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
 
         logger_.log("Saved k-nearest-neighbor distances in {}.\n", t.elapsed());
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                                evaluate knn                                                //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options, typename Data>
+    [[nodiscard]]
+    typename Options::real_type knn<layout, Options, Data>::recall(const argv_parser& parser) {
+        mpi::timer t(comm_);
+
+        // load correct k-nearest-neighbor IDs
+        // check if the required command line argument is present
+        if (!parser.has_argv("evaluate_knn_file")) {
+            throw std::invalid_argument("Required command line argument 'evaluate_knn_file' not provided!");
+        }
+
+        // read correct k-nearest-neighbor IDs from the respective file
+        const std::string& file_name = parser.argv_as<std::string>("evaluate_knn_file");
+        auto file_parser = mpi::make_file_parser<index_type, options_type>(file_name, parser, mpi::file::mode::read, comm_, logger_);
+        const index_type parsed_total_size = file_parser->parse_total_size();
+        const index_type parsed_rank_size = file_parser->parse_rank_size();
+        const index_type parsed_dims = file_parser->parse_dims();
+        std::vector<index_type> correct_knn(parsed_rank_size * parsed_dims);
+        file_parser->parse_content(correct_knn);
+
+        // perform sanity checks
+        if (parsed_total_size != attr_.total_size) {
+            throw std::runtime_error(fmt::format("The total number of points in '{}' is {}, but should be {}!", file_name, parsed_total_size, attr_.total_size));
+        } else if (parsed_rank_size != attr_.rank_size) {
+            throw std::runtime_error(fmt::format("The number of points per MPI rank in '{}' is {}, but should be {}!", file_name, parsed_rank_size, attr_.rank_size));
+        } else if (parsed_dims != k_) {
+            throw std::runtime_error(fmt::format("The number of nearest-neighbors in '{}' is {}, but should be {}!", file_name, parsed_dims, k_));
+        }
+
+        const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
+
+        const sycl_lsh::get_linear_id<knn<layout, options_type, data_type>> get_linear_id_this{};
+        const sycl_lsh::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+
+        index_type count = 0;
+        for (index_type point = 0; point < correct_rank_size; ++point) {
+            for (index_type nn = 0; nn < k_; ++nn) {
+                // get calculated k-nearest-neighbor ID
+                const index_type calculated_id = knn_host_buffer_active_[get_linear_id_this(point, nn, attr_, k_)];
+                // check if calculated ID is contained in the correct IDs
+                for (index_type i = 0; i < k_; ++i) {
+                    if (calculated_id == correct_knn[get_linear_id_aos(point, i, attr_, k_)]) {
+                        // correct ID found
+                        ++count;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const real_type res = (static_cast<real_type>(mpi::sum(count, comm_)) / (attr_.total_size * k_)) * 100.0;
+        logger_.log("\nCalculated recall in {}.\n", t.elapsed());
+        return res;
     }
 
 }

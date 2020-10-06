@@ -57,6 +57,11 @@ int custom_main(int argc, char** argv) {
             knns.save_distances(parser);
         }
 
+        // optionally calculate the recall of the calculated k-nearest-neighbors
+        if (parser.has_argv("evaluate_knn_file")) {
+            logger.log("recall: {} %\n", knns.recall(parser));
+        }
+
 
 
         auto hf = sycl_lsh::make_random_projections_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
