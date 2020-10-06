@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-06
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -23,23 +23,24 @@ namespace sycl_lsh {
     /**
      * @brief Minimalistic class to parse command line arguments.
      * @details The supported command line options are:
-     * | command line argument | description                                                                                              |
-     * |:----------------------|:---------------------------------------------------------------------------------------------------------|
-     * | help                  | Prints the help screen.                                                                                  |
-     * | data_file             | Path to the data file (**required**).                                                                    |
-     * | file_parser           | The type of the file parser to parse the data file (one off 'arff_parser' or 'binary_parser' (default)). |
-     * | k                     | The number of nearest-neighbors to search for (**required**).                                            |
-     * | options_file          | Path to the options file to load.                                                                        |
-     * | options_save_file     | Path to the file to save the currently used options to.                                                  |
-     * | knn_save_file         | Path to the file to save the found k-nearest-neighbors to.                                               |
-     * | knn_dist_save_file    | Path to the file to save the distances of the found k-nearest-neighbors to.                              |
-     * | evaluate_knn_file     | Path to the file containing the correct k-nearest-neighbors.                                             |
-     * | hash_pool_size        | The number of hash functions in the hash pool.                                                           |
-     * | num_hash_functions    | The number of hash functions to calculate the hash values with.                                          |
-     * | num_hash_tables       | The number of used hash tables.                                                                          |
-     * | hash_table_size       | The size of each hash table.                                                                             |
-     * | w                     | The segment size for the random projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.    |
-     * | num_cut_off_points    | The number of cut-off points for the entropy-based hash functions.                                       |
+     * | command line argument  | description                                                                                              |
+     * |:-----------------------|:---------------------------------------------------------------------------------------------------------|
+     * | help                   | Prints the help screen.                                                                                  |
+     * | data_file              | Path to the data file (**required**).                                                                    |
+     * | file_parser            | The type of the file parser to parse the data file (one off 'arff_parser' or 'binary_parser' (default)). |
+     * | k                      | The number of nearest-neighbors to search for (**required**).                                            |
+     * | options_file           | Path to the options file to load.                                                                        |
+     * | options_save_file      | Path to the file to save the currently used options to.                                                  |
+     * | knn_save_file          | Path to the file to save the found k-nearest-neighbors to.                                               |
+     * | knn_dist_save_file     | Path to the file to save the distances of the found k-nearest-neighbors to.                              |
+     * | evaluate_knn_file      | Path to the file containing the correct k-nearest-neighbors.                                             |
+     * | evaluate_knn_dist_file | Path to the file containing the correct k-nearest-neighbor distances.                                    |
+     * | hash_pool_size         | The number of hash functions in the hash pool.                                                           |
+     * | num_hash_functions     | The number of hash functions to calculate the hash values with.                                          |
+     * | num_hash_tables        | The number of used hash tables.                                                                          |
+     * | hash_table_size        | The size of each hash table.                                                                             |
+     * | w                      | The segment size for the random projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.    |
+     * | num_cut_off_points     | The number of cut-off points for the entropy-based hash functions.                                       |
      */
     class argv_parser {
     public:

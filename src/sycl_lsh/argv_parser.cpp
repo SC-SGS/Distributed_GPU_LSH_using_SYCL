@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-06
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -13,21 +13,22 @@
 
 
 const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser::list_of_argvs_ = {
-        { "help",               { "help screen", false } },
-        { "data_file",          { "path to the data file", true } },
-        { "file_parser",        { "type of the file parser", false } },
-        { "k",                  { "the number of nearest-neighbors to search for", true } },
-        { "options_file",       { "path to options file", false } },
-        { "options_save_file",  { "save the currently used options to the given path", false } },
-        { "knn_save_file",      { "save the calculated nearest-neighbors to path", false } },
-        { "knn_dist_save_file", { "save the calculated nearest-neighbor distances to path", false } },
-        { "evaluate_knn_file",  { "read the correct nearest-neighbors and evaluate calculated nearest-neighbors", false } },
-        { "hash_pool_size",     { "number of hash functions in the hash pool", false } },
-        { "num_hash_functions", { "number of hash functions per hash table", false } },
-        { "num_hash_tables",    { "number of hash tables to create", false } },
-        { "hash_table_size",    { "size of each hash table", false } },
-        { "w",                  { "segment size for the random projections hash functions", false } },
-        { "num_cut_off_points", { "number of cut-off points for the entropy-based hash functions", false } }
+        { "help",                   { "help screen", false } },
+        { "data_file",              { "path to the data file", true } },
+        { "file_parser",            { "type of the file parser", false } },
+        { "k",                      { "the number of nearest-neighbors to search for", true } },
+        { "options_file",           { "path to options file", false } },
+        { "options_save_file",      { "save the currently used options to the given path", false } },
+        { "knn_save_file",          { "save the calculated nearest-neighbors to path", false } },
+        { "knn_dist_save_file",     { "save the calculated nearest-neighbor distances to path", false } },
+        { "evaluate_knn_file",      { "read the correct nearest-neighbors for calculating the resulting recall", false } },
+        { "evaluate_knn_dist_file", { "read the correct nearest-neighbor distances for calculating the error ratio", false } },
+        { "hash_pool_size",         { "number of hash functions in the hash pool", false } },
+        { "num_hash_functions",     { "number of hash functions per hash table", false } },
+        { "num_hash_tables",        { "number of hash tables to create", false } },
+        { "hash_table_size",        { "size of each hash table", false } },
+        { "w",                      { "segment size for the random projections hash functions", false } },
+        { "num_cut_off_points",     { "number of cut-off points for the entropy-based hash functions", false } }
 };
 
 
