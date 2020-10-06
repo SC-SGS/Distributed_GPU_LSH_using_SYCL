@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-02
+ * @date 2020-10-06
  *
  * @brief Implements the entropy based hash function as the used LSH hash functions.
  */
@@ -30,7 +30,7 @@
 namespace sycl_lsh {
 
     // SYCL kernel name needed to silence ComputeCpp warning
-    class cut_off_points_unsorted;
+    class kernel_cut_off_points_unsorted;
 
     // forward declare entropy based class
     template <memory_layout layout, typename Options, typename Data>
@@ -331,7 +331,7 @@ namespace sycl_lsh {
                         const options_type options = options_;
                         get_linear_id<data_type> get_linear_id_data{};
 
-                        cgh.parallel_for<cut_off_points_unsorted>(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+                        cgh.parallel_for<kernel_cut_off_points_unsorted>(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
                             const index_type idx = item.get_linear_id();
 
                             real_type value = 0.0;
