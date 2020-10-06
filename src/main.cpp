@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-06
  *
  * @brief The main file containing the main logic.
  */
@@ -54,7 +54,7 @@ int custom_main(int argc, char** argv) {
         }
         // optionally save calculated k-nearest-neighbor distances
         if (parser.has_argv("knn_dist_save_file")) {
-            knns.save_distances();
+            knns.save_distances(parser);
         }
 
 
