@@ -45,6 +45,8 @@ int custom_main(int argc, char** argv) {
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(parser, opt, comm, logger);
         logger.log("\nUsed data set:\n{}\n", data);
 
+        auto hash_tables = sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
+
         // // TODO 2020-10-05 17:26 marcel: remove
         auto knns = sycl_lsh::make_knn<sycl_lsh::memory_layout::aos>(parser, opt, data, comm, logger);
 
@@ -73,7 +75,7 @@ int custom_main(int argc, char** argv) {
 
 
 
-        auto hf = sycl_lsh::make_random_projections_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
+        sycl_lsh::random_projections<sycl_lsh::memory_layout::aos, decltype(opt), decltype(data)> hf(opt, data, comm, logger);
 //        auto hf = sycl_lsh::make_entropy_based_hash_functions<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
 
 
