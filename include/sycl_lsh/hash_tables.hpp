@@ -66,6 +66,28 @@ namespace sycl_lsh {
         using device_buffer_type = sycl::buffer<index_type, 1>;
 
 
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                                   getter                                                   //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Returns the specified @ref sycl_lsh::memory_layout type.
+         * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
+         */
+        [[nodiscard]]
+        constexpr memory_layout get_memory_layout() const noexcept { return layout; }
+        /**
+         * @brief Returns the @ref sycl_lsh::options object used to control the behavior of the used algorithm.
+         * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
+         */
+        [[nodiscard]]
+        const options_type get_options() const noexcept { return options_; }
+        /**
+         * @brief Returns the @ref sycl_lsh::data object representing the used data set.
+         * @return the @ref sycl_lsh::data (`[[nodiscard]]`)
+         */
+        [[nodiscard]]
+        const data_type& get_data() const noexcept { return data_; }
+
     private:
         // befriend factory function
         friend auto make_hash_tables<layout, Options, Data>(const options_type&, data_type&, const mpi::communicator&, const mpi::logger&);
