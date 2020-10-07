@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-07
  *
  * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
  */
@@ -21,6 +21,7 @@
 #include <sycl_lsh/options.hpp>
 
 #include <fmt/format.h>
+#include <mpi.h>
 
 #include <algorithm>
 #include <utility>
@@ -155,6 +156,16 @@ namespace sycl_lsh {
         using knn_host_buffer_type = std::vector<index_type>;
         /// The type of the host buffer representing the k-nearest-neighbor distances used to hide the MPI communications.
         using dist_host_buffer_type = std::vector<real_type>;
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                             update host buffer                                             //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Send the elements of the active buffers to the neighboring inactive buffers using a ring like send pattern.
+         * @details Swaps the active and inactive host buffers.
+         */
+        void send_receive_host_buffer();
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -622,6 +633,31 @@ namespace sycl_lsh {
 
         logger_.log("\nCalculated error ration in {}.\n", t.elapsed());
         return std::make_tuple(avg_mean_error_ratio, total_num_points, total_num_knn_not_found);
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                             update host buffer                                             //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options, typename Data>
+    void knn<layout, Options, Data>::send_receive_host_buffer() {
+        const int destination = (comm_.rank() + 1) % comm_.size();
+        const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
+
+        // send/receive k-nearest-neighbor IDs
+        MPI_Sendrecv(knn_host_buffer_active_.data(), knn_host_buffer_active_.size(), mpi::type_cast<typename knn_host_buffer_type::value_type>(), destination, 0,
+                     knn_host_buffer_inactive_.data(), knn_host_buffer_inactive_.size(), mpi::type_cast<typename knn_host_buffer_type::value_type>(), source, 0,
+                     comm_.get(), MPI_STATUS_IGNORE);
+
+        // send/receive k-nearest-neighbor distances
+        MPI_Sendrecv(dist_host_buffer_active_.data(), dist_host_buffer_active_.size(), mpi::type_cast<typename dist_host_buffer_type::value_type>(), destination, 0,
+                     dist_host_buffer_inactive_.data(), dist_host_buffer_inactive_.size(), mpi::type_cast<typename dist_host_buffer_type::value_type>(), source, 0,
+                     comm_.get(), MPI_STATUS_IGNORE);
+
+        // update active/inactive buffer
+        using std::swap;
+        swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
+        swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
     }
 
 }
