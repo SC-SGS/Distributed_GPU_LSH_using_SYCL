@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-07
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -12,8 +12,10 @@
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
+#include <sycl_lsh/knn.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -80,6 +82,13 @@ namespace sycl_lsh {
         using data_type = Data;
         /// The type of the @ref sycl_lsh::data_attributes object.
         using data_attributes_type = typename data_type::data_attributes_type;
+        /// The type of the device buffer used in the @ref sycl_lsh::data object.
+        using data_device_buffer_type = typename data_type::device_buffer_type;
+        /// The type of the host buffer used in the @ref sycl_lsh::data object.
+        using data_host_buffer_type = typename data_type::host_buffer_type;
+
+        /// The type of the @ref sycl_lsh::knn object as the result of the k-nearest-neighbor search.
+        using knn_type = knn<layout, options_type, data_type>;
 
         /// The type of the used LSH hash functions.
         using hash_function_type = HashFunctionType;
@@ -91,7 +100,70 @@ namespace sycl_lsh {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                       calculate k-nearest-neighbors                                        //
         // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
+         * @param[in] parser the used @ref sycl_lsh::argv_parser to get the number of nearest-neighbors to search for from
+         * @return the found k-nearest-neighbors (`[[nodiscard]]`)
+         */
+        [[nodiscard]] 
+        knn_type get_k_nearest_neighbors(const argv_parser& parser) {
+            return get_k_nearest_neighbors(parser.argv_as<index_type>("k"));
+        }
+        /**
+         * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
+         * @param[in] k the number of nearest-neighbors to search for
+         * @return the found k-nearest-neighbors (`[[nodiscard]]`)
+         */
+        [[nodiscard]]
+        knn_type get_k_nearest_neighbors(const index_type k) {
+            mpi::timer t(comm_);
 
+            knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
+
+            for (int round = 0; round < comm_.size(); ++round) {
+                mpi::timer rt(comm_);
+
+                logger_.log("Round {} of {} ... ", round + 1, comm_.size());
+                // create thread to asynchronously perform MPI communication
+                std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
+
+                // calculate k-nearest-neighbors on current MPI rank
+                if (round == 0) {
+                    // use data already on device in round 0
+                    calculate_knn_round(k, data_.get_device_buffer(), knns, true);
+                } else {
+                    // copy received data to device in other rounds
+                    data_host_buffer_type data_host_buffer = data_.get_host_buffer();
+                    data_device_buffer_type data_device_buffer(data_host_buffer.size());
+
+                    // copy data to device buffer
+                    auto acc = data_device_buffer.template get_access<sycl::access::mode::discard_write>();
+                    for (index_type i = 0; i < data_host_buffer.size(); ++i) {
+                        acc[i] = data_host_buffer[i];
+                    }
+
+                    calculate_knn_round(k, data_device_buffer, knns, false);
+                }
+
+                // wait until all k-nearest-neighbors were calculated on the current MPI rank
+                queue_.wait_and_throw();
+                // send calculated k-nearest-neighbors and distances to next rank
+                knns.send_receive_host_buffer();
+                // wait until all MPI communication has been finished
+                mpi_thread.join();
+                comm_.wait();
+
+                logger_.log("finished in {}.\n", rt.elapsed());
+            }
+
+            logger_.log("Calculated {}-nearest-neighbors in {}.\n\n", k, t.elapsed());
+
+            return knns;
+        }
+
+        void calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns, const bool first_round) {
+
+        }
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -170,10 +242,12 @@ namespace sycl_lsh {
     hash_tables<layout, Options, Data, HashFunctionType>::hash_tables(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger)
             : options_(opt), data_(data), attr_(data.get_attributes()), comm_(comm), logger_(logger),
               hash_functions_(opt, data, comm, logger),
-              queue_(sycl::default_selector()), // TODO 2020-10-06 14:08 marcel: change to custom selector
+              queue_(sycl::default_selector(), sycl::async_handler(&sycl_exception_handler)), // TODO 2020-10-06 14:08 marcel: change to custom selector
               hash_tables_buffer_(opt.num_hash_tables * data.get_attributes().rank_size + options_type::blocking_size), // TODO 2020-10-06 14:14 marcel: check blocking
               offsets_buffer_(opt.num_hash_tables * (opt.hash_table_size + 1))
     {
+        // log used devices
+        logger_.log_on_all("[{}, {}]", comm_.rank(), queue_.get_device().template get_info<sycl::info::device::name>());
         // TODO 2020-10-06 16:25 marcel: use correct timer overload
         mpi::timer t(comm_);
 
