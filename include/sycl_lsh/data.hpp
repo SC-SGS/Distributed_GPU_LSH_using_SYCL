@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-02
+ * @date 2020-10-07
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -23,6 +23,7 @@
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
+#include <mpi.h>
 
 #include <memory>
 #include <type_traits>
@@ -126,6 +127,16 @@ namespace sycl_lsh {
         using device_buffer_type = sycl::buffer<real_type, 1>;
         /// The type of the host buffer used to hide the MPI communications.
         using host_buffer_type = std::vector<real_type>;
+
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                             update host buffer                                             //
+        // ---------------------------------------------------------------------------------------------------------- //
+        /**
+         * @brief Send the elements of the active buffer to the neighboring inactive buffer using a ring like send pattern.
+         * @details Swaps the active and inactive host buffers.
+         */
+        void send_receive_host_buffer();
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -252,6 +263,23 @@ namespace sycl_lsh {
         }
 
         logger_.log("Created data object in {}.\n", t.elapsed());
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                             update host buffer                                             //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options>
+    void data<layout, Options>::send_receive_host_buffer() {
+        const int destination = (comm_.rank() + 1) % comm_.size();
+        const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
+
+        MPI_Sendrecv(host_buffer_active_.data(), host_buffer_active_.size(), mpi::type_cast<typename host_buffer_type::value_type>(), destination, 0,
+                     host_buffer_inactive_.data(), host_buffer_inactive_.size(), mpi::type_cast<typename host_buffer_type::value_type>(), source, 0,
+                     comm_.get(), MPI_STATUS_IGNORE);
+
+        using std::swap;
+        swap(host_buffer_active_, host_buffer_inactive_);
     }
 
 }
