@@ -141,7 +141,7 @@ namespace sycl_lsh {
                 // calculate k-nearest-neighbors on current MPI rank
                 if (round == 0) {
                     // use data already on device in round 0
-                    calculate_knn_round(k, data_.get_device_buffer(), knns, true);
+                    calculate_knn_round(k, data_.get_device_buffer(), knns);
                 } else {
                     // copy received data to device in other rounds
                     data_host_buffer_type data_host_buffer = data_.get_host_buffer();
@@ -153,7 +153,7 @@ namespace sycl_lsh {
                         acc[i] = data_host_buffer[i];
                     }
 
-                    calculate_knn_round(k, data_device_buffer, knns, false);
+                    calculate_knn_round(k, data_device_buffer, knns);
                 }
 
                 // wait until all k-nearest-neighbors were calculated on the current MPI rank
@@ -172,8 +172,8 @@ namespace sycl_lsh {
             return knns;
         }
 
-        void calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns, const bool first_round) {
-
+        void calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns) {
+            
         }
 
 
