@@ -15,6 +15,9 @@
 #include <sycl_lsh/knn.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 
+#include <fmt/format.h>
+
+#include <stdexcept>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -104,6 +107,8 @@ namespace sycl_lsh {
          * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
          * @param[in] parser the used @ref sycl_lsh::argv_parser to get the number of nearest-neighbors to search for from
          * @return the found k-nearest-neighbors (`[[nodiscard]]`)
+         *
+         * @throws std::invalid_argument if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
          */
         [[nodiscard]] 
         knn_type get_k_nearest_neighbors(const argv_parser& parser) {
@@ -113,10 +118,16 @@ namespace sycl_lsh {
          * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
          * @param[in] k the number of nearest-neighbors to search for
          * @return the found k-nearest-neighbors (`[[nodiscard]]`)
+         *
+         * @throws std::invalid_argument if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
          */
         [[nodiscard]]
         knn_type get_k_nearest_neighbors(const index_type k) {
             mpi::timer t(comm_);
+
+            if (k < 1 || k > attr_.rank_size) {
+                throw std::invalid_argument(fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", k, attr_.rank_size));
+            }
 
             knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
 
