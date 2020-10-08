@@ -48,7 +48,7 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    inline auto make_knn(const typename Options::index_type k, const Options&, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
+    inline auto make_knn(const typename Options::index_type k, const Options&, const Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
         return knn<layout, Options, Data>(k, data, comm, logger);
     }
     /**
@@ -66,7 +66,7 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    inline auto make_knn(const argv_parser& parser, const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
+    inline auto make_knn(const argv_parser& parser, const Options& opt, const Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
         return make_knn<layout>(parser.argv_as<typename Options::index_type>("k"), opt, data, comm, logger);
     }
 
@@ -273,8 +273,8 @@ namespace sycl_lsh {
 
     private:
         // befriend the factory function
-        friend auto make_knn<layout, Options, Data>(const index_type k, const Options&, Data&, const mpi::communicator&, const mpi::logger&);
-        friend auto make_knn<layout, Options, Data>(const argv_parser& parser, const Options&, Data&, const mpi::communicator&, const mpi::logger&);
+        friend auto make_knn<layout, Options, Data>(const index_type k, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
+        friend auto make_knn<layout, Options, Data>(const argv_parser& parser, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
 
         // ---------------------------------------------------------------------------------------------------------- //
         //                                                constructor                                                 //
@@ -297,7 +297,7 @@ namespace sycl_lsh {
          *
          * @pre @p k **must** be greater than `0`.
          */
-        knn(const index_type k, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
+        knn(const index_type k, const data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
 
 
         const data_attributes_type attr_;
@@ -317,7 +317,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    knn<layout, Options, Data>::knn(const typename Options::index_type k, Data& data, const mpi::communicator& comm, const mpi::logger& logger)
+    knn<layout, Options, Data>::knn(const typename Options::index_type k, const Data& data, const mpi::communicator& comm, const mpi::logger& logger)
         : attr_(data.get_attributes()), comm_(comm), logger_(logger),
           k_(k),
           knn_host_buffer_active_(attr_.rank_size * k), knn_host_buffer_inactive_(attr_.rank_size * k),
