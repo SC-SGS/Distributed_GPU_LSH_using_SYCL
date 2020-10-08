@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-07
+ * @date 2020-10-08
  *
  * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
  */
@@ -258,9 +258,8 @@ namespace sycl_lsh {
                             // calculate distances
                             for (index_type block = 0; block < options_type::blocking_size; ++block) {
                                 for (index_type dim = 0; dim < attr.dims; ++dim) {
-                                    // TODO 2020-10-07 16:40 marcel: check
-                                    const real_type x = acc_data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
-                                    const real_type y = acc_data_received[get_linear_id_data(global_idx, dim, attr)];
+                                    const real_type x = acc_data_received[get_linear_id_data(global_idx, dim, attr)];
+                                    const real_type y = acc_data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
                                     knn_dist_blocked[block] += (x - y) * (x - y);
                                 }
                             }
@@ -379,12 +378,11 @@ namespace sycl_lsh {
             : options_(opt), data_(data), attr_(data.get_attributes()), comm_(comm), logger_(logger),
               hash_functions_(opt, data, comm, logger),
               queue_(sycl::default_selector(), sycl::async_handler(&sycl_exception_handler)), // TODO 2020-10-06 14:08 marcel: change to custom selector
-              hash_tables_buffer_(opt.num_hash_tables * data.get_attributes().rank_size + options_type::blocking_size), // TODO 2020-10-06 14:14 marcel: check blocking
+              hash_tables_buffer_(opt.num_hash_tables * data.get_attributes().rank_size + options_type::blocking_size),
               offsets_buffer_(opt.num_hash_tables * (opt.hash_table_size + 1))
     {
         // log used devices
         logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().template get_info<sycl::info::device::name>());
-        // TODO 2020-10-06 16:25 marcel: use correct timer overload
         mpi::timer t(comm_);
 
         {
@@ -404,7 +402,6 @@ namespace sycl_lsh {
 
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     void hash_tables<layout, Options, Data, HashFunctionType>::count_hash_values(device_buffer_type& hash_values_count) {
-        // TODO 2020-10-06 16:25 marcel: use correct timer overload
         mpi::timer t(comm_);
 
         queue_.submit([&](sycl::handler& cgh) {
@@ -427,12 +424,14 @@ namespace sycl_lsh {
                 }
             });
         });
+        #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+            queue_.wait_and_throw();
+        #endif
 
         logger_.log("Counted hash values in {}.\n", t.elapsed());
     }
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     void hash_tables<layout, Options, Data, HashFunctionType>::calculate_offsets(device_buffer_type& hash_values_count) {
-        // TODO 2020-10-06 16:25 marcel: use correct timer overload
         mpi::timer t(comm_);
 
         queue_.submit([&](sycl::handler& cgh) {
@@ -460,6 +459,9 @@ namespace sycl_lsh {
                 }
             });
         });
+        #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+            queue_.wait_and_throw();
+        #endif
 
         logger_.log("Calculated offsets in {}.\n", t.elapsed());
     }
@@ -512,6 +514,9 @@ namespace sycl_lsh {
                 }
             });
         });
+        #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+            queue_.wait_and_throw();
+        #endif
 
         logger_.log("Filled hash tables in {}.\n", t.elapsed());
     }
