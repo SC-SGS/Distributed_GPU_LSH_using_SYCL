@@ -41,7 +41,6 @@ namespace sycl_lsh {
      * @tparam Options the used @ref sycl_lsh::options type
      * @tparam Data the used @ref sycl_lsh::data type
      * @param[in] k the number of nearest-neighbors to search for
-     * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
@@ -49,8 +48,8 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    inline auto make_knn(const typename Options::index_type k, const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
-        return knn<layout, Options, Data>(k, opt, data, comm, logger);
+    inline auto make_knn(const typename Options::index_type k, const Options&, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
+        return knn<layout, Options, Data>(k, data, comm, logger);
     }
     /**
      * @brief Factory function for the @ref sycl_lsh::knn class.
@@ -257,18 +256,6 @@ namespace sycl_lsh {
  */
         [[nodiscard]]
         constexpr memory_layout get_memory_layout() const noexcept { return layout; }
-        /**
-         * @brief Returns the @ref sycl_lsh::options object used to control the behavior of the used algorithm.
-         * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        const options_type get_options() const noexcept { return options_; }
-        /**
-         * @brief Returns the @ref sycl_lsh::data object representing the used data set.
-         * @return the @ref sycl_lsh::data (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        const data_type& get_data() const noexcept { return data_; }
 
         /**
          * @brief Returns the host buffer containing the k-nearest-neighbor IDs used to hide the MPI communication.
@@ -295,18 +282,24 @@ namespace sycl_lsh {
         /**
          * @brief Construct a new @ref sycl_lsh::knn object given @p k, the number of nearest-neighbors to search for.
          * @param[in] k the number of nearest-neighbors to search for
-         * @param[in] opt the used @ref sycl_lsh::options
          * @param[in] data the used @ref sycl_lsh::data representing the used data set
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          *
          * @pre @p k **must** be greater than `0`.
          */
-        knn(const index_type k, const options_type& opt, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
+        /**
+         * @brief Construct a new @ref sycl_lsh::knn object given @p k, the number of nearest-neighbors to search for.
+         * @param[in] k the number of nearest-neighbors to search for
+         * @param[in] data the used @ref sycl_lsh::data representing the used data set
+         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+         * @param[in] logger the used @ref sycl_lsh::mpi::logger
+         *
+         * @pre @p k **must** be greater than `0`.
+         */
+        knn(const index_type k, data_type& data, const mpi::communicator& comm, const mpi::logger& logger);
 
 
-        const options_type& options_;
-        data_type& data_;
         const data_attributes_type attr_;
         const mpi::communicator& comm_;
         const mpi::logger& logger_;
@@ -324,8 +317,8 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    knn<layout, Options, Data>::knn(const typename Options::index_type k, const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger)
-        : options_(opt), data_(data), attr_(data.get_attributes()), comm_(comm), logger_(logger),
+    knn<layout, Options, Data>::knn(const typename Options::index_type k, Data& data, const mpi::communicator& comm, const mpi::logger& logger)
+        : attr_(data.get_attributes()), comm_(comm), logger_(logger),
           k_(k),
           knn_host_buffer_active_(attr_.rank_size * k), knn_host_buffer_inactive_(attr_.rank_size * k),
           dist_host_buffer_active_(attr_.rank_size * k, std::numeric_limits<real_type>::max()),
