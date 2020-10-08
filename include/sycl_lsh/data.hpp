@@ -231,13 +231,10 @@ namespace sycl_lsh {
             : options_(opt), comm_(comm), logger_(logger),
               data_attributes_(parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims()),
               device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
-              host_buffer_active_(data_attributes_.rank_size * data_attributes_.dims),
+              host_buffer_active_(parser.parse_content()),
               host_buffer_inactive_(data_attributes_.rank_size * data_attributes_.dims)
     {
         mpi::timer t(comm_);
-
-        // parse content
-        parser.parse_content(host_buffer_active_);
 
         // change memory layout from aos to soa if requested
         if constexpr (layout == memory_layout::soa) {

@@ -506,8 +506,7 @@ namespace sycl_lsh {
         const index_type parsed_total_size = file_parser->parse_total_size();
         const index_type parsed_rank_size = file_parser->parse_rank_size();
         const index_type parsed_dims = file_parser->parse_dims();
-        std::vector<index_type> correct_knn(parsed_rank_size * parsed_dims);
-        file_parser->parse_content(correct_knn);
+        std::vector<index_type> correct_knn = file_parser->parse_content();
 
         // perform sanity checks
         if (parsed_total_size != attr_.total_size) {
@@ -561,8 +560,7 @@ namespace sycl_lsh {
         const index_type parsed_total_size = file_parser->parse_total_size();
         const index_type parsed_rank_size = file_parser->parse_rank_size();
         const index_type parsed_dims = file_parser->parse_dims();
-        std::vector<real_type> correct_knn_dist(parsed_rank_size * parsed_dims);
-        file_parser->parse_content(correct_knn_dist);
+        std::vector<real_type> correct_knn_dist = file_parser->parse_content();
 
         // perform sanity checks
         if (parsed_total_size != attr_.total_size) {

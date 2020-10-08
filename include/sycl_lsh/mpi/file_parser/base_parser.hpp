@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-08
  *
  * @brief Base class for all different file parsers.
  * @details Pure virtual.
@@ -85,9 +85,10 @@ namespace sycl_lsh::mpi {
         virtual index_type parse_dims() const = 0;
         /**
          * @brief Parse the content of the file.
-         * @param[out] buffer to write the data to
+         * @return the parsed data (`[[nodiscard]]`)
          */
-        virtual void parse_content(std::vector<parsing_type>& buffer) const = 0;
+        [[nodiscard]]
+        virtual std::vector<parsing_type> parse_content() const = 0;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)

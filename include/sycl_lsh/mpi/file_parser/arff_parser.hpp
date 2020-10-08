@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-08
  *
  * @brief File parser for parsing `.arff` data files.
  */
@@ -74,11 +74,12 @@ namespace sycl_lsh::mpi {
         index_type parse_dims() const override;
         /**
          * @brief Parse the content of the file.
-         * @param[out] buffer to write the data to
+         * @return the parsed data (`[[nodiscard]]`)
          *
          * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
          */
-        void parse_content(std::vector<parsing_type>& buffer) const override;
+        [[nodiscard]] 
+        std::vector<parsing_type> parse_content() const override;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
@@ -119,7 +120,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void arff_parser<Options, T>::parse_content([[maybe_unused]] std::vector<parsing_type>& buffer) const {
+    std::vector<typename arff_parser<Options, T>::parsing_type> arff_parser<Options, T>::parse_content() const {
         throw sycl_lsh::not_implemented();
     }
 

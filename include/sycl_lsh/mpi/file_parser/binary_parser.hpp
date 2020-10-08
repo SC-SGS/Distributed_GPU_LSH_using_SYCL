@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-08
  *
  * @brief File parser for parsing plain binary data files.
  */
@@ -87,13 +87,14 @@ namespace sycl_lsh::mpi {
          * @details Fills the last elements of the buffer on the last MPI rank such that all MPI ranks have te same number of data points. \n
          *          Calls *MPI_Abort()* if the file size doesn't match the header information or the values actual read diverge from the
          *          number of values which should theoretically be used
-         * @param[out] buffer to write the data to
+         * @return the parsed data (`[[nodiscard]]`)
          *
          * @note Calls MPI_Abort() if the file has been opened in write mode.
          * @note Calls MPI_Abort() if the header information and type doesn't match with the file size.
          * @note Calls MPI_Abort() if the buffer isn't big enough.
          */
-        void parse_content(std::vector<parsing_type>& buffer) const override;
+        [[nodiscard]]
+        std::vector<parsing_type> parse_content() const override;
         /**
          * @brief Write the content in @p buffer to the file.
          * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
@@ -138,7 +139,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void binary_parser<Options, T>::parse_content(std::vector<parsing_type>& buffer) const {
+    std::vector<typename binary_parser<Options, T>::parsing_type> binary_parser<Options, T>::parse_content() const {
         timer t(base_type::comm_);
 
         // throw if file has been opened in the wrong mode
@@ -154,6 +155,8 @@ namespace sycl_lsh::mpi {
         const index_type dims = this->parse_dims();
         const int comm_size = base_type::comm_.size();
         const int comm_rank = base_type::comm_.rank();
+
+        std::vector<parsing_type> buffer(rank_size * dims);
 
         // perform minimal sanity checks
         SYCL_LSH_DEBUG_ASSERT(0 < total_size, "Illegal total size!");
@@ -209,6 +212,8 @@ namespace sycl_lsh::mpi {
         }
         
         base_type::logger_.log("Parsed the data file in {}.\n", t.elapsed());
+
+        return buffer;
     }
 
     template <typename Options, typename T>
