@@ -467,30 +467,29 @@ namespace sycl_lsh {
     }
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     void hash_tables<layout, Options, Data, HashFunctionType>::fill_hash_tables() {
-        // TODO 2020-10-06 16:25 marcel: use correct timer overload
         mpi::timer t(comm_);
 
-        queue_.submit([&](sycl::handler& cgh){
+        queue_.submit([&](sycl::handler& cgh) {
             // get accessors
             auto acc_data = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
             auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
             auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::atomic>(cgh);
-            auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::discard_write>(cgh);
+            auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::write>(cgh);
             // get additional information
             auto options = options_;
             auto attr = attr_;
-            const index_type base_id = comm_.rank() * attr.rank_size;
+            const index_type base_id = comm_.rank() * attr_.rank_size;
             const index_type comm_rank = comm_.rank();
             const index_type comm_size = comm_.size();
             // get hasher functor instantiation
             const lsh_hash<hash_function_type> hasher{};
 
-            cgh.parallel_for<kernel_fill_hash_tables>(sycl::range<>(attr.rank_size), [=](sycl::item<> item){
+            cgh.parallel_for<kernel_fill_hash_tables>(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
-                // TODO 2020-10-06 16:56 marcel: better?
                 index_type val = base_id + idx;
                 if (comm_rank == comm_size - 1) {
+                    // set correct values IDs for dummy points
                     const index_type correct_rank_size = attr.total_size - ((comm_size - 1) * attr.rank_size);
                     if (idx >= correct_rank_size) {
                         val = base_id + correct_rank_size - 1;
@@ -504,8 +503,7 @@ namespace sycl_lsh {
                     const index_type hash_table_idx = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1].fetch_add(1);
                     acc_hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
                 }
-
-                // TODO 2020-10-06 16:59 marcel: better?
+                
                 // fill additional values needed for blocking
                 if (idx == attr.rank_size - 1) {
                     for (index_type block = 0; block < options_type::blocking_size; ++block) {
