@@ -218,18 +218,6 @@ namespace sycl_lsh {
          */
         [[nodiscard]]
         constexpr memory_layout get_memory_layout() const noexcept { return layout; }
-        /**
-         * @brief Returns the @ref sycl_lsh::options object used to control the behavior of the used algorithm.
-         * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        const options_type get_options() const noexcept { return options_; }
-        /**
-         * @brief Returns the @ref sycl_lsh::data object representing the used data set.
-         * @return the @ref sycl_lsh::data (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        const data_type& get_data() const noexcept { return data_; }
 
         /**
          * @brief Returns the device buffer used in the SYCL kernels.
@@ -239,11 +227,6 @@ namespace sycl_lsh {
         device_buffer_type& get_device_buffer() noexcept { return device_buffer_; }
 
     private:
-        const options_type& options_;
-        data_type& data_;
-        const mpi::communicator& comm_;
-        const mpi::logger& logger_;
-
         device_buffer_type device_buffer_;
     };
 
@@ -254,17 +237,16 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     random_projections<layout, Options, Data>::random_projections(const Options& opt, Data& data,
                                                                   const mpi::communicator& comm, const mpi::logger& logger)
-            : options_(opt), data_(data), comm_(comm), logger_(logger),
-              device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1))
+            : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1))
     {
-        mpi::timer t(comm_);
+        mpi::timer t(comm);
 
-        const data_attributes_type& attr = data_.get_attributes();
+        const data_attributes_type& attr = data.get_attributes();
 
         std::vector<real_type> host_buffer(device_buffer_.get_count());
 
         // create hash pool only on MPI master rank
-        if (comm_.master_rank()) {
+        if (comm.master_rank()) {
             // create random generators
             #if SYCL_LSH_DEBUG
                 // don't seed random engine in debug mode
@@ -277,11 +259,11 @@ namespace sycl_lsh {
                 std::mt19937 rnd_uniform_pool_gen(rnd_pool_device());
             #endif
             std::normal_distribution<real_type> rnd_normal_pool_dist;
-            std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, options_.w);
+            std::uniform_real_distribution<real_type> rnd_uniform_pool_dist(0, opt.w);
 
             // fill hash pool
-            std::vector<real_type> hash_pool(options_.hash_pool_size * (attr.dims + 1));
-            for (index_type hash_function = 0; hash_function < options_.hash_pool_size; ++hash_function) {
+            std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
+            for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
                 for (index_type dim = 0; dim < attr.dims; ++dim) {
                     // TODO 2020-10-02 12:47 marcel: abs?
                     hash_pool[hash_function * (attr.dims + 1) + dim] = rnd_normal_pool_dist(rnd_normal_pool_gen);
@@ -298,15 +280,15 @@ namespace sycl_lsh {
                 std::random_device rnd_device;
                 std::mt19937 rnd_uniform_gen(rnd_device());
             #endif
-            std::uniform_int_distribution<index_type> rnd_uniform_dist(0, options_.hash_pool_size - 1);
+            std::uniform_int_distribution<index_type> rnd_uniform_dist(0, opt.hash_pool_size - 1);
 
             const get_linear_id<random_projections<layout, options_type, data_type>> get_linear_id_functor;
 
-            for (index_type hash_table = 0; hash_table < options_.num_hash_tables; ++hash_table) {
-                for (index_type hash_function = 0; hash_function < options_.num_hash_functions; ++hash_function) {
+            for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+                for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                     const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
                     for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                        host_buffer[get_linear_id_functor(hash_table, hash_function, dim, options_, attr)]
+                        host_buffer[get_linear_id_functor(hash_table, hash_function, dim, opt, attr)]
                                 = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
                     }
                 }
@@ -314,7 +296,7 @@ namespace sycl_lsh {
         }
 
         // broadcast hash functions to other MPI ranks
-        MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::type_cast<real_type>(), 0, comm_.get());
+        MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::type_cast<real_type>(), 0, comm.get());
 
         // copy data to device buffer
         auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
@@ -322,7 +304,7 @@ namespace sycl_lsh {
             acc[i] = host_buffer[i];
         }
 
-        logger_.log("Created 'random_projections' hash functions in {}.\n", t.elapsed());
+        logger.log("Created 'random_projections' hash functions in {}.\n", t.elapsed());
     }
 
 }
