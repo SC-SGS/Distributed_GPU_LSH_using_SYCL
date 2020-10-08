@@ -27,6 +27,10 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 * The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
+## Using hipSYCL as SYCL implementation
+
+1. Install hipSYCL (https://github.com/illuhad/hipSYCL), e.g. using [spack](https://github.com/spack/spack)
+2. Export the environment variable `hipSYCL_DIR` to the root directory of the hipSYCL installation.
 
 ## Using ComputeCpp as SYCL implementation
 
@@ -35,6 +39,12 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 3. Clone the ComputeCpp SDK github repository: https://github.com/codeplaysoftware/computecpp-sdk.
 4. Export the environment variable `ComputeCpp_DIR` to the root directory of the ComputeCpp installation.
 5. Export the environment variable `ComputeCpp_SDK_DIR` to the root directory of the ComputeCpp SDK installation.
+
+## Using oneAPI as SYCL implementation
+
+1. Easiest way: login to Intel's devcloud: https://software.intel.com/content/www/us/en/develop/tools/devcloud.html
+2. Install a GCC version capable of C++17
+3. Export the environment variable `DPCPP_GCC_TOOLCHAIN` to the root directory of the GCC installation.
 
 ## Building the program
 To build the code use:
@@ -72,17 +82,20 @@ After a successful `make` an executable file named `./prog` is available:
 $ ./prog --help
 Usage: ./prog --data "path-tp-data_set" --k "number-of-knn" [options]
 options:
-   --data_file            path to the data file (required)
-   --evaluate_knn_file    read the correct nearest-neighbors and evaluate calculated nearest-neighbors 
-   --hash_pool_size       number of hash functions in the hash pool 
-   --hash_table_size      size of each hash table 
-   --help                 help screen 
-   --k                    the number of nearest-neighbors to search for (required)
-   --knn_save_file        save the calculated nearest-neighbors to path 
-   --num_cut_off_points   number of cut-off points for the entropy-based hash functions 
-   --num_hash_functions   number of hash functions per hash table 
-   --num_hash_tables      number of hash tables to create 
-   --options_file         path to options file 
-   --options_save_file    save the currently used options to the given path 
-   --w                    segment size for the random projections hash functions     
+   --data_file                path to the data file (required)
+   --evaluate_knn_dist_file   read the correct nearest-neighbor distances for calculating the error ratio 
+   --evaluate_knn_file        read the correct nearest-neighbors for calculating the resulting recall 
+   --file_parser              type of the file parser 
+   --hash_pool_size           number of hash functions in the hash pool 
+   --hash_table_size          size of each hash table 
+   --help                     help screen 
+   --k                        the number of nearest-neighbors to search for (required)
+   --knn_dist_save_file       save the calculated nearest-neighbor distances to path 
+   --knn_save_file            save the calculated nearest-neighbors to path 
+   --num_cut_off_points       number of cut-off points for the entropy-based hash functions 
+   --num_hash_functions       number of hash functions per hash table 
+   --num_hash_tables          number of hash tables to create 
+   --options_file             path to options file 
+   --options_save_file        save the currently used options to the given path 
+   --w                        segment size for the random projections hash functions     
 ```
