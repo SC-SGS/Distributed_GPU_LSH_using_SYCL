@@ -49,10 +49,11 @@ namespace sycl_lsh {
      */
     template <memory_layout layout, typename Options>
     [[nodiscard]]
-    inline auto make_data(const argv_parser& parser, const Options& opt, const mpi::communicator& comm, const mpi::logger& logger) {
-        using real_type = typename Options::real_type;
-        auto file_parser = mpi::make_file_parser<real_type, Options>(parser.argv_as<std::string>("data_file"), parser, mpi::file::mode::read, comm, logger);
-        return data<layout, Options>(*file_parser, opt, comm, logger);
+    inline auto make_data(const argv_parser& parser, const Options&, const mpi::communicator& comm, const mpi::logger& logger) {
+        using options_type = Options;
+        using real_type = typename options_type::real_type;
+        auto file_parser = mpi::make_file_parser<real_type, options_type>(parser.argv_as<std::string>("data_file"), parser, mpi::file::mode::read, comm, logger);
+        return data<layout, options_type>(*file_parser, comm, logger);
     }
 
     /**
@@ -149,12 +150,6 @@ namespace sycl_lsh {
         [[nodiscard]]
         constexpr memory_layout get_memory_layout() const noexcept { return layout; }
         /**
-         * @brief Return the @ref sycl_lsh::options object used to control the behavior of the used algorithms.
-         * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        options_type get_options() const noexcept { return options_; }
-        /**
          * @brief Return the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
          * @return the @ref sycl_lsh::data_attributes (`[[nodiscard]]`)
          */
@@ -188,12 +183,9 @@ namespace sycl_lsh {
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          */
-        data(const mpi::file_parser<options_type, real_type>& parser, const options_type& opt, const mpi::communicator& comm, const mpi::logger& logger);
+        data(const mpi::file_parser<options_type, real_type>& parser, const mpi::communicator& comm, const mpi::logger& logger);
 
-
-        const options_type& options_;
         const mpi::communicator& comm_;
-        const mpi::logger& logger_;
 
         const data_attributes_type data_attributes_;
 
@@ -225,10 +217,9 @@ namespace sycl_lsh {
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options>
     data<layout, Options>::data(const mpi::file_parser<Options, typename Options::real_type>& parser,
-                                const Options& opt,
                                 const mpi::communicator& comm,
                                 const mpi::logger& logger)
-            : options_(opt), comm_(comm), logger_(logger),
+            : comm_(comm),
               data_attributes_(parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims()),
               device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
               host_buffer_active_(parser.parse_content()),
@@ -259,7 +250,7 @@ namespace sycl_lsh {
             acc[i] = host_buffer_active_[i];
         }
 
-        logger_.log("Created data object in {}.\n", t.elapsed());
+        logger.log("Created data object in {}.\n", t.elapsed());
     }
 
 
