@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-01
+ * @date 2020-10-08
  *
  * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
  */
@@ -92,7 +92,7 @@ namespace sycl_lsh {
         /// The number of used hash tables.
         index_type num_hash_tables = 2;
         /// The size of each hash table.
-        hash_value_type hash_table_size = 105619;
+        hash_value_type hash_table_size = 105613;
         /// The segment size for the random projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
         real_type w = 1.0;
         /// The number of cut-off points for the entropy-based hash functions.
