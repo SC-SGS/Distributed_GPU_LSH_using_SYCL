@@ -42,7 +42,6 @@ namespace sycl_lsh {
      * @tparam layout the used @ref sycl_lsh::memory_layout type
      * @tparam Options the used @ref sycl_lsh::options type
      * @param[in] parser the used @ref sycl_lsh::argv_parser
-     * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      * @return the @ref sycl_lsh::data object representing the used data set (`[[nodiscard]]`)
@@ -179,7 +178,6 @@ namespace sycl_lsh {
         /**
          * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file parser @p parser.
          * @param[in] parser the file parser used to parse the given data file
-         * @param[in] opt the used @ref sycl_lsh::options
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in] logger the used @ref sycl_lsh::mpi::logger
          */
