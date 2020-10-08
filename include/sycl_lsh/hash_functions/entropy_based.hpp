@@ -9,12 +9,13 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ENTROPY_BASED_HPP
 
+#include <sycl_lsh/data.hpp>
 #include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/get_linear_id.hpp>
 #include <sycl_lsh/detail/lsh_hash.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
-#include <sycl_lsh/data.hpp>
+#include <sycl_lsh/device_selector.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
@@ -297,8 +298,7 @@ namespace sycl_lsh {
 
         // calculate cut-off points
         {
-            // TODO 2020-10-02 13:16 marcel: change to custom selector
-            sycl::queue queue(sycl::default_selector{});
+            sycl::queue queue(device_selector{comm}, sycl::async_handler(&sycl_exception_handler));
             sycl::buffer<real_type, 1> hash_functions_pool_buffer(hash_functions_pool.data(), hash_functions_pool.size());
 
             std::vector<real_type> hash_values(attr.rank_size);
