@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-07
+ * @date 2020-10-08
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -104,7 +104,7 @@ namespace sycl_lsh {
      * @tparam Options the used @ref sycl_lsh::options type
      */
     template <memory_layout layout, typename Options>
-    class data : public detail::data_base {
+    class data : private detail::data_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //

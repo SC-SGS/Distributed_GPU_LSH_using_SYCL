@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-02
+ * @date 2020-10-08
  *
  * @brief Implements the random projections hash function as the used LSH hash functions.
  */
@@ -168,7 +168,7 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      */
     template <memory_layout layout, typename Options, typename Data>
-    class random_projections : detail::hash_functions_base {
+    class random_projections : private detail::hash_functions_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //

@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-08
  *
  * @brief Implements the entropy based hash function as the used LSH hash functions.
  */
@@ -180,7 +180,7 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      */
     template <memory_layout layout, typename Options, typename Data>
-    class entropy_based : detail::hash_functions_base {
+    class entropy_based : private detail::hash_functions_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
