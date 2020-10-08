@@ -119,7 +119,7 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if any command line argument in the file is illegal.
          * @throws std::invalid_argument if any parsed value is illegal.
          */
-        explicit options(const argv_parser& parser, const mpi::logger& logger);
+        options(const argv_parser& parser, const mpi::logger& logger);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -129,14 +129,14 @@ namespace sycl_lsh {
          * @brief Saves the currently set compile time and runtime options only on the MPI master rank to the file parsed from the command
          *        line arguments @ref sycl_lsh::argv_parser @p parser via the command line argument `options_save_file`. \n
          *        Uses the @ref sycl_lsh::mpi::logger @p logger to log additional information.
-         * @param[in] comm the @ref sycl_lsh::mpi::communicator
          * @param[in] parser the @ref sycl_lsh::argv_parser
+         * @param[in] comm the @ref sycl_lsh::mpi::communicator
          * @param[in] logger the @ref sycl_lsh::mpi::logger
          *
          * @throws std::invalid_argument if the command line argument `options_save_file` isn't present in @p parser.
          * @throws std::runtime_error if the file couldn't be written
          */
-        void save(const mpi::communicator& comm, const argv_parser& parser, const mpi::logger& logger) const;
+        void save(const argv_parser& parser, const mpi::communicator& comm, const mpi::logger& logger) const;
 
     };
 
@@ -267,7 +267,8 @@ namespace sycl_lsh {
     //                                                save options                                                //
     // ---------------------------------------------------------------------------------------------------------- //
     template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
-    void options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::save(const mpi::communicator& comm, const argv_parser& parser,
+    void options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::save(const argv_parser& parser,
+                                                                                         const mpi::communicator& comm,
                                                                                          const mpi::logger& logger) const
     {
         const std::string& file_name = parser.argv_as<std::string>("options_save_file");

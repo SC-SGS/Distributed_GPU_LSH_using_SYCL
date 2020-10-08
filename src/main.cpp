@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-07
+ * @date 2020-10-08
  *
  * @brief The main file containing the main logic.
  */
@@ -39,7 +39,7 @@ int custom_main(int argc, char** argv) {
 
         // optionally save generated options to file
         if (parser.has_argv("options_save_file")) {
-            opt.save(comm, parser, logger);
+            opt.save(parser, comm, logger);
         }
 
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(parser, opt, comm, logger);
