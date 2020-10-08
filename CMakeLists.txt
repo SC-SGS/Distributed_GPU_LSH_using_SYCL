@@ -37,7 +37,7 @@ project("Distributed GPU LSH implementation using SYCL"
 
 
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-    set(hipSYCL_DIR /home/marcel/Programs/spack/opt/spack/linux-linuxmint19-zen/gcc-8.4.0/hipsycl-master-44bjhhamjo3w4k74hsanb73ulhc27now/lib/cmake)
+    set(hipSYCL_DIR $ENV{hipSYCL_DIR}/lib/cmake CACHE STRING "Path to the root directory of the hipSYCL installation." FORCE)
     if (SYCL_LSH_TARGET MATCHES "CPU")
         # TODO: using this line results in many linker errors
         #        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --hipsycl-platform=cpu)
