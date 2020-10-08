@@ -80,7 +80,7 @@ $ make doc
 After a successful `make` an executable file named `./prog` is available:
 ```bash
 $ ./prog --help
-Usage: ./prog --data "path-tp-data_set" --k "number-of-knn" [options]
+Usage: ./prog --data_file "path_to_data_file" --k "number_of_knn_to_search" [options]
 options:
    --data_file                path to the data file (required)
    --evaluate_knn_dist_file   read the correct nearest-neighbor distances for calculating the error ratio 

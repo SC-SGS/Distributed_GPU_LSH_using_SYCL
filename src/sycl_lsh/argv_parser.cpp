@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-08
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -100,7 +100,7 @@ std::string sycl_lsh::argv_parser::description() {
     fmt::memory_buffer buf;
 
     // write header information
-    fmt::format_to(buf, "Usage: ./prog --data \"path-tp-data_set\" --k \"number-of-knn\" [options]\n");
+    fmt::format_to(buf, "Usage: ./prog --data_file \"path_to_data_file\" --k \"number_of_knn_to_search\" [options]\n");
     fmt::format_to(buf, "options:\n");
 
     // write command line arguments and their respective description
