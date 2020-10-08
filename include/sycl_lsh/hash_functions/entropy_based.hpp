@@ -247,7 +247,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    entropy_based<layout, Options, Data>::entropy_based(const Options& opt, Data& data,
+    entropy_based<layout, Options, Data>::entropy_based(const options_type& opt, data_type& data,
                                                         const mpi::communicator& comm, const mpi::logger& logger)
             : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + opt.num_cut_off_points - 1))
     {

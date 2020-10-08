@@ -273,8 +273,8 @@ namespace sycl_lsh {
 
     private:
         // befriend the factory function
-        friend auto make_knn<layout, Options, Data>(const index_type k, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
-        friend auto make_knn<layout, Options, Data>(const argv_parser& parser, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
+        friend auto make_knn<layout, Options, Data>(const typename Options::index_type, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
+        friend auto make_knn<layout, Options, Data>(const argv_parser&, const Options&, const Data&, const mpi::communicator&, const mpi::logger&);
 
         // ---------------------------------------------------------------------------------------------------------- //
         //                                                constructor                                                 //
@@ -317,7 +317,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    knn<layout, Options, Data>::knn(const typename Options::index_type k, const Data& data, const mpi::communicator& comm, const mpi::logger& logger)
+    knn<layout, Options, Data>::knn(const index_type k, const data_type& data, const mpi::communicator& comm, const mpi::logger& logger)
         : attr_(data.get_attributes()), comm_(comm), logger_(logger),
           k_(k),
           knn_host_buffer_active_(attr_.rank_size * k), knn_host_buffer_inactive_(attr_.rank_size * k),
@@ -359,7 +359,7 @@ namespace sycl_lsh {
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    typename knn<layout, Options, Data>::knn_host_buffer_type knn<layout, Options, Data>::get_knn_ids(const typename Options::index_type point) const {
+    typename knn<layout, Options, Data>::knn_host_buffer_type knn<layout, Options, Data>::get_knn_ids(const index_type point) const {
         SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n");
 
         const get_linear_id<knn<layout, options_type, data_type>> get_linear_id_functor{};
@@ -372,7 +372,7 @@ namespace sycl_lsh {
     }
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]]
-    typename knn<layout, Options, Data>::dist_host_buffer_type knn<layout, Options, Data>::get_knn_dists(const typename Options::index_type point) const {
+    typename knn<layout, Options, Data>::dist_host_buffer_type knn<layout, Options, Data>::get_knn_dists(const index_type point) const {
         SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n")
 
         const get_linear_id<knn<layout, options_type, data_type>> get_linear_id_functor{};

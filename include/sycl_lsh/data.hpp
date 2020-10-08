@@ -214,7 +214,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options>
-    data<layout, Options>::data(const mpi::file_parser<Options, typename Options::real_type>& parser,
+    data<layout, Options>::data(const mpi::file_parser<options_type, real_type>& parser,
                                 const mpi::communicator& comm,
                                 const mpi::logger& logger)
             : comm_(comm),

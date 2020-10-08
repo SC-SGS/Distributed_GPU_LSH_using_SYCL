@@ -235,7 +235,7 @@ namespace sycl_lsh {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     template <memory_layout layout, typename Options, typename Data>
-    random_projections<layout, Options, Data>::random_projections(const Options& opt, const Data& data,
+    random_projections<layout, Options, Data>::random_projections(const options_type& opt, const data_type& data,
                                                                   const mpi::communicator& comm, const mpi::logger& logger)
             : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1))
     {
