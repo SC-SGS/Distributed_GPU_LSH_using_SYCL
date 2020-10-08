@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-02
+ * @date 2020-10-08
  *
  * @brief Implements a device selector that every MPI rank allocates only **one** device based on the `SYCL_LSH_TARGET` specified during
  *        [CMake](https://cmake.org/)'s configuration step (e.g. NVIDIA GPU).
@@ -35,7 +35,7 @@ namespace sycl_lsh {
          */
         int operator()([[maybe_unused]] const sycl::device& device) const override {
             // TODO 2020-10-02 17:25 marcel: implement
-            return -1;
+            return sycl::default_selector{}.operator()(device);
         }
 
     private:
