@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-08
  *
  * @brief Implements a simple timer class that can be configured via [CMake](https://cmake.org/).
  */
@@ -9,6 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_TIMER_HPP
 
+#include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 
 #include <chrono>
@@ -72,14 +73,14 @@ namespace sycl_lsh::mpi {
          * @tparam unit the [`std::chrono::duration`](https://en.cppreference.com/w/cpp/chrono/duration) type to use
          * @return the elapsed time with the time unit @p unit ([[nodiscard]])
          */
-        template <typename unit = std::chrono::seconds>
+        template <typename unit = std::chrono::milliseconds>
         [[nodiscard]] 
         unit elapsed() const;
 
         
 #if defined(SYCL_LSH_BENCHMARK)
     /**
-     * @brief If nechmarking is enabled (via the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK*) returns the used
+     * @brief If benchmarking is enabled (via the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK*) returns the used
      *        [`std::ofstream`](https://en.cppreference.com/w/cpp/io/basic_ofstream) to log the timings.
      * @return the output stream ([[nodiscard]])
      */

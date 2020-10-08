@@ -1,9 +1,10 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-24
+ * @date 2020-10-08
  */
 
+#include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/timer.hpp>
 #include <sycl_lsh/mpi/type_cast.hpp>
