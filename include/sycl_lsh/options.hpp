@@ -17,6 +17,7 @@
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
+#include <sycl_lsh/mpi/timer.hpp>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -137,6 +138,12 @@ namespace sycl_lsh {
          * @throws std::runtime_error if the file couldn't be written
          */
         void save(const argv_parser& parser, const mpi::communicator& comm, const mpi::logger& logger) const;
+        /**
+         * @brief Saves the currently set runtime options only on the MPI master rank to the benchmark file **iff** benchmarking has been
+         *        enabled.
+         * @param[in] comm the @ref sycl_lsh::mpi::communicator
+         */
+        void save_benchmark_options([[maybe_unused]] const mpi::communicator& comm) const;
 
     };
 
@@ -287,6 +294,16 @@ namespace sycl_lsh {
         }
 
         logger.log("Saved options to: '{}'\n\n", file_name);
+    }
+
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    void options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>::save_benchmark_options([[maybe_unused]] const mpi::communicator& comm) const {
+        #if defined(SYCL_LSH_BENCHMARK)
+            if (comm.master_rank()) {
+                mpi::timer::benchmark_out() << hash_pool_size << ',' << num_hash_functions << ',' << num_hash_tables << ','
+                                            << hash_table_size << ',' << w << ',' << num_cut_off_points << '\n';
+            }
+        #endif
     }
 
 #undef SYCL_LSH_PARSE_OPTION
