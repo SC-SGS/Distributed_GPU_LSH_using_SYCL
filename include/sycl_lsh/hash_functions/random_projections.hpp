@@ -265,8 +265,7 @@ namespace sycl_lsh {
             std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
             for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
                 for (index_type dim = 0; dim < attr.dims; ++dim) {
-                    // TODO 2020-10-02 12:47 marcel: abs?
-                    hash_pool[hash_function * (attr.dims + 1) + dim] = rnd_normal_pool_dist(rnd_normal_pool_gen);
+                    hash_pool[hash_function * (attr.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
                 }
                 hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
             }
