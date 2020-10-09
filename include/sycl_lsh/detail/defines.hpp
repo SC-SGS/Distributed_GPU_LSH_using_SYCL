@@ -1,13 +1,18 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-09
  *
  * @brief Defines helper values, classes, defines, etc. used in various places.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DEFINES_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DEFINES_HPP
+
+// defines values to test against the SYCL_LSH_IMPLEMENTATION
+#define SYCL_LSH_IMPLEMENTATION_HIPSYCL 0
+#define SYCL_LSH_IMPLEMENTATION_COMPUTECPP 1
+#define SYCL_LSH_IMPLEMENTATION_ONEAPI 2
 
 // defines values to test against the SYCL_LSH_TARGET
 #define SYCL_LSH_TARGET_CPU 0
