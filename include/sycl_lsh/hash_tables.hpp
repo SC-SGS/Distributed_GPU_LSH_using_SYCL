@@ -1,9 +1,9 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-09
  *
- * @brief Implements the @ref hash_tables class representing the used LSH hash tables.
+ * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_TABLES_HPP

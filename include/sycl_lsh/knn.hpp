@@ -1,9 +1,9 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-09
  *
- * @brief Implements the @ref knn class representing the result of the k-nearest-neighbor search.
+ * @brief Implements the @ref sycl_lsh::knn class representing the result of the k-nearest-neighbor search.
  */
 
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_KNN_HPP
