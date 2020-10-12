@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-09
+ * @date 2020-10-12
  *
  * @brief Implements a device selector that every MPI rank allocates only **one** device based on the `SYCL_LSH_TARGET` specified during
  *        [CMake](https://cmake.org/)'s configuration step (e.g. NVIDIA GPU).
@@ -58,13 +58,24 @@ namespace sycl_lsh {
          * @return the device score
          */
         int operator()([[maybe_unused]] const sycl::device& device) const override {
-            // TODO 2020-10-02 17:25 marcel: implement
+            #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU
+                // TODO 2020-10-12 17:02 marcel: implement correctly
+                return sycl::cpu_selector{}.operator()(device);
+            #else
 
             #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA
+                const std::string_view platform_name = "NVIDIA CUDA";
+            #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
+                const std::string_view platform_name = "INTEL";
+            #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
+                // TODO 2020-10-12 17:09 marcel: check
+                const std::string_view platform_name = "AMD";
+            #endif
+
                 // get platform associated with the current device
                 auto platform = device.get_platform();
                 // check if we are currently on a NVIDIA platform as requested
-                if (detail::contains(platform.get_info<sycl::info::platform::name>(), "NVIDIA CUDA")) {
+                if (detail::contains(platform.get_info<sycl::info::platform::name>(), platform_name)) {
                     auto device_list = platform.get_devices();
                     // check whether the current platform has enough devices to satisfy the requested number of slots
                     if (device_list.size() < static_cast<std::size_t>(comm_.size())) {
@@ -73,14 +84,13 @@ namespace sycl_lsh {
                     }
 
                     // select current device, if the current device is the ith device in the list given the current MPI rank is i
-                    if (detail::compare_devices(device_list[comm_.rank()], device)) {
+                    if (detail::compare_devices(device_list[comm_.rank()], device) && device_list[comm_.rank()].is_gpu()) {
                         return 100;
                     }
                 }
                 // never choose current device otherwise
                 return -1;
-            #else
-                return sycl::default_selector{}.operator()(device);
+
             #endif
         }
 
