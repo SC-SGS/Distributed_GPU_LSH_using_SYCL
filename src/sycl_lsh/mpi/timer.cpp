@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-12
  */
 
 #include <sycl_lsh/detail/defines.hpp>
@@ -69,7 +69,7 @@ unit sycl_lsh::mpi::timer::elapsed() const {
 
         return dur;
     #else
-        return 0;
+        return unit{};
     #endif
 }
 
