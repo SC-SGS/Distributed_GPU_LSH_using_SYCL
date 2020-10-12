@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-09
+ * @date 2020-10-12
  *
  * @brief Defines helper values, classes, defines, etc. used in various places.
  */
@@ -18,6 +18,7 @@
 #define SYCL_LSH_TARGET_CPU 0
 #define SYCL_LSH_TARGET_NVIDIA 1
 #define SYCL_LSH_TARGET_AMD 2
+#define SYCL_LSH_TARGET_INTEL 3
 
 // defines values to test against the SYCL_LSH_TIMER
 #define SYCL_LSH_NO_TIMER 0
