@@ -209,7 +209,7 @@ if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
         target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-pedantic)
     endif ()
     # disable -Wunused-parameter if compiling for hipSYCL
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter)
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter -Wno-gcc-compat)
 elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
     # add additional ComputeCpp specific flags
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lstdc++fs)
