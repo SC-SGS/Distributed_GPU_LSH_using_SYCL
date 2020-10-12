@@ -27,10 +27,13 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 * The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
+
 ## Using hipSYCL as SYCL implementation
 
 1. Install hipSYCL (https://github.com/illuhad/hipSYCL), e.g. using [spack](https://github.com/spack/spack)
 2. Export the environment variable `hipSYCL_DIR` to the root directory of the hipSYCL installation.
+3. Export the environment variable `hipSYCL_GPU_ARCH` to the used GPU architecture value (e.g. `sm_75`).
+
 
 ## Using ComputeCpp as SYCL implementation
 
@@ -40,11 +43,13 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 4. Export the environment variable `ComputeCpp_DIR` to the root directory of the ComputeCpp installation.
 5. Export the environment variable `ComputeCpp_SDK_DIR` to the root directory of the ComputeCpp SDK installation.
 
+
 ## Using oneAPI as SYCL implementation
 
 1. Easiest way: login to Intel's devcloud: https://software.intel.com/content/www/us/en/develop/tools/devcloud.html
 2. Install a GCC version capable of C++17
 3. Export the environment variable `DPCPP_GCC_TOOLCHAIN` to the root directory of the GCC installation.
+
 
 ## Building the program
 To build the code use:
@@ -68,6 +73,7 @@ Provided configuration options are:
 | `SYCL_LSH_ENABLE_DOCUMENTATION`        | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                                                                        |
 | `SYCL_LSH_FMT_HEADER_ONLY`             | `OFF`         | Enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                                                                                        |
 | `SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM` | `OFF`         | Enables the `<experimental/filesystem>` header instead of the C++17 `<filesystem>` header.                                                                                         |
+
 
 ## Building the documentation
 After the call to `cmake -DENABLE_DOCUMENTATION=ON ..` use:
