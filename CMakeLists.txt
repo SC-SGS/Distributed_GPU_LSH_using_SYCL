@@ -35,6 +35,7 @@ project("Distributed k-nearest Neighbors using Locality Sensitive Hashing and SY
         LANGUAGES CXX
         DESCRIPTION "Master Thesis Marcel Breyer")
 
+# TODO: check whether OpenMP must be added manually 
 
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
 
