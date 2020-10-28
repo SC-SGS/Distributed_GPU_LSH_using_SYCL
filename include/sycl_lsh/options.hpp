@@ -14,6 +14,7 @@
 #include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/filesystem.hpp>
+#include <sycl_lsh/detail/utility.hpp>
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
@@ -23,9 +24,11 @@
 #include <fmt/ostream.h>
 
 #include <fstream>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+
 
 /**
  * @def SYCL_LSH_PARSE_OPTION
@@ -55,7 +58,7 @@ namespace sycl_lsh {
      * @tparam used_hash_functions_t the type of the used hash functions in the LSH algorithm
      */
     template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type used_hash_functions_t>
-    struct options : private detail::options_base {
+    struct options final : private detail::options_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
