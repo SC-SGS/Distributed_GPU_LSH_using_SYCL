@@ -9,7 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARGV_PARSER_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARGV_PARSER_HPP
 
-#include <sycl_lsh/detail/conversion.hpp>
+#include <sycl_lsh/detail/utility.hpp>
 
 #include <fmt/format.h>
 
