@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-28
  *
  * @brief Implements a simple MPI aware logger class.
  */
@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <numeric>
+#include <ostream>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -38,7 +39,7 @@ namespace sycl_lsh::mpi {
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
          * @param[in,out] out the output-stream to log on
          */
-        explicit logger(const communicator& comm, std::ostream& out = std::cout) : comm_(comm), out_(out) { }
+        explicit logger(const communicator& comm, std::ostream& out = std::cout);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -136,7 +137,7 @@ namespace sycl_lsh::mpi {
 
         // print total msg on master rank
         if (comm_.master_rank()) {
-            out_ << total_msg;
+            fmt::print(out_, total_msg);
         }
     }
 
