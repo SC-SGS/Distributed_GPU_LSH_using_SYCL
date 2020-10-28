@@ -35,7 +35,6 @@ project("Distributed k-nearest Neighbors using Locality Sensitive Hashing and SY
         LANGUAGES CXX
         DESCRIPTION "Master Thesis Marcel Breyer")
 
-# TODO: check whether OpenMP must be added manually 
 
 if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
 
@@ -145,6 +144,18 @@ if (SYCL_LSH_FMT_HEADER_ONLY)
 else ()
     message(STATUS "Using the {fmt} library as shared library and link against it.")
     target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
+endif ()
+
+
+# if the current target is CPU, use OpenMP (if OpenMP has been found)
+if (SYCL_LSH_TARGET MATCHES "CPU")
+    find_package(OpenMP REQUIRED)
+    if (OpenMP_CXX_FOUND)
+        message(STATUS "Linking against OpenMP since the current SYCL_LSH_TARGET is 'CPU'.")
+        target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
+    else ()
+        message(STATUS "Can't find OpenMP although the current SYCL_LSH_TARGET is 'CPU'. Performance may be degraded!")
+    endif ()
 endif ()
 
 
