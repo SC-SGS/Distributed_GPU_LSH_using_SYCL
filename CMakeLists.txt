@@ -114,6 +114,7 @@ add_library(${SYCL_LSH_LIBRARY_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/argv_parser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/sycl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/device_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/communicator_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/file_exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/not_implemented_exception.cpp
