@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-28
+ * @date 2020-10-28
  */
 
 #include <sycl_lsh/exceptions/communicator_exception.hpp>
@@ -9,7 +9,10 @@
 #include <sycl_lsh/exceptions/window_exception.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
 
+#include <mpi.h>
+
 #include <stdexcept>
+#include <utility>
 
 
 // ---------------------------------------------------------------------------------------------------------- //
