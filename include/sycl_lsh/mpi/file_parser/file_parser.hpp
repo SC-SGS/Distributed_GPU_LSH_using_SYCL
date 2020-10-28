@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-28
  *
  * @brief Factory function to create a specific file parser based on the provided command line argument.
  */
@@ -16,7 +16,6 @@
 #include <sycl_lsh/mpi/file_parser/base_parser.hpp>
 #include <sycl_lsh/mpi/file_parser/binary_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
-#include <sycl_lsh/options.hpp>
 
 #include <fmt/format.h>
 
