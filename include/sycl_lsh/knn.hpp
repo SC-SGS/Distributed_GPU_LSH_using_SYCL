@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-09
+ * @date 2020-10-28
  *
  * @brief Implements the @ref sycl_lsh::knn class representing the result of the k-nearest-neighbor search.
  */
@@ -161,8 +161,7 @@ namespace sycl_lsh {
         //                                             update host buffer                                             //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
-         * @brief Send the elements of the active buffers to the neighboring inactive buffers using a ring like send pattern.
-         * @details Swaps the active and inactive host buffers.
+         * @brief Send the elements of the host buffers to the neighboring buffers replacing its content using a ring like send pattern.
          */
         void send_receive_host_buffer();
 
@@ -262,14 +261,14 @@ namespace sycl_lsh {
          * @return the knn host buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        knn_host_buffer_type& get_knn_host_buffer() noexcept { return knn_host_buffer_active_; }
+        knn_host_buffer_type& get_knn_host_buffer() noexcept { return knn_host_buffer_; }
         /**
          * @brief Returns the host buffer containing the k-nearest-neighbor distances used to hide the MPI communication.
          * @details The distances are calculated without the use of `std::sqrt`!
          * @return the knn distances host buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        dist_host_buffer_type& get_distance_host_buffer() noexcept { return dist_host_buffer_active_; }
+        dist_host_buffer_type& get_distance_host_buffer() noexcept { return dist_host_buffer_; }
 
     private:
         // befriend the factory function
@@ -306,10 +305,8 @@ namespace sycl_lsh {
 
         const index_type k_;
 
-        knn_host_buffer_type knn_host_buffer_active_;
-        knn_host_buffer_type knn_host_buffer_inactive_;
-        dist_host_buffer_type dist_host_buffer_active_;
-        dist_host_buffer_type dist_host_buffer_inactive_;
+        knn_host_buffer_type knn_host_buffer_;
+        dist_host_buffer_type dist_host_buffer_;
     };
 
 
@@ -320,9 +317,8 @@ namespace sycl_lsh {
     knn<layout, Options, Data>::knn(const index_type k, const data_type& data, const mpi::communicator& comm, const mpi::logger& logger)
         : attr_(data.get_attributes()), comm_(comm), logger_(logger),
           k_(k),
-          knn_host_buffer_active_(attr_.rank_size * k), knn_host_buffer_inactive_(attr_.rank_size * k),
-          dist_host_buffer_active_(attr_.rank_size * k, std::numeric_limits<real_type>::max()),
-          dist_host_buffer_inactive_(attr_.rank_size * k, std::numeric_limits<real_type>::max())
+          knn_host_buffer_(attr_.rank_size * k),
+          dist_host_buffer_(attr_.rank_size * k, std::numeric_limits<real_type>::max())
     {
         mpi::timer t(comm_);
 
@@ -336,7 +332,7 @@ namespace sycl_lsh {
         // fill default values
         for (index_type point = 0; point < attr_.rank_size; ++point) {
             for (index_type nn = 0; nn < k_; ++nn) {
-                knn_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + point;
+                knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + point;
             }
         }
 
@@ -345,7 +341,7 @@ namespace sycl_lsh {
             const index_type correct_rank_size = attr_.total_size - ((comm_.size() - 1) * attr_.rank_size);
             for (index_type point = correct_rank_size; point < attr_.rank_size; ++point) {
                 for (index_type nn = 0; nn < k_; ++nn) {
-                    knn_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + correct_rank_size - 1;
+                    knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + correct_rank_size - 1;
                 }
             }
         }
@@ -366,7 +362,7 @@ namespace sycl_lsh {
 
         knn_host_buffer_type res(k_);
         for (index_type nn = 0; nn < k_; ++nn) {
-            res[nn] = knn_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)];
+            res[nn] = knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
         }
         return res;
     }
@@ -379,7 +375,7 @@ namespace sycl_lsh {
 
         dist_host_buffer_type res(k_);
         for (index_type nn = 0; nn < k_; ++nn) {
-            res[nn] = dist_host_buffer_active_[get_linear_id_functor(point, nn, attr_, k_)];
+            res[nn] = dist_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
         }
         return res;
     }
@@ -397,6 +393,8 @@ namespace sycl_lsh {
             throw std::invalid_argument("Required command line argument 'knn_save_file' not provided!");
         }
 
+        knn_host_buffer_type tmp_buffer(knn_host_buffer_.size());
+
         if constexpr (layout == memory_layout::soa) {
             // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
             const get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
@@ -404,28 +402,20 @@ namespace sycl_lsh {
 
             for (index_type point = 0; point < attr_.rank_size; ++point) {
                 for (index_type nn = 0; nn < k_; ++nn) {
-                    knn_host_buffer_inactive_[get_linear_id_aos(point, nn, attr_, k_)]
-                            = knn_host_buffer_active_[get_linear_id_soa(point, nn, attr_, k_)];
+                    tmp_buffer[get_linear_id_aos(point, nn, attr_, k_)]
+                            = knn_host_buffer_[get_linear_id_soa(point, nn, attr_, k_)];
                 }
             }
-
-            // swap buffers such that the aos layout is active
-            using std::swap;
-            swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
+        } else {
+            // if the layout is correct, simply copy the values to the temporary buffer
+            std::copy(knn_host_buffer_.begin(), knn_host_buffer_.end(), tmp_buffer.begin());
         }
 
 
         // write content to the respective file
         const std::string& file_name = parser.argv_as<std::string>("knn_save_file");
         auto file_parser = mpi::make_file_parser<index_type, options_type>(file_name, parser, mpi::file::mode::write, comm_, logger_);
-        file_parser->write_content(attr_.total_size, k_, knn_host_buffer_active_);
-
-
-        if constexpr (layout == memory_layout::soa) {
-            // swap buffers back such that the correct layout is active
-            using std::swap;
-            swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
-        }
+        file_parser->write_content(attr_.total_size, k_, tmp_buffer);
 
         logger_.log("Saved k-nearest-neighbor IDs in {}.\n", t.elapsed());
     }
@@ -437,6 +427,8 @@ namespace sycl_lsh {
         if (!parser.has_argv("knn_dist_save_file")) {
             throw std::invalid_argument("Required command line argument 'knn_dist_save_file' not provided!");
         }
+        
+        dist_host_buffer_type tmp_buffer(dist_host_buffer_.size());
 
         if constexpr (layout == memory_layout::soa) {
             // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
@@ -445,35 +437,23 @@ namespace sycl_lsh {
 
             for (index_type point = 0; point < attr_.rank_size; ++point) {
                 for (index_type nn = 0; nn < k_; ++nn) {
-                    dist_host_buffer_inactive_[get_linear_id_aos(point, nn, attr_, k_)]
-                            = dist_host_buffer_active_[get_linear_id_soa(point, nn, attr_, k_)];
+                    tmp_buffer[get_linear_id_aos(point, nn, attr_, k_)]
+                            = dist_host_buffer_[get_linear_id_soa(point, nn, attr_, k_)];
                 }
             }
-
-            // swap buffers such that the aos layout is active
-            using std::swap;
-            swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
         } else {
-            // if the layout is correct, simply copy the values (because of the call to `std::sqrt` later on)
-            std::copy(dist_host_buffer_active_.begin(), dist_host_buffer_active_.end(), dist_host_buffer_inactive_.begin());
-
-            using std::swap;
-            swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+            // if the layout is correct, simply copy the values to the temporary buffer (because of the call to `std::sqrt` later on)
+            std::copy(dist_host_buffer_.begin(), dist_host_buffer_.end(), tmp_buffer.begin());
         }
 
         // transform the values using `std::sqrt`
-        std::transform(dist_host_buffer_active_.begin(), dist_host_buffer_active_.end(), dist_host_buffer_active_.begin(),
-                       [](const real_type val) { return std::sqrt(val); });
+        std::transform(tmp_buffer.begin(), tmp_buffer.end(), tmp_buffer.begin(), [](const real_type val) { return std::sqrt(val); });
 
 
         // write content to the respective file
         const std::string& file_name = parser.argv_as<std::string>("knn_dist_save_file");
         auto file_parser = mpi::make_file_parser<real_type, options_type>(file_name, parser, mpi::file::mode::write, comm_, logger_);
-        file_parser->write_content(attr_.total_size, k_, dist_host_buffer_active_);
-
-
-        using std::swap;
-        swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+        file_parser->write_content(attr_.total_size, k_, tmp_buffer);
 
         logger_.log("Saved k-nearest-neighbor distances in {}.\n", t.elapsed());
     }
@@ -499,7 +479,7 @@ namespace sycl_lsh {
         const index_type parsed_total_size = file_parser->parse_total_size();
         const index_type parsed_rank_size = file_parser->parse_rank_size();
         const index_type parsed_dims = file_parser->parse_dims();
-        std::vector<index_type> correct_knn = file_parser->parse_content();
+        knn_host_buffer_type correct_knn = file_parser->parse_content();
 
         // perform sanity checks
         if (parsed_total_size != attr_.total_size) {
@@ -519,7 +499,7 @@ namespace sycl_lsh {
         for (index_type point = 0; point < correct_rank_size; ++point) {
             for (index_type nn = 0; nn < k_; ++nn) {
                 // get calculated k-nearest-neighbor ID
-                const index_type calculated_id = knn_host_buffer_active_[get_linear_id_this(point, nn, attr_, k_)];
+                const index_type calculated_id = knn_host_buffer_[get_linear_id_this(point, nn, attr_, k_)];
                 // check if calculated ID is contained in the correct IDs
                 for (index_type i = 0; i < k_; ++i) {
                     if (calculated_id == correct_knn[get_linear_id_aos(point, i, attr_, k_)]) {
@@ -553,7 +533,7 @@ namespace sycl_lsh {
         const index_type parsed_total_size = file_parser->parse_total_size();
         const index_type parsed_rank_size = file_parser->parse_rank_size();
         const index_type parsed_dims = file_parser->parse_dims();
-        std::vector<real_type> correct_knn_dist = file_parser->parse_content();
+        dist_host_buffer_type correct_knn_dist = file_parser->parse_content();
 
         // perform sanity checks
         if (parsed_total_size != attr_.total_size) {
@@ -575,13 +555,13 @@ namespace sycl_lsh {
         index_type mean_error_count = 0;
         real_type mean_error_ratio = 0.0;
 
-        std::vector<real_type> calculated_knn_dist_sorted(k_);
-        std::vector<real_type> correct_knn_dist_sorted(k_);
+        dist_host_buffer_type calculated_knn_dist_sorted(k_);
+        dist_host_buffer_type correct_knn_dist_sorted(k_);
 
         for (index_type point = 0; point < correct_rank_size; ++point) {
             // fill k-nearest-neighbor distances for current point
             for (index_type nn = 0; nn < k_; ++nn) {
-                calculated_knn_dist_sorted[nn] = dist_host_buffer_active_[get_linear_id_this(point, nn, attr_, k_)];
+                calculated_knn_dist_sorted[nn] = dist_host_buffer_[get_linear_id_this(point, nn, attr_, k_)];
                 correct_knn_dist_sorted[nn] = correct_knn_dist[get_linear_id_aos(point, nn, attr_, k_)];
             }
             // check whether k k-nearest-neighbor could be found
@@ -636,19 +616,12 @@ namespace sycl_lsh {
         const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
         // send/receive k-nearest-neighbor IDs
-        MPI_Sendrecv(knn_host_buffer_active_.data(), knn_host_buffer_active_.size(), mpi::type_cast<typename knn_host_buffer_type::value_type>(), destination, 0,
-                     knn_host_buffer_inactive_.data(), knn_host_buffer_inactive_.size(), mpi::type_cast<typename knn_host_buffer_type::value_type>(), source, 0,
-                     comm_.get(), MPI_STATUS_IGNORE);
+        MPI_Sendrecv_replace(knn_host_buffer_.data(), knn_host_buffer_.size(), mpi::type_cast<typename knn_host_buffer_type::value_type>(),
+                             destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE);
 
         // send/receive k-nearest-neighbor distances
-        MPI_Sendrecv(dist_host_buffer_active_.data(), dist_host_buffer_active_.size(), mpi::type_cast<typename dist_host_buffer_type::value_type>(), destination, 0,
-                     dist_host_buffer_inactive_.data(), dist_host_buffer_inactive_.size(), mpi::type_cast<typename dist_host_buffer_type::value_type>(), source, 0,
-                     comm_.get(), MPI_STATUS_IGNORE);
-
-        // update active/inactive buffer
-        using std::swap;
-        swap(knn_host_buffer_active_, knn_host_buffer_inactive_);
-        swap(dist_host_buffer_active_, dist_host_buffer_inactive_);
+        MPI_Sendrecv_replace(dist_host_buffer_.data(), dist_host_buffer_.size(), mpi::type_cast<typename dist_host_buffer_type::value_type>(),
+                             destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE);
     }
 
 }
