@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  */
 
 #include <sycl_lsh/argv_parser.hpp>
@@ -9,7 +9,12 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
+#include <map>
 #include <numeric>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 
 const std::map<std::string, std::pair<std::string, bool>> sycl_lsh::argv_parser::list_of_argvs_ = {
