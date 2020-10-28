@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  *
  * @brief File parser for parsing `.arff` data files.
  */
@@ -125,7 +125,7 @@ namespace sycl_lsh::mpi {
     }
 
     template <typename Options, typename T>
-    void arff_parser<Options, T>::write_content([[maybe_unused]] const index_type total_size, [[maybe_unused]] const index_type dims, [[maybe_unused]] const std::vector<parsing_type>& buffer) const {
+    void arff_parser<Options, T>::write_content(const index_type, const index_type, const std::vector<parsing_type>&) const {
         throw sycl_lsh::not_implemented();
     }
 
