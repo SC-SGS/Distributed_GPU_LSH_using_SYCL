@@ -29,7 +29,6 @@ namespace sycl_lsh::mpi {
      */
     template <typename real_type>
     inline void pairwise_exchange(std::vector<real_type>& data, const int sendrank, const int recvrank, const communicator& comm) {
-        std::vector<real_type> remote(data.size());
         std::vector<real_type> all(2 * data.size());
         constexpr int merge_tag = 1;
         constexpr int sorted_tag = 2;
@@ -38,9 +37,8 @@ namespace sycl_lsh::mpi {
             MPI_Send(data.data(), data.size(), type_cast<real_type>(), recvrank, merge_tag, comm.get());
             MPI_Recv(data.data(), data.size(), type_cast<real_type>(), recvrank, sorted_tag, comm.get(), MPI_STATUS_IGNORE);
         } else {
-            MPI_Recv(remote.data(), remote.size(), type_cast<real_type>(), sendrank, merge_tag, comm.get(), MPI_STATUS_IGNORE);
             std::copy(data.begin(), data.end(), all.begin());
-            std::copy(remote.begin(), remote.end(), all.begin() + data.size());
+            MPI_Recv(all.data() + data.size(), data.size(), type_cast<real_type>(), sendrank, merge_tag, comm.get(), MPI_STATUS_IGNORE);
 
             std::sort(all.begin(), all.end());
 
