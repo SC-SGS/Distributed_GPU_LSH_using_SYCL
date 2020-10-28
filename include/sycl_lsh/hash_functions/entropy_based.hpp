@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  *
  * @brief Implements the entropy based hash function as the used LSH hash functions.
  */
@@ -327,7 +327,7 @@ namespace sycl_lsh {
                 }
 
                 // sort hash_values vector in a distributed fashion
-                mpi::odd_even_sort(hash_values, comm);
+                mpi::sort(hash_values, comm);
                 
                 std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
 
