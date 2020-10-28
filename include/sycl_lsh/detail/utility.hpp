@@ -42,9 +42,7 @@ namespace sycl_lsh::detail {
      * @return `true` if @p str contains @p substr, `false` otherwise (`[[nodiscard]]`)
      */
     [[nodiscard]] 
-    inline bool contains_substr(const std::string_view str, const std::string_view substr) noexcept {
-        return str.find(substr) != std::string_view::npos;
-    }
+    bool contains_substr(const std::string_view str, const std::string_view substr) noexcept;
 
     /**
      * @brief Attempt to convert the value represented by the
