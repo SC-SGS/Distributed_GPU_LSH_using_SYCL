@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-29
+ * @date 2020-10-28
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
@@ -9,7 +9,7 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
 
-#include <stdio.h>
+#include <cstdio>
 
 /**
  * @def SYCL_LSH_PRETTY_FUNC_NAME__
@@ -36,8 +36,8 @@
  * @param[in] msg the custom assert message
  */
 #if SYCL_LSH_DEBUG
-#define SYCL_LSH_DEBUG_ASSERT(cond, msg)                                                                        \
-if (!(cond)) printf("Assertion '%s' failed!\n  in file     '%s'\n  in function '%s'\n  @ line     %i\n\n%s\n",  \
+#define SYCL_LSH_DEBUG_ASSERT(cond, msg)                                                                            \
+if (!(cond)) std::printf("Assertion '%s' failed!\n  in file     '%s'\n  in function '%s'\n  @ line     %i\n\n%s\n", \
         #cond, __FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, msg);
 #else
 #define SYCL_LSH_DEBUG_ASSERT(cond, msg)
