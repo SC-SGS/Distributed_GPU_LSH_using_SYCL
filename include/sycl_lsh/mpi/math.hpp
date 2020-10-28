@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-28
  *
  * @brief Implements needed math function using MPI.
  */
@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MATH_HPP
 
 #include <sycl_lsh/mpi/communicator.hpp>
+#include <sycl_lsh/mpi/type_cast.hpp>
 
 #include <mpi.h>
 
@@ -25,7 +26,7 @@ namespace sycl_lsh::mpi {
      */
     template <typename T>
     [[nodiscard]]
-    T sum(T value, const communicator& comm) {
+    inline T sum(T value, const communicator& comm) {
         T sums = 0.0;
         MPI_Allreduce(&value, &sums, 1, type_cast<T>(), MPI_SUM, comm.get());
         return sums;
@@ -41,7 +42,7 @@ namespace sycl_lsh::mpi {
      */
     template <typename T>
     [[nodiscard]]
-    T average(T value, const communicator& comm) {
+    inline T average(T value, const communicator& comm) {
         T sums = sum(value, comm);
         return sums / comm.size();
     }
