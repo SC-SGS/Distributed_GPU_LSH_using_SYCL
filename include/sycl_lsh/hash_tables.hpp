@@ -9,13 +9,19 @@
 #ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_TABLES_HPP
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_HASH_TABLES_HPP
 
+#include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/data.hpp>
+#include <sycl_lsh/data_attributes.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/detail/utility.hpp>
 #include <sycl_lsh/device_selector.hpp>
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/knn.hpp>
+#include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/memory_layout.hpp>
+#include <sycl_lsh/options.hpp>
+#include <sycl_lsh/mpi/timer.hpp>
 
 #include <fmt/format.h>
 
@@ -27,7 +33,7 @@
 
 namespace sycl_lsh {
 
-    // SYCL kernel name needed to silence ComputeCpp warning
+    // SYCL kernel name needed to silence ComputeCpp warnings
     class kernel_count_hash_values;
     class kernel_calculate_offsets;
     class kernel_fill_hash_tables;
@@ -65,7 +71,7 @@ namespace sycl_lsh {
      * @tparam HashFunctionType the used type of hash functions in the LSH algorithm
      */
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
-    class hash_tables : private detail::hash_tables_base {
+    class hash_tables final : private detail::hash_tables_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
@@ -117,9 +123,7 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
          */
         [[nodiscard]] 
-        knn_type get_k_nearest_neighbors(const argv_parser& parser) {
-            return get_k_nearest_neighbors(parser.argv_as<index_type>("k"));
-        }
+        knn_type get_k_nearest_neighbors(const argv_parser& parser);
         /**
          * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
          * @param[in] k the number of nearest-neighbors to search for
@@ -128,178 +132,14 @@ namespace sycl_lsh {
          * @throws std::invalid_argument if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
          */
         [[nodiscard]]
-        knn_type get_k_nearest_neighbors(const index_type k) {
-            mpi::timer t(comm_);
-
-            if (k < 1 || k > attr_.rank_size) {
-                throw std::invalid_argument(fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", k, attr_.rank_size));
-            }
-
-            knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
-
-            for (int round = 0; round < comm_.size(); ++round) {
-                mpi::timer rt(comm_);
-
-                logger_.log("Round {} of {} ... ", round + 1, comm_.size());
-                // create thread to asynchronously perform MPI communication
-                std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
-
-                // calculate k-nearest-neighbors on current MPI rank
-                if (round == 0) {
-                    // use data already on device in round 0
-                    calculate_knn_round(k, data_.get_device_buffer(), knns);
-                } else {
-                    // copy received data to device in other rounds
-                    data_host_buffer_type data_host_buffer = data_.get_host_buffer();
-                    data_device_buffer_type data_device_buffer(data_host_buffer.size());
-
-                    // copy data to device buffer
-                    auto acc = data_device_buffer.template get_access<sycl::access::mode::discard_write>();
-                    for (index_type i = 0; i < data_host_buffer.size(); ++i) {
-                        acc[i] = data_host_buffer[i];
-                    }
-
-                    calculate_knn_round(k, data_device_buffer, knns);
-                }
-
-                // wait until all k-nearest-neighbors were calculated on the current MPI rank
-                queue_.wait_and_throw();
-                // send calculated k-nearest-neighbors and distances to next rank
-                knns.send_receive_host_buffer();
-                // wait until all MPI communication has been finished
-                mpi_thread.join();
-                comm_.wait();
-
-                logger_.log("finished in {}.\n", rt.elapsed());
-            }
-
-            logger_.log("Calculated {}-nearest-neighbors in {}.\n\n", k, t.elapsed());
-
-            return knns;
-        }
+        knn_type get_k_nearest_neighbors(const index_type k);
         /**
          * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
          * @param[in] k the number of nearest neighbors to search for
          * @param[in] data_buffer the data to perfrom the nearest-neighbors search on
          * @param[in,out] knns the (already partially) calculated nearest-neighbors
          */
-        void calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns) {
-
-            // TODO 2020-10-07 15:52 marcel: check if correct and useful
-            const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
-            const index_type max_local_size = local_mem_size / (k * sizeof(index_type) + k * sizeof(real_type));
-            const index_type max_work_group_size = queue_.get_device().template get_info<sycl::info::device::max_work_group_size>();
-            const index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
-            const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
-
-            queue_.submit([&](sycl::handler& cgh) {
-                // create SYCL buffers for knn class
-                knn_device_buffer_type knn_buffer(knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size());
-                knn_dist_device_buffer_type knn_dist_buffer(knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size());
-
-                // get accessors
-                auto acc_data_owned = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
-                auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
-                auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
-                auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::read>(cgh);
-                auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::read>(cgh);
-                auto acc_knn = knn_buffer.template get_access<sycl::access::mode::read_write>(cgh);
-                auto acc_knn_dist = knn_dist_buffer.template get_access<sycl::access::mode::read_write>(cgh);
-                // get additional information
-                auto options = options_;
-                auto attr = attr_;
-                const index_type base_id = comm_.rank() * attr_.rank_size;
-                // get get_linear_id functor instantiation
-                const get_linear_id<data_type> get_linear_id_data{};
-                const get_linear_id<knn_type> get_linear_id_knn{};
-                // get hasher functor instantiation
-                const lsh_hash<hash_function_type> hasher{};
-
-                // create local memory accessors
-                sycl::accessor<index_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
-                        knn_local_mem(sycl::range<>(local_size * k), cgh);
-                sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
-                        knn_dist_local_mem(sycl::range<>(local_size * k), cgh);
-
-                const auto execution_range = sycl::nd_range<>(sycl::range<>(global_size), sycl::range<>(local_size));
-
-                cgh.parallel_for<kernel_calculate_knn>(execution_range, [=](sycl::nd_item<> item) {
-                    const index_type global_idx = item.get_global_linear_id();
-                    const index_type local_idx  = item.get_local_linear_id();
-
-                    // immediately return if global_idx is out-of-range
-                    if (global_idx >= attr.rank_size) return;
-
-                    index_type knn_blocked[options_type::blocking_size];
-                    real_type knn_dist_blocked[options_type::blocking_size];
-
-                    // initialize local memory arrays
-                    for (index_type nn = 0; nn < k; ++nn) {
-                        knn_local_mem[local_idx * k + nn] = acc_knn[get_linear_id_knn(global_idx, nn, attr, k)];
-                        knn_dist_local_mem[local_idx * k + nn] = acc_knn_dist[get_linear_id_knn(global_idx, nn, attr, k)];
-                    }
-
-                    // perform nearest-neighbor search for all hash tables
-                    for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
-                        // calculate hash value (= hash bucket) for current point
-                        const hash_value_type hash_bucket = hasher(hash_table, global_idx, acc_data_received, acc_hash_functions, options, attr);
-
-                        // calculate hash bucket offsets
-                        const index_type bucket_begin = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket];
-                        const index_type bucket_end   = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket + 1];
-
-                        // perform nearest-neighbor search for all data points in the calculate hash bucket
-                        for (index_type bucket_elem = bucket_begin; bucket_elem < bucket_end; bucket_elem += options_type::blocking_size) {
-                            // initialize thread local blocking array
-                            for (index_type block = 0; block < options_type::blocking_size; ++block) {
-                                knn_blocked[block] = acc_hash_tables[hash_table * attr.rank_size + bucket_elem + block];
-                                knn_dist_blocked[block] = 0.0;
-                            }
-
-                            // calculate distances
-                            for (index_type block = 0; block < options_type::blocking_size; ++block) {
-                                for (index_type dim = 0; dim < attr.dims; ++dim) {
-                                    const real_type x = acc_data_received[get_linear_id_data(global_idx, dim, attr)];
-                                    const real_type y = acc_data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
-                                    knn_dist_blocked[block] += (x - y) * (x - y);
-                                }
-                            }
-
-                            // check candidate function
-                            const auto is_candidate = [&](const index_type candidate_idx, const index_type global_idx, const index_type local_idx) {
-                                if (candidate_idx - base_id == global_idx) return false;
-                                for (index_type nn = 0; nn < k; ++nn) {
-                                    if (knn_local_mem[local_idx * k + nn] == candidate_idx) return false;
-                                }
-                                return true;
-                            };
-
-                            // update nearest-neighbors
-                            for (index_type block = 0; block < options_type::blocking_size; ++block) {
-                                if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx * k] && is_candidate(knn_blocked[block], global_idx, local_idx)) {
-                                    knn_local_mem[local_idx * k] = knn_blocked[block];
-                                    knn_dist_local_mem[local_idx * k] = knn_dist_blocked[block];
-
-                                    // ensure that the greatest distance is at pos 0
-                                    for (index_type nn = 0; nn < k - 1; ++nn) {
-                                        if (knn_dist_local_mem[local_idx * k + nn] < knn_dist_local_mem[local_idx * k + nn + 1]) {
-                                            detail::swap(knn_local_mem[local_idx * k + nn], knn_local_mem[local_idx * k + nn + 1]);
-                                            detail::swap(knn_dist_local_mem[local_idx * k + nn], knn_dist_local_mem[local_idx * k + nn + 1]);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // write back to global buffer
-                    for (index_type nn = 0; nn < k; ++nn) {
-                        acc_knn[get_linear_id_knn(global_idx, nn, attr, k)] = knn_local_mem[local_idx * k + nn];
-                        acc_knn_dist[get_linear_id_knn(global_idx, nn, attr, k)] = knn_dist_local_mem[local_idx * k + nn];
-                    }
-                });
-            });
-        }
+        void calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns);
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -367,8 +207,191 @@ namespace sycl_lsh {
         sycl::queue queue_;
         device_buffer_type hash_tables_buffer_;
         device_buffer_type offsets_buffer_;
-
     };
+
+
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                       calculate k-nearest-neighbors                                        //
+    // ---------------------------------------------------------------------------------------------------------- //
+    template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
+    [[nodiscard]]
+    typename sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::knn_type
+    sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::get_k_nearest_neighbors(const sycl_lsh::argv_parser& parser) {
+        return get_k_nearest_neighbors(parser.argv_as<index_type>("k"));
+    }
+
+    template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
+    [[nodiscard]]
+    typename sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::knn_type
+    sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::get_k_nearest_neighbors(const index_type k) {
+        mpi::timer t(comm_);
+
+        if (k < 1 || k > attr_.rank_size) {
+            throw std::invalid_argument(fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", k, attr_.rank_size));
+        }
+
+        knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
+
+        for (int round = 0; round < comm_.size(); ++round) {
+            mpi::timer rt(comm_);
+
+            logger_.log("Round {} of {} ... ", round + 1, comm_.size());
+            // create thread to asynchronously perform MPI communication
+            std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
+
+            // calculate k-nearest-neighbors on current MPI rank
+            if (round == 0) {
+                // use data already on device in round 0
+                calculate_knn_round(k, data_.get_device_buffer(), knns);
+            } else {
+                // copy received data to device in other rounds
+                data_host_buffer_type data_host_buffer = data_.get_host_buffer();
+                data_device_buffer_type data_device_buffer(data_host_buffer.size());
+
+                // copy data to device buffer
+                auto acc = data_device_buffer.template get_access<sycl::access::mode::discard_write>();
+                for (index_type i = 0; i < data_host_buffer.size(); ++i) {
+                    acc[i] = data_host_buffer[i];
+                }
+
+                calculate_knn_round(k, data_device_buffer, knns);
+            }
+
+            // wait until all k-nearest-neighbors were calculated on the current MPI rank
+            queue_.wait_and_throw();
+            // send calculated k-nearest-neighbors and distances to next rank
+            knns.send_receive_host_buffer();
+            // wait until all MPI communication has been finished
+            mpi_thread.join();
+            comm_.wait();
+
+            logger_.log("finished in {}.\n", rt.elapsed());
+        }
+
+        logger_.log("Calculated {}-nearest-neighbors in {}.\n\n", k, t.elapsed());
+
+        return knns;
+    }
+
+    template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
+    void sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns) {
+
+        // TODO 2020-10-07 15:52 marcel: check if correct and useful
+        const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
+        const index_type max_local_size = local_mem_size / (k * sizeof(index_type) + k * sizeof(real_type));
+        const index_type max_work_group_size = queue_.get_device().template get_info<sycl::info::device::max_work_group_size>();
+        const index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
+        const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
+
+        queue_.submit([&](sycl::handler& cgh) {
+            // create SYCL buffers for knn class
+            knn_device_buffer_type knn_buffer(knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size());
+            knn_dist_device_buffer_type knn_dist_buffer(knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size());
+
+            // get accessors
+            auto acc_data_owned = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+            auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+            auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::read>(cgh);
+            auto acc_knn = knn_buffer.template get_access<sycl::access::mode::read_write>(cgh);
+            auto acc_knn_dist = knn_dist_buffer.template get_access<sycl::access::mode::read_write>(cgh);
+            // get additional information
+            auto options = options_;
+            auto attr = attr_;
+            const index_type base_id = comm_.rank() * attr_.rank_size;
+            // get get_linear_id functor instantiation
+            const get_linear_id<data_type> get_linear_id_data{};
+            const get_linear_id<knn_type> get_linear_id_knn{};
+            // get hasher functor instantiation
+            const lsh_hash<hash_function_type> hasher{};
+
+            // create local memory accessors
+            sycl::accessor<index_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
+                    knn_local_mem(sycl::range<>(local_size * k), cgh);
+            sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
+                    knn_dist_local_mem(sycl::range<>(local_size * k), cgh);
+
+            const auto execution_range = sycl::nd_range<>(sycl::range<>(global_size), sycl::range<>(local_size));
+
+            cgh.parallel_for<kernel_calculate_knn>(execution_range, [=](sycl::nd_item<> item) {
+                const index_type global_idx = item.get_global_linear_id();
+                const index_type local_idx  = item.get_local_linear_id();
+
+                // immediately return if global_idx is out-of-range
+                if (global_idx >= attr.rank_size) return;
+
+                index_type knn_blocked[options_type::blocking_size];
+                real_type knn_dist_blocked[options_type::blocking_size];
+
+                // initialize local memory arrays
+                for (index_type nn = 0; nn < k; ++nn) {
+                    knn_local_mem[local_idx * k + nn] = acc_knn[get_linear_id_knn(global_idx, nn, attr, k)];
+                    knn_dist_local_mem[local_idx * k + nn] = acc_knn_dist[get_linear_id_knn(global_idx, nn, attr, k)];
+                }
+
+                // perform nearest-neighbor search for all hash tables
+                for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
+                    // calculate hash value (= hash bucket) for current point
+                    const hash_value_type hash_bucket = hasher(hash_table, global_idx, acc_data_received, acc_hash_functions, options, attr);
+
+                    // calculate hash bucket offsets
+                    const index_type bucket_begin = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket];
+                    const index_type bucket_end   = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket + 1];
+
+                    // perform nearest-neighbor search for all data points in the calculate hash bucket
+                    for (index_type bucket_elem = bucket_begin; bucket_elem < bucket_end; bucket_elem += options_type::blocking_size) {
+                        // initialize thread local blocking array
+                        for (index_type block = 0; block < options_type::blocking_size; ++block) {
+                            knn_blocked[block] = acc_hash_tables[hash_table * attr.rank_size + bucket_elem + block];
+                            knn_dist_blocked[block] = 0.0;
+                        }
+
+                        // calculate distances
+                        for (index_type block = 0; block < options_type::blocking_size; ++block) {
+                            for (index_type dim = 0; dim < attr.dims; ++dim) {
+                                const real_type x = acc_data_received[get_linear_id_data(global_idx, dim, attr)];
+                                const real_type y = acc_data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
+                                knn_dist_blocked[block] += (x - y) * (x - y);
+                            }
+                        }
+
+                        // check candidate function
+                        const auto is_candidate = [&](const index_type candidate_idx, const index_type global_idx, const index_type local_idx) {
+                            if (candidate_idx - base_id == global_idx) return false;
+                            for (index_type nn = 0; nn < k; ++nn) {
+                                if (knn_local_mem[local_idx * k + nn] == candidate_idx) return false;
+                            }
+                            return true;
+                        };
+
+                        // update nearest-neighbors
+                        for (index_type block = 0; block < options_type::blocking_size; ++block) {
+                            if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx * k] && is_candidate(knn_blocked[block], global_idx, local_idx)) {
+                                knn_local_mem[local_idx * k] = knn_blocked[block];
+                                knn_dist_local_mem[local_idx * k] = knn_dist_blocked[block];
+
+                                // ensure that the greatest distance is at pos 0
+                                for (index_type nn = 0; nn < k - 1; ++nn) {
+                                    if (knn_dist_local_mem[local_idx * k + nn] < knn_dist_local_mem[local_idx * k + nn + 1]) {
+                                        detail::swap(knn_local_mem[local_idx * k + nn], knn_local_mem[local_idx * k + nn + 1]);
+                                        detail::swap(knn_dist_local_mem[local_idx * k + nn], knn_dist_local_mem[local_idx * k + nn + 1]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // write back to global buffer
+                for (index_type nn = 0; nn < k; ++nn) {
+                    acc_knn[get_linear_id_knn(global_idx, nn, attr, k)] = knn_local_mem[local_idx * k + nn];
+                    acc_knn_dist[get_linear_id_knn(global_idx, nn, attr, k)] = knn_dist_local_mem[local_idx * k + nn];
+                }
+            });
+        });
+    }
+
 
 
     // ---------------------------------------------------------------------------------------------------------- //
