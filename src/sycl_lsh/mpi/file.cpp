@@ -1,11 +1,17 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-05
+ * @date 2020-10-28
  */
 
 #include <sycl_lsh/detail/filesystem.hpp>
 #include <sycl_lsh/mpi/file.hpp>
+
+#include <mpi.h>
+
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 
 // ---------------------------------------------------------------------------------------------------------- //
