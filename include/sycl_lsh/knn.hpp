@@ -11,6 +11,7 @@
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/data.hpp>
+#include <sycl_lsh/data_attributes.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/memory_layout.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
@@ -129,7 +130,7 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      */
     template <memory_layout layout, typename Options, typename Data>
-    class knn : private detail::knn_base {
+    class knn final : private detail::knn_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
