@@ -13,27 +13,18 @@
 // include all necessary library headers
 #include <fmt/chrono.h>
 
-#include <sycl_lsh/exceptions/communicator_exception.hpp>
-#include <sycl_lsh/exceptions/file_exception.hpp>
-#include <sycl_lsh/exceptions/not_implemented_exception.hpp>
-#include <sycl_lsh/exceptions/window_exception.hpp>
-
 #include <sycl_lsh/hash_functions/hash_functions.hpp>
 #include <sycl_lsh/hash_functions/random_projections.hpp>
 #include <sycl_lsh/hash_functions/entropy_based.hpp>
 
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/errhandler.hpp>
-#include <sycl_lsh/mpi/file.hpp>
-#include <sycl_lsh/mpi/file_parser/arff_parser.hpp>
-#include <sycl_lsh/mpi/file_parser/binary_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
 #include <sycl_lsh/mpi/main.hpp>
 #include <sycl_lsh/mpi/timer.hpp>
 
 #include <sycl_lsh/argv_parser.hpp>
 #include <sycl_lsh/data.hpp>
-#include <sycl_lsh/device_selector.hpp>
 #include <sycl_lsh/hash_tables.hpp>
 #include <sycl_lsh/knn.hpp>
 #include <sycl_lsh/options.hpp>
