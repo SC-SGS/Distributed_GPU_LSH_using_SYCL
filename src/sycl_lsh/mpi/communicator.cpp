@@ -1,12 +1,16 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-23
+ * @date 2020-10-28
  */
 
 #include <sycl_lsh/mpi/communicator.hpp>
 
+#include <mpi.h>
+
+#include <memory>
 #include <stdexcept>
+#include <utility>
 
 
 // ---------------------------------------------------------------------------------------------------------- //
