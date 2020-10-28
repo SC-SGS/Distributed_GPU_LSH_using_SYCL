@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  *
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
@@ -133,8 +133,7 @@ namespace sycl_lsh {
         //                                             update host buffer                                             //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
-         * @brief Send the elements of the active buffer to the neighboring inactive buffer using a ring like send pattern.
-         * @details Swaps the active and inactive host buffers.
+         * @brief Send the elements of the host buffer to the neighboring host buffer replacing its content using a ring like send pattern.
          */
         void send_receive_host_buffer();
 
@@ -166,7 +165,7 @@ namespace sycl_lsh {
          * @return the host buffer (`[[nodiscard]]`)
          */
         [[nodiscard]]
-        host_buffer_type& get_host_buffer() noexcept { return host_buffer_active_; }
+        host_buffer_type& get_host_buffer() noexcept { return host_buffer_; }
 
     private:
         // befriend the factory function
@@ -188,8 +187,7 @@ namespace sycl_lsh {
         const data_attributes_type data_attributes_;
 
         device_buffer_type device_buffer_;
-        host_buffer_type host_buffer_active_;
-        host_buffer_type host_buffer_inactive_;
+        host_buffer_type host_buffer_;
     };
     
 
@@ -220,32 +218,31 @@ namespace sycl_lsh {
             : comm_(comm),
               data_attributes_(parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims()),
               device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
-              host_buffer_active_(parser.parse_content()),
-              host_buffer_inactive_(data_attributes_.rank_size * data_attributes_.dims)
+              host_buffer_(parser.parse_content())
     {
         mpi::timer t(comm_);
 
         // change memory layout from aos to soa if requested
         if constexpr (layout == memory_layout::soa) {
+            host_buffer_type soa_host_buffer(data_attributes_.rank_size * data_attributes_.dims);
             data_attributes<memory_layout::aos, index_type> parsed_data_attributes(data_attributes_);
 
             const get_linear_id<data<memory_layout::soa, options_type>> get_linear_id_soa;
 
             for (index_type point = 0; point < data_attributes_.rank_size; ++point) {
                 for (index_type dim = 0; dim < data_attributes_.dims; ++dim) {
-                    host_buffer_inactive_[get_linear_id_soa(point, dim, data_attributes_)]
-                            = host_buffer_active_[point * data_attributes_.dims + dim];
+                    soa_host_buffer[get_linear_id_soa(point, dim, data_attributes_)]
+                            = host_buffer_[point * data_attributes_.dims + dim];
                 }
             }
 
-            using std::swap;
-            swap(host_buffer_active_, host_buffer_inactive_);
+            host_buffer_ = std::move(soa_host_buffer);
         }
 
         // copy data to device buffer
         auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
         for (index_type i = 0; i < acc.get_count(); ++i) {
-            acc[i] = host_buffer_active_[i];
+            acc[i] = host_buffer_[i];
         }
 
         logger.log("Created data object in {}.\n", t.elapsed());
@@ -260,12 +257,8 @@ namespace sycl_lsh {
         const int destination = (comm_.rank() + 1) % comm_.size();
         const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
-        MPI_Sendrecv(host_buffer_active_.data(), host_buffer_active_.size(), mpi::type_cast<typename host_buffer_type::value_type>(), destination, 0,
-                     host_buffer_inactive_.data(), host_buffer_inactive_.size(), mpi::type_cast<typename host_buffer_type::value_type>(), source, 0,
-                     comm_.get(), MPI_STATUS_IGNORE);
-
-        using std::swap;
-        swap(host_buffer_active_, host_buffer_inactive_);
+        MPI_Sendrecv_replace(host_buffer_.data(), host_buffer_.size(), mpi::type_cast<typename host_buffer_type::value_type>(),
+                             destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE);
     }
 
 }
