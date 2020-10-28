@@ -378,7 +378,7 @@ namespace sycl_lsh {
     hash_tables<layout, Options, Data, HashFunctionType>::hash_tables(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger)
             : options_(opt), data_(data), attr_(data.get_attributes()), comm_(comm), logger_(logger),
               hash_functions_(opt, data, comm, logger),
-              queue_(device_selector{comm}, sycl::async_handler(&sycl_exception_handler)), // TODO 2020-10-06 14:08 marcel: change to custom selector
+              queue_(device_selector{comm}, sycl::async_handler(&sycl_exception_handler)),
               hash_tables_buffer_(opt.num_hash_tables * data.get_attributes().rank_size + options_type::blocking_size),
               offsets_buffer_(opt.num_hash_tables * (opt.hash_table_size + 1))
     {
