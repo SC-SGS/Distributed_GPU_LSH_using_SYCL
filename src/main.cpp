@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  *
  * @brief The main file containing the main logic.
  */
@@ -62,7 +62,7 @@ int custom_main(int argc, char** argv) {
 
         // optionally calculate the recall of the calculated k-nearest-neighbors
         if (parser.has_argv("evaluate_knn_file")) {
-            logger.log("recall: {} %\n", knns.recall(parser));
+            logger.log("recall: {}%\n", knns.recall(parser));
         }
         // optionally calculate the error ration of the calculated k-nearest-neighbors
         if (parser.has_argv("evaluate_knn_dist_file")) {
