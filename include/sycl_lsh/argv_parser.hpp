@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-28
  *
  * @brief Implements a very simple command line argument parser specifically for this project.
  */
@@ -16,6 +16,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace sycl_lsh {
@@ -44,6 +45,9 @@ namespace sycl_lsh {
      */
     class argv_parser {
     public:
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                                constructor                                                 //
+        // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Parse the given command line arguments.
          * @param[in] argc the number of command line arguments
@@ -58,6 +62,10 @@ namespace sycl_lsh {
          */
         argv_parser(int argc, char** argv);
 
+
+        // ---------------------------------------------------------------------------------------------------------- //
+        //                                           other member functions                                           //
+        // ---------------------------------------------------------------------------------------------------------- //
         /**
          * @brief Check whether the command line argument @p key has been specified.
          * @param[in] key the command line argument to check for
@@ -65,7 +73,6 @@ namespace sycl_lsh {
          */
         [[nodiscard]]
         bool has_argv(const std::string& key) const;
-
         /**
          * @brief Returns the value associated with @p key converted to the type `T`.
          * @tparam T the returned type (**must** be either a [arithemtic type](https://en.cppreference.com/w/cpp/types/is_arithmetic) or
@@ -79,7 +86,6 @@ namespace sycl_lsh {
         template <typename T>
         [[nodiscard]]
         T argv_as(const std::string& key) const;
-
         /**
          * @brief Returns a description of all command line arguments.
          * @return the description (`[[nodiscard]]`)
