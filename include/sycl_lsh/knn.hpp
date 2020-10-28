@@ -550,7 +550,7 @@ namespace sycl_lsh {
         const sycl_lsh::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
 
         // calculate error ratio
-        index_type num_points = 0;
+        index_type num_points_not_found = 0;
         index_type num_knn_not_found = 0;
         index_type mean_error_count = 0;
         real_type mean_error_ratio = 0.0;
@@ -567,7 +567,7 @@ namespace sycl_lsh {
             // check whether k k-nearest-neighbor could be found
             auto count_not_found = std::count(calculated_knn_dist_sorted.cbegin(), calculated_knn_dist_sorted.cend(), std::numeric_limits<real_type>::max());
             if (count_not_found != 0) {
-                ++num_points;
+                ++num_points_not_found;
                 num_knn_not_found += count_not_found;
                 continue;
             }
@@ -579,31 +579,36 @@ namespace sycl_lsh {
             std::sort(correct_knn_dist_sorted.begin(), correct_knn_dist_sorted.end());
 
             // calculate error ratio
-            // TODO 2020-10-06 13:16 marcel: check again
             index_type error_count = 0;
             real_type error_ratio = 0.0;
             for (index_type nn = 0; nn < k_; ++nn) {
-                if (calculated_knn_dist_sorted[nn] != 0.0 && correct_knn_dist_sorted[nn] != 0.0) {
-                    ++error_count;
-                    error_ratio += calculated_knn_dist_sorted[nn] / correct_knn_dist_sorted[nn];
+                if (correct_knn_dist_sorted[nn] == 0.0) {
+                    // two different points at the same position
+                    if (calculated_knn_dist_sorted[nn] == 0.0) {
+                        // calculated nearest neighbor is correct
+                        error_ratio += 1.0;
+                        ++error_count;
+                    }
                 } else {
+                    // calculate distance ratio
+                    error_ratio += calculated_knn_dist_sorted[nn] / correct_knn_dist_sorted[nn];
                     ++error_count;
-                    ++error_ratio;
                 }
             }
+            // calculate error ratio for current k-nearest neighbors
             if (error_count != 0) {
-                ++mean_error_count;
                 mean_error_ratio += error_ratio / error_count;
+                ++mean_error_count;
             }
         }
 
         // collect results from each MPI rank
-        const real_type avg_mean_error_ratio = mpi::average(mean_error_ratio / mean_error_count, comm_);
-        const index_type total_num_points = mpi::sum(num_points, comm_);
+        const real_type avg_mean_error_ratio = mpi::sum(mean_error_ratio, comm_) / mpi::sum(mean_error_count, comm_);
+        const index_type total_num_points_not_found = mpi::sum(num_points_not_found, comm_);
         const index_type total_num_knn_not_found = mpi::sum(num_knn_not_found, comm_);
 
         logger_.log("\nCalculated error ration in {}.\n", t.elapsed());
-        return std::make_tuple(avg_mean_error_ratio, total_num_points, total_num_knn_not_found);
+        return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
     }
 
 
