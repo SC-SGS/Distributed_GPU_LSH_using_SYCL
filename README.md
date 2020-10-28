@@ -24,7 +24,7 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 * A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL), 
   [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) or [oneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html).
 * A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
-* The [{fmt}](https://github.com/fmtlib/fmt) formatting library.
+* The [{fmt}](https://github.com/fmtlib/fmt) formatting library (version 7.1.0 required to be able to format a `std::chrono::time_point`).
 * [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
 
