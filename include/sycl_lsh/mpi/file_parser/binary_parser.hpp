@@ -10,7 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_BINARY_PARSER_HPP
 
 #include <sycl_lsh/detail/assert.hpp>
-#include <sycl_lsh/exceptions/not_implemented.hpp>
+#include <sycl_lsh/exceptions/not_implemented_exception.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 #include <sycl_lsh/mpi/file_parser/base_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
