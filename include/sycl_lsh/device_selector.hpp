@@ -75,7 +75,7 @@ namespace sycl_lsh {
                 // get platform associated with the current device
                 auto platform = device.get_platform();
                 // check if we are currently on a NVIDIA platform as requested
-                if (detail::contains(platform.get_info<sycl::info::platform::name>(), platform_name)) {
+                if (detail::contains_substr(platform.get_info<sycl::info::platform::name>(), platform_name)) {
                     auto device_list = platform.get_devices();
                     // check whether the current platform has enough devices to satisfy the requested number of slots
                     if (device_list.size() < static_cast<std::size_t>(comm_.size())) {

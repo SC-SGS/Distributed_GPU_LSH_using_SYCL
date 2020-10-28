@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-09
+ * @date 2020-10-28
  *
  * @brief Different utility functions or macros.
  */
@@ -38,7 +38,7 @@ namespace sycl_lsh::detail {
      * @return `true` if @p str contains @p substr, `false` otherwise (`[[nodiscard]]`)
      */
     [[nodiscard]] 
-    inline bool contains(const std::string_view str, const std::string_view substr) noexcept {
+    inline bool contains_substr(const std::string_view str, const std::string_view substr) noexcept {
         return str.find(substr) != std::string_view::npos;
     }
 
