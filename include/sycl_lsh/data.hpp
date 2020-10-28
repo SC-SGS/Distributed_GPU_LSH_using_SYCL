@@ -10,6 +10,7 @@
 #define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
 
 #include <sycl_lsh/argv_parser.hpp>
+#include <sycl_lsh/data_attributes.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/get_linear_id.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
@@ -18,14 +19,15 @@
 #include <sycl_lsh/mpi/file.hpp>
 #include <sycl_lsh/mpi/file_parser/file_parser.hpp>
 #include <sycl_lsh/mpi/logger.hpp>
+#include <sycl_lsh/mpi/type_cast.hpp>
 #include <sycl_lsh/options.hpp>
-#include <sycl_lsh/data_attributes.hpp>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 #include <mpi.h>
 
 #include <memory>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -104,7 +106,7 @@ namespace sycl_lsh {
      * @tparam Options the used @ref sycl_lsh::options type
      */
     template <memory_layout layout, typename Options>
-    class data : private detail::data_base {
+    class data final : private detail::data_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
