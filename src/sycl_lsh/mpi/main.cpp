@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-09-22
+ * @date 2020-10-28
  */
 
 #include <sycl_lsh/mpi/main.hpp>
@@ -12,7 +12,7 @@
 
 #include <cstdlib>
 #include <functional>
-#include <iostream>
+#include <ostream>
 #include <string>
 
 namespace {
