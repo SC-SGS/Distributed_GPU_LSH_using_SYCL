@@ -52,9 +52,9 @@ namespace sycl_lsh {
      * @tparam index_t an integral type (used for indices)
      * @tparam hash_value_t an unsigned type (used for hash values)
      * @tparam blocking_size_v the blocking size used in SYCL kernels
-     * @tparam hash_functions_t the type of the used hash functions in the LSH algorithm
+     * @tparam used_hash_functions_t the type of the used hash functions in the LSH algorithm
      */
-    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type hash_functions_t>
+    template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, hash_functions_type used_hash_functions_t>
     struct options : private detail::options_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
@@ -78,7 +78,7 @@ namespace sycl_lsh {
         /// The blocking size used in the SYCL kernels.
         static constexpr index_type blocking_size = blocking_size_v;
         /// The used hash functions type in the LSH algorithm.
-        static constexpr hash_functions_type used_hash_functions_type = hash_functions_t;
+        static constexpr hash_functions_type used_hash_functions_type = used_hash_functions_t;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
