@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-10-28
  *
  * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
  */
@@ -78,26 +78,24 @@ namespace sycl_lsh {
         /// The blocking size used in the SYCL kernels.
         static constexpr index_type blocking_size = blocking_size_v;
         /// The used hash functions type in the LSH algorithm.
-        static constexpr hash_functions_type type_of_hash_functions = hash_functions_t;
+        static constexpr hash_functions_type used_hash_functions_type = hash_functions_t;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
         //                                              runtime options                                               //
         // ---------------------------------------------------------------------------------------------------------- //
-        // TODO 2020-09-22 17:23 marcel: set meaningful defaults
-
         /// The number of hash functions in the hash pool.
-        index_type hash_pool_size = 10;
+        index_type hash_pool_size = 32;
         /// The number of hash functions per hash table.
-        index_type num_hash_functions = 4;
+        index_type num_hash_functions = 12;
         /// The number of used hash tables.
-        index_type num_hash_tables = 2;
+        index_type num_hash_tables = 8;
         /// The size of each hash table.
         hash_value_type hash_table_size = 105613;
         /// The segment size for the random projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
         real_type w = 1.0;
         /// The number of cut-off points for the entropy-based hash functions.
-        index_type num_cut_off_points = 4;
+        index_type num_cut_off_points = 6;
 
 
         // ---------------------------------------------------------------------------------------------------------- //
@@ -175,16 +173,16 @@ namespace sycl_lsh {
         out << fmt::format("index_type '{}' ({} byte)\n", detail::arithmetic_type_name<index_type>(), sizeof(index_type));
         out << fmt::format("hash_value_type '{}' ({} byte)\n", detail::arithmetic_type_name<hash_value_type>(), sizeof(hash_value_type));
         out << fmt::format("blocking_size {}\n", options_type::blocking_size);
-        out << fmt::format("hash_functions_type '{}'\n\n", options_type::type_of_hash_functions);
+        out << fmt::format("hash_functions_type '{}'\n\n", options_type::used_hash_functions_type);
 
         // runtime options
         out << fmt::format("hash_pool_size {}\n", opt.hash_pool_size);
         out << fmt::format("num_hash_functions {}\n", opt.num_hash_functions);
         out << fmt::format("num_hash_tables {}\n", opt.num_hash_tables);
         out << fmt::format("hash_table_size {}\n", opt.hash_table_size);
-        if constexpr (options_type::type_of_hash_functions == hash_functions_type::random_projections) {
+        if constexpr (options_type::used_hash_functions_type == hash_functions_type::random_projections) {
             out << fmt::format("w {}\n", opt.w);
-        } else if constexpr (options_type::type_of_hash_functions == hash_functions_type::entropy_based) {
+        } else if constexpr (options_type::used_hash_functions_type == hash_functions_type::entropy_based) {
             out << fmt::format("num_cut_off_points {}\n", opt.num_cut_off_points);
         }
 
@@ -236,9 +234,9 @@ namespace sycl_lsh {
                     continue;
                 } else if (opt == "hash_functions_type") {
                     // check whether the hash functions types match
-                    if (value != fmt::format("'{}'", type_of_hash_functions)) {
+                    if (value != fmt::format("'{}'", used_hash_functions_type)) {
                         throw std::logic_error(fmt::format("The read hash_functions_type is {}, but the currently set hash_functions_type is '{}'!",
-                                value, type_of_hash_functions));
+                                value, used_hash_functions_type));
                     }
                     continue;
                 } else if (opt == "hash_pool_size") {

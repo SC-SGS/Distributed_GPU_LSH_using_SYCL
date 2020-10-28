@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-09
+ * @date 2020-10-28
  *
  * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
  */
@@ -52,7 +52,7 @@ namespace sycl_lsh {
     template <memory_layout layout, typename Options, typename Data>
     [[nodiscard]] 
     auto make_hash_tables(const Options& opt, Data& data, const mpi::communicator& comm, const mpi::logger& logger) {
-        using type_of_hash_functions = detail::get_hash_functions_type_t<layout, Options, Data, Options::type_of_hash_functions>;
+        using type_of_hash_functions = detail::get_hash_functions_type_t<layout, Options, Data, Options::used_hash_functions_type>;
         return hash_tables<layout, Options, Data, type_of_hash_functions>(opt, data, comm, logger);
     }
 
