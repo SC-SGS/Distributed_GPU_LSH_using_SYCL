@@ -28,7 +28,7 @@ namespace sycl_lsh::mpi {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
     template <typename real_type>
-    void pairwise_exchange(std::vector<real_type>& data, const int sendrank, const int recvrank, const communicator& comm) {
+    inline void pairwise_exchange(std::vector<real_type>& data, const int sendrank, const int recvrank, const communicator& comm) {
         std::vector<real_type> remote(data.size());
         std::vector<real_type> all(2 * data.size());
         constexpr int merge_tag = 1;
@@ -59,7 +59,7 @@ namespace sycl_lsh::mpi {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
     template <typename real_type>
-    void sort(std::vector<real_type>& data, const communicator& comm) {
+    inline void sort(std::vector<real_type>& data, const communicator& comm) {
         // sort local vector
         std::sort(data.begin(), data.end());
 
