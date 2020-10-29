@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-06
+ * @date 2020-10-29
  *
  * @brief Implements the factory functions for the hash functions classes.
  */
@@ -24,7 +24,9 @@ namespace sycl_lsh {
         /** random projections hash functions */
         random_projections,
         /** entropy based hash functions */
-        entropy_based
+        entropy_based,
+        /** mixed hash functions (random projections + entropy-based as hash combine) */
+        mixed_hash_functions
     };
 
     /**
@@ -41,6 +43,9 @@ namespace sycl_lsh {
             case hash_functions_type::entropy_based:
                 out << "entropy_based";
                 break;
+            case hash_functions_type::mixed_hash_functions:
+                out << "mixed_hash_functions";
+                break;
         }
         return out;
     }
@@ -51,6 +56,8 @@ namespace sycl_lsh {
     class random_projections;
     template <memory_layout layout, typename Options, typename Data>
     class entropy_based;
+    template <memory_layout layout, typename Options, typename Data>
+    class mixed_hash_functions;
 
     namespace detail {
 
@@ -84,6 +91,17 @@ namespace sycl_lsh {
         template <memory_layout layout, typename Options, typename Data>
         struct get_hash_functions_type<layout, Options, Data, hash_functions_type::entropy_based> {
             using type = entropy_based<layout, Options, Data>;
+        };
+
+        /**
+         * @brief Type trait specialization for the @ref sycl_lsh::mixed_hash_functions hash functions class.
+         * @tparam layout the used @ref sycl_lsh::memory_layout type
+         * @tparam Options the used @ref sycl_lsh::options type
+         * @tparam Data the used @ref sycl_lsh::data type
+         */
+        template <memory_layout layout, typename Options, typename Data>
+        struct get_hash_functions_type<layout, Options, Data, hash_functions_type::mixed_hash_functions> {
+            using type = mixed_hash_functions<layout, Options, Data>;
         };
 
         /**
