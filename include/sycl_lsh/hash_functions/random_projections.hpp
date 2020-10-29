@@ -168,7 +168,7 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      */
     template <memory_layout layout, typename Options, typename Data>
-    class random_projections : private detail::hash_functions_base {
+    class random_projections final : private detail::hash_functions_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //

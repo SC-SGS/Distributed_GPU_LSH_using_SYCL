@@ -181,7 +181,7 @@ namespace sycl_lsh {
      * @tparam Data the used @ref sycl_lsh::data type
      */
     template <memory_layout layout, typename Options, typename Data>
-    class entropy_based : private detail::hash_functions_base {
+    class entropy_based final : private detail::hash_functions_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
