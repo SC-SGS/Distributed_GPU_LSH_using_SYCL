@@ -139,9 +139,9 @@ namespace sycl_lsh {
          */
         template <typename AccData, typename AccHashFunctions>
         [[nodiscard]]
-        hash_value_type  operator()(const index_type hash_table, const index_type point,
-                                    AccData& acc_data, AccHashFunctions& acc_hash_functions,
-                                    const options_type& opt, const data_attributes_type& attr) const
+        hash_value_type operator()(const index_type hash_table, const index_type point,
+                                   AccData& acc_data, AccHashFunctions& acc_hash_functions,
+                                   const options_type& opt, const data_attributes_type& attr) const
         {
 //            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!\n");
 //            SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
