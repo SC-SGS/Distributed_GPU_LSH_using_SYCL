@@ -27,10 +27,16 @@ namespace sycl_lsh {
 
     // forward declare class
     template <memory_layout layout, typename Options, typename Data>
-    class mixed_hash_functions; // TODO 2020-10-28 16:42 marcel: name
+    class mixed_hash_functions; // TODO 2020-10-28 16:42 marcel: name?
 
 
-
+    /**
+     * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::mixed_hash_functions class to convert a
+     *        multi-dimensional index to an one-dimensional one.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the @ref sycl_lsh::options type
+     * @tparam Data the @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
     struct get_linear_id<mixed_hash_functions<layout, Options, Data>> {
 
@@ -47,11 +53,27 @@ namespace sycl_lsh {
         /// The used hash functions type (mixed hash functions for this specialization).
         using hash_function_type = mixed_hash_functions<layout, Options, Data>;
 
-
+        /**
+         * @brief Convert the multi-dimensional index to an one-dimensional index.
+         * @details Only responsible for the random projections hash functions part.
+         * @param[in] hash_table the requested hash table
+         * @param[in] hash_function the requested hash function
+         * @param[in] dim the requested dimension of @p hash_function
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the attributes of the used data set
+         * @return the one-dimensional index (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
+         * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
+         */
         [[nodiscard]]
         index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim,
                               const options_type& opt, const data_attributes_type& attr, typename hash_function_type::buffer_part::hash_functions_t) const noexcept
         {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!\n");
 
             if constexpr (layout == memory_layout::aos) {
                 // Array of Structs
@@ -64,20 +86,50 @@ namespace sycl_lsh {
             }
         }
 
+        /**
+         * @brief Convert the multi-dimensional index to an one-dimensional index.
+         * @details Only responsible for the entropy-based hash functions part for combining the has functions.
+         * @param[in] hash_table the requested hash table
+         * @param[in] dim the requested dimension of @p hash_function
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the attributes of the used data set
+         * @return the one-dimensional index (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p dim must be in the range `[0, number of hash functions)` (currently disabled).
+         */
         [[nodiscard]]
         index_type operator()(const index_type hash_table, const index_type dim,
                               const options_type& opt, const data_attributes_type& attr, typename hash_function_type::buffer_part::hash_combine_t) const noexcept
         {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < opt.num_hash_functions, "Out-of-bounce access for dimension!\n");
+
             // no difference between AoS and SoA
             const index_type hash_table_offset = hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1);
             const index_type hash_combine_offset = hash_table_offset + opt.num_hash_functions * (attr.dims + 1);
             return hash_combine_offset + dim;
         }
 
+        /**
+         * @brief Convert the multi-dimensional index to an one-dimensional index.
+         * @details Only responsible for the cut-off points to calculate the final hash value.
+         * @param[in] hash_table the requested hash table
+         * @param[in] dim the requested dimension of @p hash_function
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the attributes of the used data set
+         * @return the one-dimensional index (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p dim must be in the range `[0, number of cut-off points)` (currently disabled).
+         */
         [[nodiscard]]
         index_type operator()(const index_type hash_table, const index_type dim,
                               const options_type& opt, const data_attributes_type& attr, typename hash_function_type::buffer_part::cut_off_points_t) const noexcept
         {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= dim && dim < opt.num_cut_off_points, "Out-of-bounce access for dimension!\n");
+
             // no difference between AoS and SoA
             const index_type hash_table_offset = hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1);
             const index_type hash_combine_offset = hash_table_offset + opt.num_hash_functions * (attr.dims + 1);
@@ -87,7 +139,13 @@ namespace sycl_lsh {
 
     };
 
-
+    /**
+     * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::mixed_hash_functions class to calculate the
+     *        hash value.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the @ref sycl_lsh::options type
+     * @tparam Data the @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
     struct lsh_hash<mixed_hash_functions<layout, Options, Data>> {
 
@@ -108,13 +166,31 @@ namespace sycl_lsh {
         /// The used hash functions type (mixed hash functions for this specialization).
         using hash_function_type = mixed_hash_functions<layout, Options, Data>;
 
-
+        /**
+         * @brief Calculates the hash value of the data point @p point in hash table @p hash_tables using mixed hash functions.
+         * @tparam AccData the type of the data set `sycl::accessor`
+         * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
+         * @param[in] hash_table the provided hash table
+         * @param[in] point the provided data point
+         * @param[in] acc_data the data set `sycl::accessor`
+         * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+         * @param[in] opt the used @ref sycl_lsh::options
+         * @param[in] attr the used @ref sycl_lsh::data_attributes
+         * @return the calculated hash value using mixed hash functions (`[[nodiscard]]`)
+         *
+         * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
+         * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
+         */
         template <typename AccData, typename AccHashFunctions>
         [[nodiscard]]
         hash_value_type operator()(const index_type hash_table, const index_type point,
                                    AccData& acc_data, AccHashFunctions& acc_hash_functions,
                                    const options_type& opt, const data_attributes_type& attr) const
         {
+//            SYCL_LSH_DEBUG_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!\n");
+//            SYCL_LSH_DEBUG_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
+
+
             // get indexing functions
             const get_linear_id<hash_function_type> get_linear_id_hash_function{};
             const get_linear_id<data_type> get_linear_id_data{};
@@ -141,18 +217,30 @@ namespace sycl_lsh {
     };
 
 
-
+    /**
+     * @brief Class which represents the mixed hash functions used in the LSH algorithm.
+     * @tparam layout the @ref sycl_lsh::memory_layout type
+     * @tparam Options the used @ref sycl_lsh::options type
+     * @tparam Data the used @ref sycl_lsh::data type
+     */
     template <memory_layout layout, typename Options, typename Data>
-    class mixed_hash_functions : private detail::hash_functions_base {
+    class mixed_hash_functions final : private detail::hash_functions_base {
         // ---------------------------------------------------------------------------------------------------------- //
         //                                      template parameter sanity checks                                      //
         // ---------------------------------------------------------------------------------------------------------- //
         static_assert(std::is_base_of_v<detail::options_base, Options>, "The second template parameter must be a sycl_lsh::options type!");
         static_assert(std::is_base_of_v<detail::data_base, Data>, "The third template parameter must be a sycl_lsh::data type!");
     public:
+        /**
+         * @brief Struct to specify the part of the host buffer when requesting the conversion of a multi-dimensional index to an
+         *        one-dimensional index.
+         */
         struct buffer_part {
+            /** Calculate conversion only for the random projections part. */
             constexpr static struct hash_functions_t{ } hash_functions{};
+            /** Calculate conversion only for the entropy-based part. */
             constexpr static struct hash_combine_t{ } hash_combine{};
+            /** Calculate conversion only for the cut-off points part. */
             constexpr static struct cut_off_points_t{ } cut_off_points{};
         };
 
@@ -181,7 +269,7 @@ namespace sycl_lsh {
         //                                                constructor                                                 //
         // ---------------------------------------------------------------------------------------------------------- //
         /**
-         * @brief Construct a new @ref sycl_lsh::entropy_based object representing the hash functions used in the LSH algorithm.
+         * @brief Construct a new @ref sycl_lsh::mixed_hash_functions object representing the hash functions used in the LSH algorithm.
          * @param[in] opt the used @ref sycl_lsh::options
          * @param[in] data the used @ref sycl_lsh::data
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
