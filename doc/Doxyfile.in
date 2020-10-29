@@ -44,7 +44,7 @@ PROJECT_NUMBER         = @Project-Name_VERSION@
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "master theses Marcel Breyer"
+PROJECT_BRIEF          = "master thesis Marcel Breyer"
 
 # With the PROJECT_LOGO tag one can specify an logo or icon that is included in
 # the documentation. The maximum height of the logo should not exceed 55 pixels
@@ -784,8 +784,6 @@ WARN_LOGFILE           =
 
 INPUT                  = @CMAKE_SOURCE_DIR@/doc/ \
                          @CMAKE_SOURCE_DIR@/include/ \
-                         @CMAKE_SOURCE_DIR@/src/ \
-                         @CMAKE_SOURCE_DIR@/test/ \
                          @CMAKE_SOURCE_DIR@/README.md
 
 # This tag can be used to specify the character encoding of the source files
@@ -821,7 +819,7 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                = @CMAKE_SOURCE_DIR@/test/gtest-mpi-listener.hpp
+EXCLUDE                = @CMAKE_SOURCE_DIR@/test/
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded

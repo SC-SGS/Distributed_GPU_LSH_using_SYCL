@@ -1,164 +1,91 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-06-04
+ * @date 2020-10-28
  *
  * @brief The main file containing the main logic.
  */
 
-#include <cstdio>
-#include <iostream>
-#include <utility>
+#include <sycl_lsh/core.hpp>
 
-#include <argv_parser.hpp>
-#include <config.hpp>
-#include <detail/assert.hpp>
-#include <data.hpp>
-#include <evaluation.hpp>
-#include <hash_function.hpp>
-#include <hash_table.hpp>
-#include <knn.hpp>
-#include <options.hpp>
+struct sycl_test {};
 
+int custom_main(int argc, char** argv) {
+    // create MPI communicator
+    sycl_lsh::mpi::communicator comm;
+    // optionally: set exception handler for the communicator
+    sycl_lsh::mpi::errhandler handler(sycl_lsh::mpi::errhandler::type::comm);
+    comm.attach_errhandler(handler);
 
-/**
- * @brief Asynchronous exception handler for exceptions thrown during SYCL kernel invocations.
- * @param[in] exceptions list of thrown SYCL exceptions
- */
-void exception_handler(sycl::exception_list exceptions) {
-    for (const std::exception_ptr& ptr : exceptions) {
-        try {
-            std::rethrow_exception(ptr);
-        } catch (const sycl::exception& e) {
-            std::cerr << "Asynchronous SYCL exception thrown: " << e.what() << std::endl;
-        }
-    }
-}
+    // create default logger (logs to std::cout)
+    sycl_lsh::mpi::logger logger(comm);
 
+    try {
 
-int main(int argc, char** argv) {
-    try
-    {
-        argv_parser parser(argc, argv);
-
-        // display help message
+        // parse command line arguments
+        sycl_lsh::argv_parser parser(argc, argv);
+        // log help message if requested
         if (parser.has_argv("help")) {
-            std::cout << parser.description() << std::endl;
+            logger.log(sycl_lsh::argv_parser::description());
             return EXIT_SUCCESS;
         }
 
-        // read options file
-        options<>::factory options_factory;
-        if (parser.has_argv("options")) {
-            auto options_file = parser.argv_as<std::string>("options");
-            options_factory = decltype(options_factory)(options_file);
+        // log current number of MPI ranks
+        logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
-            std::cout << "Reading options from file: '" << options_file << "'\n" << std::endl;
+        // parse options and print
+        const sycl_lsh::options<float, std::uint32_t, std::uint32_t, 10, sycl_lsh::hash_functions_type::random_projections> opt(parser, logger);
+        logger.log("Used options: \n{}\n", opt);
+
+        // optionally save generated options to file
+        if (parser.has_argv("options_save_file")) {
+            opt.save(parser, comm, logger);
         }
 
-        // change options values through factory functions using the provided values
-        if (parser.has_argv("num_hash_tables")) {
-            options_factory.set_num_hash_tables(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_tables)>>("num_hash_tables"));
-        }
-        if (parser.has_argv("hash_table_size")) {
-            options_factory.set_hash_table_size(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().hash_table_size)>>("hash_table_size"));
-        }
-        if (parser.has_argv("num_hash_functions")) {
-            options_factory.set_num_hash_functions(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().num_hash_functions)>>("num_hash_functions"));
-        }
-        if (parser.has_argv("w")) {
-            options_factory.set_w(
-                    parser.argv_as<std::remove_cv_t<decltype(std::declval<options<>>().w)>>("w"));
-        }
+        // parse data and print data attributes
+        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(parser, opt, comm, logger);
+        logger.log("\nUsed data set:\n{}\n", data);
 
-        // create options object from factory
-        options opt = options_factory.create();
-        std::cout << "Used options: \n" << opt << '\n' << std::endl;
+        // generate LSH hash tables
+        auto lsh_tables = sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
+        // calculate k-nearest-neighbors
+        auto knns = lsh_tables.get_k_nearest_neighbors(parser);
 
-        // save the options file
-        if (parser.has_argv("save_options")) {
-            auto options_save_file = parser.argv_as<std::string>("save_options");
-            opt.save(options_save_file);
-
-            std::cout << "Saved options to: '" << options_save_file << "'\n" << std::endl;
+        // optionally save calculated k-nearest-neighbor IDs
+        if (parser.has_argv("knn_save_file")) {
+            knns.save_knns(parser);
+        }
+        // optionally save calculated k-nearest-neighbor distances
+        if (parser.has_argv("knn_dist_save_file")) {
+            knns.save_distances(parser);
         }
 
-
-        // read data file
-        std::string data_file;
-        if (parser.has_argv("data")) {
-            data_file = parser.argv_as<std::string>("data");
-
-            std::cout << "Reading data from file: '" << data_file << '\'' << std::endl;
-        } else {
-            std::cerr << "\nNo data file provided!" << std::endl;
-            return EXIT_FAILURE;
+        // optionally calculate the recall of the calculated k-nearest-neighbors
+        if (parser.has_argv("evaluate_knn_file")) {
+            logger.log("recall: {}%\n", knns.recall(parser));
         }
-
-        // create data object
-//        auto data = make_data<memory_layout::aos>(opt, data_file);
-        auto data = make_data<memory_layout::aos>(opt, 10, 3);
-        std::cout << "\nUsed data set: \n" << data << '\n' << std::endl;
-
-        // read the number of nearest-neighbours to search for
-        typename decltype(opt)::index_type k = 0;
-        if (parser.has_argv("k")) {
-            k = parser.argv_as<decltype(k)>("k");
-            DEBUG_ASSERT(0 < k, "Illegal number of nearest neighbors!: 0 < {}", k);
-
-            std::cout << "Number of nearest-neighbours to search for: " << k << '\n' << std::endl;
-        } else {
-            std::cerr << "\nNo number of nearest-neighbours given!" << std::endl;
-            return EXIT_FAILURE;
-        }
-
-        sycl::queue queue(sycl::default_selector{}, sycl::async_handler(&exception_handler));
-        std::cout << "Used device: " << queue.get_device().get_info<sycl::info::device::name>() << '\n' << std::endl;
-
-        START_TIMING(creating_hash_tables);
-
-        auto hash_functions = make_hash_functions<memory_layout::aos>(data);
-        auto hash_tables = make_hash_tables(queue, hash_functions);
-
-        END_TIMING_WITH_BARRIER(creating_hash_tables, queue);
-
-        auto knns = hash_tables.calculate_knn<memory_layout::aos>(k);
-
-        // wait until all kernels have finished
-        queue.wait_and_throw();
-
-        // save the calculated k-nearest-neighbours
-        if (parser.has_argv("save_knn")) {
-            auto knns_save_file = parser.argv_as<std::string>("save_knn");
-            knns.save(knns_save_file);
-
-            std::cout << "\nSaved knns to: '" << knns_save_file << '\'' << std::endl;
-        }
-        std::cout << std::endl;
-
-        using index_type = typename decltype(opt)::index_type;
-        std::vector<index_type> vec;
-        vec.reserve(data.size * k);
-        for (index_type i = 0; i < data.size; ++i) {
-            for (index_type j = 0; j < k; ++j) {
-                vec.emplace_back(i);
+        // optionally calculate the error ration of the calculated k-nearest-neighbors
+        if (parser.has_argv("evaluate_knn_dist_file")) {
+            const auto [error_ratio, num_points, num_knn_not_found] = knns.error_ratio(parser);
+            if (num_points == 0) {
+                logger.log("error ratio: {}\n", error_ratio);
+            } else {
+                logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
             }
         }
 
-        std::printf("recall: %.2f %%\n", recall(knns, vec));
-        std::printf("error ratio: %.2f %%\n", error_ratio(knns, vec, data));
-
+        // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
+        opt.save_benchmark_options(comm);
+        
     } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    } catch (...) {
-        std::cerr << "Something went terrible wrong!" << std::endl;
+        logger.log("Exception thrown on rank {}: {}\n", comm.rank(), e.what());
         return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
 }
 
+
+int main(int argc, char** argv) {
+    return sycl_lsh::mpi::main(argc, argv, &custom_main);
+}

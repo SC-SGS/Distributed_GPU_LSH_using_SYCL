@@ -6,21 +6,52 @@
 
 **Supervisor:** _M.Sc. Gregor Daiß_
 
+
 ## Description
-**TODO**
+The computation of k-Nearest Neighbors (KNN) graphs is an integral part of numerous data mining tasks and scientific 
+computing applications. For large amounts of data, as commonly seen in those fields, the data size alone becomes too 
+big to fit on a single machine. Furthermore, the sub-quadratic runtime required for the computation of the graph 
+naturally increases with the size of the data. Hence, the distributed computation of the KNN graphs using 
+locality-sensitive hashing (LSH) becomes an intriguing prospect. While there already are some distributed approaches 
+for the implementation of this algorithm, those are generally relying on MapReduce or similar frameworks. For 
+High-Performance-Computing a different approach is preferable. The implementation should work on modern accelerators 
+and distribute the workload over multiple compute nodes using a framework suitable to be run on supercomputers. This 
+work aims to create just such an LSH implementation, enabling the distributed computation of the KNN, using data sets 
+that are located over multiple compute nodes using MPI (or HPX as a modern alternative).
 
-## Prerequisite
-A working [SYCL](https://www.khronos.org/sycl/) installation. Tested with [hipSYCL](https://github.com/illuhad/hipSYCL).
 
-Install via [spack](https://spack.readthedocs.io/en/latest/) 
-(also installs all other dependes, like [CMake](https://cmake.org/)):
-```bash
-$ spack install hipsycl@master build_type=RelWithDebInfo cuda=True
-```
+## Pre-requisite
+* A working [SYCL](https://www.khronos.org/sycl/) installation. For example [hipSYCL](https://github.com/illuhad/hipSYCL), 
+  [ComputeCpp](https://developer.codeplay.com/products/computecpp/ce/guides) or [oneAPI](https://software.intel.com/content/www/us/en/develop/tools/oneapi.html).
+* A MPI implementation. For example [OpenMPI](https://www.open-mpi.org/).
+* The [{fmt}](https://github.com/fmtlib/fmt) formatting library (version 7.1.0 required to be able to format a `std::chrono::time_point`).
+* [doxygen](https://github.com/doxygen/doxygen) (optional) to build the documentation.
 
-To be able to build the documentation [doxygen](https://github.com/doxygen/doxygen) is needed.
 
-## Building the program and tests
+## Using hipSYCL as SYCL implementation
+
+1. Install hipSYCL (https://github.com/illuhad/hipSYCL), e.g. using [spack](https://github.com/spack/spack)
+2. Export the environment variable `hipSYCL_DIR` to the root directory of the hipSYCL installation.
+3. Export the environment variable `hipSYCL_GPU_ARCH` to the used GPU architecture value (e.g. `sm_75`).
+
+
+## Using ComputeCpp as SYCL implementation
+
+1. Be sure all pre-requisites are installed: https://developer.codeplay.com/products/computecpp/ce/guides.
+2. Download and install ComputeCpp: https://developer.codeplay.com/products/computecpp/ce/download.
+3. Clone the ComputeCpp SDK github repository: https://github.com/codeplaysoftware/computecpp-sdk.
+4. Export the environment variable `ComputeCpp_DIR` to the root directory of the ComputeCpp installation.
+5. Export the environment variable `ComputeCpp_SDK_DIR` to the root directory of the ComputeCpp SDK installation.
+
+
+## Using oneAPI as SYCL implementation
+
+1. Easiest way: login to Intel's devcloud: https://software.intel.com/content/www/us/en/develop/tools/devcloud.html
+2. Install a GCC version capable of C++17
+3. Export the environment variable `DPCPP_GCC_TOOLCHAIN` to the root directory of the GCC installation.
+
+
+## Building the program
 To build the code use:
 ```bash
 $ git clone git@gitlab-sim.informatik.uni-stuttgart.de:breyerml/distributed_gpu_lsh_using_sycl.git
@@ -30,39 +61,47 @@ $ cmake [options] ..
 $ make -j $(nprocs)
 ```
 
-Supported configuration options are:
-* `-DCMAKE_BUILD_TYPE=Debug/Release/...` (default: depending in `ENABLE_TESTS`)
-* `-DENABLE_TESTS=On/Off`: uses the [googletest framework](https://github.com/google/googletest) (automatically installed if this option is set to `On`) to enable the target `test` (default: `Off`)
-* `-DENABLE_DOCUMENTATION=On/Off`: enables the documentation target `doc`; requires Doxygen (default: `Off`)
-* `-DENABLE_GPU=On/Off`: enables the usage of GPUs (default: `On`)
-* `-DENABLE_TIMING=On/Off`: enables the timing of the components (default: `Off`)
+Provided configuration options are:
+
+| option                                 | default value | description                                                                                                                                                                        |
+|----------------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_IMPLEMENTATION`              | `hipSYCL`     | Specify the used SYCL implementation. Must be one of: `hipSYCL`, `ComputeCpp` or `oneAPI` (in case of `oneAPI`: the env variable `DPCPP_GCC_TOOLCHAIN` must be set to a GCC >= 8). |
+| `SYCL_LSH_TARGET`                      | `NVIDIA`      | Specify the SYCL target to compile for. Must be one of: `CPU`, `NVIDIA` or `AMD`.                                                                                                  | 
+| `SYCL_LSH_TIMER`                       | `BLOCKING`    | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING` or `BLOCKING`.                                                                            |
+| `SYCL_LSH_BENCHMARK`                   |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name.                                                       |
+| `SYCL_LSH_ENABLE_DEBUG`                | `OFF`         | Enables the debugging macros.                                                                                                                                                      |
+| `SYCL_LSH_ENABLE_DOCUMENTATION`        | `OFF`         | Enables the documentation `make` target (requires doxygen).                                                                                                                        |
+| `SYCL_LSH_FMT_HEADER_ONLY`             | `OFF`         | Enables `{fmt}` lib's header only mode, otherwise tries to link against it.                                                                                                        |
+| `SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM` | `OFF`         | Enables the `<experimental/filesystem>` header instead of the C++17 `<filesystem>` header.                                                                                         |
+
 
 ## Building the documentation
-After the call to `cmake` use:
+After the call to `cmake -DENABLE_DOCUMENTATION=ON ..` use:
 ```bash
 $ make doc
 ```
 
-## Running the test
-After a successful `make` (with a previously `cmake` call with option `-DENABLE_TESTS=On`) use:
-```bash
-$ ctest
-```
 
 ## Running the program
 After a successful `make` an executable file named `./prog` is available:
 ```bash
 $ ./prog --help
-Usage: ./prog --data "path-to-data_set" --k "number-of-knn" [options]
+Usage: ./prog --data_file "path_to_data_file" --k "number_of_knn_to_search" [options]
 options:
-   --data                path to the data file (required)
-   --hash_table_size     size of each hash table (must be a prime)
-   --help                help screen
-   --k                   the number of nearest-neighbours to search for (required)
-   --num_hash_functions  number of hash functions per hash table
-   --num_hash_tables     number of hash tables to create
-   --options             path to options file
-   --save_knn            save the calculate nearest-neighbors to path
-   --save_options        save the currently used options to path
-   --w                   constant used in the hash functions
+   --data_file                path to the data file (required)
+   --evaluate_knn_dist_file   read the correct nearest-neighbor distances for calculating the error ratio 
+   --evaluate_knn_file        read the correct nearest-neighbors for calculating the resulting recall 
+   --file_parser              type of the file parser 
+   --hash_pool_size           number of hash functions in the hash pool 
+   --hash_table_size          size of each hash table 
+   --help                     help screen 
+   --k                        the number of nearest-neighbors to search for (required)
+   --knn_dist_save_file       save the calculated nearest-neighbor distances to path 
+   --knn_save_file            save the calculated nearest-neighbors to path 
+   --num_cut_off_points       number of cut-off points for the entropy-based hash functions 
+   --num_hash_functions       number of hash functions per hash table 
+   --num_hash_tables          number of hash tables to create 
+   --options_file             path to options file 
+   --options_save_file        save the currently used options to the given path 
+   --w                        segment size for the random projections hash functions     
 ```

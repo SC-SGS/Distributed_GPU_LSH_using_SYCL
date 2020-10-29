@@ -1,57 +1,31 @@
 /**
- * @dir include
+ * @dir include/sycl_lsh
  * @author Marcel Breyer
- * @date 2020-04-17
+ * @date 2020-09-19
  *
- * @brief This directory contains all header files.
+ * @brief This directory contains the core header files.
  */
 
 /**
- * @dir include/detail
+ * @dir include/sycl_lsh/detail
  * @author Marcel Breyer
- * @date 2020-04-17
+ * @date 2020-09-19
  *
  * @brief This directory contains all helper classes and functions header files.
  */
 
- 
 /**
- * @dir src
+ * @dir include/sycl_lsh/exceptions
  * @author Marcel Breyer
- * @date 2020-04-17
+ * @date 2020-09-19
  *
- * @brief This directory contains all source files.
- */
-
-
-/**
- * @dir test
- * @author Marcel Breyer
- * @date 2020-04-17
- *
- * @brief This directory contains all test cases.
+ * @brief This directory contains all custom exception classes.
  */
 
 /**
- * @dir test/data
+ * @dir include/sycl_lsh/mpi
  * @author Marcel Breyer
- * @date 2020-05-06
+ * @date 2020-09-19
  *
- * @brief This directory contains all test cases related to the @ref data class.
- */
-
-/**
- * @dir test/options
- * @author Marcel Breyer
- * @date 2020-05-07
- *
- * @brief This directory contains all test cases related to the @ref options class.
- */
-
-/**
- * @dir test/hash_functions
- * @author Marcel Breyer
- * @date 2020-05-07
- *
- * @brief This directory contains all test cases related to the @ref hash_functions class.
+ * @brief This directory contains all wrapper classes or functions around MPI functions.
  */
