@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-11-04
  *
  * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
  */
@@ -257,8 +257,6 @@ namespace sycl_lsh {
                 calculate_knn_round(k, data_device_buffer, knns);
             }
 
-            // wait until all k-nearest-neighbors were calculated on the current MPI rank
-            queue_.wait_and_throw();
             // send calculated k-nearest-neighbors and distances to next rank
             knns.send_receive_host_buffer();
             // wait until all MPI communication has been finished
@@ -283,11 +281,11 @@ namespace sycl_lsh {
         const index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
         const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
 
-        queue_.submit([&](sycl::handler& cgh) {
-            // create SYCL buffers for knn class
-            knn_device_buffer_type knn_buffer(knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size());
-            knn_dist_device_buffer_type knn_dist_buffer(knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size());
+        // create SYCL buffers for knn class
+        knn_device_buffer_type knn_buffer(knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size());
+        knn_dist_device_buffer_type knn_dist_buffer(knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size());
 
+        queue_.submit([&](sycl::handler& cgh) {
             // get accessors
             auto acc_data_owned = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
             auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
@@ -390,6 +388,9 @@ namespace sycl_lsh {
                 }
             });
         });
+
+        // wait until all k-nearest-neighbors were calculated on the current MPI rank
+        queue_.wait_and_throw();
     }
 
 
