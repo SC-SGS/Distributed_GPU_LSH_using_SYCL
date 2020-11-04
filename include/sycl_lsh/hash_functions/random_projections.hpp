@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-08
+ * @date 2020-11-04
  *
  * @brief Implements the random projections hash function as the used LSH hash functions.
  */
@@ -12,6 +12,7 @@
 #include <sycl_lsh/detail/assert.hpp>
 #include <sycl_lsh/detail/defines.hpp>
 #include <sycl_lsh/detail/get_linear_id.hpp>
+#include <sycl_lsh/detail/hash_combine.hpp>
 #include <sycl_lsh/detail/lsh_hash.hpp>
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/data.hpp>
@@ -150,10 +151,7 @@ namespace sycl_lsh {
                             * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
                 }
                 // combine hashes
-                combined_hash ^= static_cast<hash_value_type>(hash / opt.w)
-                                + static_cast<hash_value_type>(0x9e3779b9)
-                                + (combined_hash << static_cast<hash_value_type>(6))
-                                + (combined_hash >> static_cast<hash_value_type>(2));
+                combined_hash = detail::hash_combine(combined_hash, static_cast<hash_value_type>(hash / opt.w));
             }
             return combined_hash % opt.hash_table_size;
         }
