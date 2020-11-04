@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-11-04
  */
 
 #include <sycl_lsh/detail/defines.hpp>
@@ -43,10 +43,10 @@ int sycl_lsh::device_selector::operator()([[maybe_unused]] const sycl_lsh::sycl:
         #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA
             const std::string_view platform_name = "NVIDIA CUDA";
         #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
-            const std::string_view platform_name = "INTEL";
-        #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
             // TODO 2020-10-12 17:09 marcel: check
             const std::string_view platform_name = "AMD";
+        #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
+            const std::string_view platform_name = "Intel";
         #endif
 
         // get platform associated with the current device
