@@ -516,7 +516,7 @@ namespace sycl_lsh {
 
         logger_.log("\nCalculated recall in {}.\n", t.elapsed());
         #if defined(SYCL_LSH_BENCHMARK)
-            if (comm.master_rank()) {
+            if (comm_.master_rank()) {
                 mpi::timer::benchmark_out() << res << ',';
             }
         #endif
@@ -617,7 +617,7 @@ namespace sycl_lsh {
 
         logger_.log("\nCalculated error ration in {}.\n", t.elapsed());
         #if defined(SYCL_LSH_BENCHMARK)
-            if (comm.master_rank()) {
+            if (comm_.master_rank()) {
                 mpi::timer::benchmark_out() << avg_mean_error_ratio << ','
                                             << total_num_points_not_found << ','
                                             << total_num_knn_not_found << ',';
