@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-11-06
  *
  * @brief Implements a @ref sycl_lsh::options class for managing hyperparameters.
  */
@@ -183,9 +183,10 @@ namespace sycl_lsh {
         out << fmt::format("num_hash_functions {}\n", opt.num_hash_functions);
         out << fmt::format("num_hash_tables {}\n", opt.num_hash_tables);
         out << fmt::format("hash_table_size {}\n", opt.hash_table_size);
-        if constexpr (options_type::used_hash_functions_type == hash_functions_type::random_projections) {
+        if constexpr (options_type::used_hash_functions_type != hash_functions_type::entropy_based) {
             out << fmt::format("w {}\n", opt.w);
-        } else if constexpr (options_type::used_hash_functions_type == hash_functions_type::entropy_based) {
+        }
+        if constexpr (options_type::used_hash_functions_type != hash_functions_type::random_projections) {
             out << fmt::format("num_cut_off_points {}\n", opt.num_cut_off_points);
         }
 
