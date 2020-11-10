@@ -1,9 +1,11 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-11-10
  */
 
+#include <sycl_lsh/detail/defines.hpp>
+#include <sycl_lsh/device_selector.hpp>
 #include <sycl_lsh/mpi/main.hpp>
 
 #include <fmt/format.h>
@@ -80,6 +82,12 @@ int sycl_lsh::mpi::main(int argc, char** argv, sycl_lsh::mpi::custom_main_ptr fu
         }
         return_code = EXIT_FAILURE;
     } else {
+
+        #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA
+            sycl_lsh::mpi::communicator comm;
+            detail::setup_cuda_devices(comm);
+        #endif
+
         return_code = std::invoke(func, argc, argv);
     }
 
