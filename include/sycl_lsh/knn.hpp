@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-11-04
  *
  * @brief Implements the @ref sycl_lsh::knn class representing the result of the k-nearest-neighbor search.
  */
@@ -513,7 +513,14 @@ namespace sycl_lsh {
         }
 
         const real_type res = (static_cast<real_type>(mpi::sum(count, comm_)) / (attr_.total_size * k_)) * 100.0;
+
         logger_.log("\nCalculated recall in {}.\n", t.elapsed());
+        #if defined(SYCL_LSH_BENCHMARK)
+            if (comm_.master_rank()) {
+                mpi::timer::benchmark_out() << res << ',';
+            }
+        #endif
+
         return res;
     }
 
@@ -609,6 +616,14 @@ namespace sycl_lsh {
         const index_type total_num_knn_not_found = mpi::sum(num_knn_not_found, comm_);
 
         logger_.log("\nCalculated error ration in {}.\n", t.elapsed());
+        #if defined(SYCL_LSH_BENCHMARK)
+            if (comm_.master_rank()) {
+                mpi::timer::benchmark_out() << avg_mean_error_ratio << ','
+                                            << total_num_points_not_found << ','
+                                            << total_num_knn_not_found << ',';
+            }
+        #endif
+
         return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
     }
 
