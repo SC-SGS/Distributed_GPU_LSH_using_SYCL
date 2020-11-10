@@ -153,15 +153,15 @@ endif ()
 
 
 # if the current target is CPU, use OpenMP (if OpenMP has been found)
-if (SYCL_LSH_TARGET MATCHES "CPU")
-    find_package(OpenMP REQUIRED)
+#if (SYCL_LSH_TARGET MATCHES "CPU")
+    find_package(OpenMP)
     if (OpenMP_CXX_FOUND)
         message(STATUS "Linking against OpenMP since the current SYCL_LSH_TARGET is 'CPU'.")
         target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
     else ()
         message(STATUS "Can't find OpenMP although the current SYCL_LSH_TARGET is 'CPU'. Performance may be degraded!")
     endif ()
-endif ()
+#endif ()
 
 
 # add debug mode
