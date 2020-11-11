@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-10
+ * @date 2020-11-11
  *
  * @brief Implements a device selector that every MPI rank allocates only **one** device based on the `SYCL_LSH_TARGET` specified during
  *        [CMake](https://cmake.org/)'s configuration step (e.g. NVIDIA GPU).
@@ -13,6 +13,8 @@
 #include <sycl_lsh/detail/sycl.hpp>
 #include <sycl_lsh/mpi/communicator.hpp>
 
+#include <string>
+
 
 namespace sycl_lsh {
 
@@ -21,10 +23,11 @@ namespace sycl_lsh {
         /**
          * @brief Select exactly one NVIDIA GPU device per MPI rank.
          * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+         * @param[in] env_var_name the name of the environmental variable used to control the GPU selection
          *
          * @note Only supports NVIDIA GPUs!
          */
-        void setup_cuda_devices(const sycl_lsh::mpi::communicator& comm);
+        void setup_devices(const sycl_lsh::mpi::communicator& comm, const std::string& env_var_name);
 
         /**
          * @brief Compares the two devices @p lhs and @p rhs on equality.

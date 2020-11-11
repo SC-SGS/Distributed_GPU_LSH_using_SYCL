@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-10
+ * @date 2020-11-11
  */
 
 #include <sycl_lsh/detail/defines.hpp>
@@ -85,7 +85,10 @@ int sycl_lsh::mpi::main(int argc, char** argv, sycl_lsh::mpi::custom_main_ptr fu
 
         #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA
             sycl_lsh::mpi::communicator comm;
-            detail::setup_cuda_devices(comm);
+            detail::setup_devices(comm, "CUDA_VISIBLE_DEVICES");
+        #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
+            sycl_lsh::mpi::communicator comm;
+            detail::setup_devices(comm, "HIP_VISIBLE_DEVICES");
         #endif
 
         return_code = std::invoke(func, argc, argv);

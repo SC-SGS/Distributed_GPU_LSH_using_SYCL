@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-10
+ * @date 2020-11-11
  */
 
 #include <sycl_lsh/detail/defines.hpp>
@@ -14,29 +14,23 @@
 #include <fmt/format.h>
 
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 
-void sycl_lsh::detail::setup_cuda_devices(const sycl_lsh::mpi::communicator& comm) {
+void sycl_lsh::detail::setup_devices(const sycl_lsh::mpi::communicator& comm, const std::string& env_var_name) {
     // create communicator for each node
     MPI_Comm node_communicator;
     sycl_lsh::mpi::communicator node_comm(node_communicator, true);
     MPI_Comm_split_type(comm.get(), MPI_COMM_TYPE_SHARED, comm.size(), MPI_INFO_NULL, &node_comm.get());
 
     // set a CUDA_VISIBLE_DEVICES for each MPI process on the current rank
-    int err = setenv("CUDA_VISIBLE_DEVICES", std::to_string(node_comm.rank()).c_str(), 1);
+    int err = setenv(env_var_name.c_str(), std::to_string(node_comm.rank()).c_str(), 1);
     if (err != 0) {
         throw std::logic_error("Error while setting CUDA_VISIBLE_DEVICES environment variable!");
     }
-    if (const char* env_val = getenv("CUDA_VISIBLE_DEVICES"); env_val != nullptr) {
+    if (const char* env_val = getenv(env_var_name.c_str()); env_val != nullptr) {
         // fmt::print("Used CUDA device on world rank {} and node rank {}: CUDA_VISIBLE_DEVICES={}\n", comm.rank(), node_comm.rank(), env_val);
-    }
-
-    // test for correctness
-    const auto device_list = sycl::platform::get_platforms()[0].get_devices();
-    // if the current device is a GPU AND no CUDA_VISIBLE_DEVICE is set, i.e. MORE MPI processes than GPUs per node were spawned, throw
-    if (device_list[0].is_gpu() && device_list.size() != 1) {
-        throw std::invalid_argument("Can't use more MPI processes per node than available GPUs per node!");
     }
 }
 
@@ -58,9 +52,13 @@ int sycl_lsh::device_selector::operator()([[maybe_unused]] const sycl_lsh::sycl:
     #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU
         // TODO 2020-10-12 17:02 marcel: implement correctly
         return sycl::cpu_selector{}.operator()(device);
-    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA
-        return sycl::default_selector{}.operator()(device);
-    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD || SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
+    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA || SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
+        if (device.is_gpu()) {
+            return sycl::default_selector{}.operator()(device);
+        } else {
+            return -1;
+        }
+    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
         throw sycl_lsh::not_implemented("Can't currently select AMD or INTEL devices!");
     #else
         // never choose current device otherwise
