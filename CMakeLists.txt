@@ -153,7 +153,7 @@ endif ()
 
 
 # if the current target is CPU, use OpenMP (if OpenMP has been found)
-#if (SYCL_LSH_TARGET MATCHES "CPU")
+if ((SYCL_LSH_TARGET MATCHES "CPU") OR (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL"))
     find_package(OpenMP)
     if (OpenMP_CXX_FOUND)
         message(STATUS "Linking against OpenMP since the current SYCL_LSH_TARGET is 'CPU'.")
@@ -161,7 +161,7 @@ endif ()
     else ()
         message(STATUS "Can't find OpenMP although the current SYCL_LSH_TARGET is 'CPU'. Performance may be degraded!")
     endif ()
-#endif ()
+endif ()
 
 
 # add debug mode
