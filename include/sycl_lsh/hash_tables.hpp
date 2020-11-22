@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-04
+ * @date 2020-11-22
  *
  * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
  */
@@ -273,12 +273,14 @@ namespace sycl_lsh {
 
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
     void sycl_lsh::hash_tables<layout, Options, Data, HashFunctionType>::calculate_knn_round(const index_type k, data_device_buffer_type& data_buffer, knn_type& knns) {
-
         // TODO 2020-10-07 15:52 marcel: check if correct and useful
         const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
-        const index_type max_local_size = local_mem_size / (k * sizeof(index_type) + k * sizeof(real_type));
+        const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
         const index_type max_work_group_size = queue_.get_device().template get_info<sycl::info::device::max_work_group_size>();
-        const index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
+        index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
+        if (max_local_size == local_size) {
+            local_size /= 2;
+        }
         const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
 
         // create SYCL buffers for knn class
