@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-11
+ * @date 2020-12-01
  */
 
 #include <sycl_lsh/detail/defines.hpp>
@@ -59,7 +59,8 @@ int sycl_lsh::device_selector::operator()([[maybe_unused]] const sycl_lsh::sycl:
             return -1;
         }
     #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
-        throw sycl_lsh::not_implemented("Can't currently select AMD or INTEL devices!");
+        return sycl::gpu_selector{}.operator()(device);
+//        throw sycl_lsh::not_implemented("Can't currently select AMD or INTEL devices!");
     #else
         // never choose current device otherwise
         return -1;
