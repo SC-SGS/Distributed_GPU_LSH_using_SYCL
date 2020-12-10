@@ -1,7 +1,7 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-22
+ * @date 2020-12-10
  *
  * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
  */
@@ -236,26 +236,28 @@ namespace sycl_lsh {
             mpi::timer rt(comm_);
 
             logger_.log("Round {} of {} ... ", round + 1, comm_.size());
-            // create thread to asynchronously perform MPI communication
-            std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
 
-            // calculate k-nearest-neighbors on current MPI rank
+            data_device_buffer_type data_device_buffer;
             if (round == 0) {
                 // use data already on device in round 0
-                calculate_knn_round(k, data_.get_device_buffer(), knns);
+                data_device_buffer = data_.get_device_buffer();
             } else {
                 // copy received data to device in other rounds
                 data_host_buffer_type data_host_buffer = data_.get_host_buffer();
-                data_device_buffer_type data_device_buffer(data_host_buffer.size());
+                data_device_buffer = data_device_buffer_type(data_host_buffer.size());
 
                 // copy data to device buffer
                 auto acc = data_device_buffer.template get_access<sycl::access::mode::discard_write>();
                 for (index_type i = 0; i < data_host_buffer.size(); ++i) {
                     acc[i] = data_host_buffer[i];
                 }
-
-                calculate_knn_round(k, data_device_buffer, knns);
             }
+
+            // create thread to asynchronously perform MPI communication
+            std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
+
+            // calculate k-nearest-neighbors on current MPI rank
+            calculate_knn_round(k, data_device_buffer, knns);
 
             // send calculated k-nearest-neighbors and distances to next rank
             knns.send_receive_host_buffer();
