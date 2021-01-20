@@ -54,8 +54,8 @@ that are located over multiple compute nodes using MPI (or HPX as a modern alter
 ## Building the program
 To build the code use:
 ```bash
-$ git clone git@gitlab-sim.informatik.uni-stuttgart.de:breyerml/distributed_gpu_lsh_using_sycl.git
-$ cd distributed_gpu_lsh_using_sycl
+$ git clone git@github.com:SC-SGS/Distributed_GPU_LSH_using_SYCL.git
+$ cd Distributed_GPU_LSH_using_SYCL
 $ mkdir build && cd build
 $ cmake [options] ..
 $ make -j $(nprocs)
