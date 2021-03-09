@@ -237,22 +237,19 @@ namespace sycl_lsh {
 
             logger_.log("Round {} of {} ... ", round + 1, comm_.size());
 
-            data_device_buffer_type data_device_buffer;
-            if (round == 0) {
-                // use data already on device in round 0
-                data_device_buffer = data_.get_device_buffer();
-            } else {
-                // copy received data to device in other rounds
-                data_host_buffer_type data_host_buffer = data_.get_host_buffer();
-                data_device_buffer = data_device_buffer_type(data_host_buffer.size());
+            const auto copy_received_data = [&]() {
+              data_host_buffer_type data_host_buffer = data_.get_host_buffer();
+              data_device_buffer_type buf(data_host_buffer.size());
 
-                // copy data to device buffer
-                auto acc = data_device_buffer.template get_access<sycl::access::mode::discard_write>();
-                for (index_type i = 0; i < data_host_buffer.size(); ++i) {
-                    acc[i] = data_host_buffer[i];
-                }
-            }
-
+              // copy data to device buffer
+              auto acc = buf.template get_access<sycl::access::mode::discard_write>();
+              for (index_type i = 0; i < data_host_buffer.size(); ++i) {
+                acc[i] = data_host_buffer[i];
+              }
+              return buf;
+            };
+            data_device_buffer_type data_device_buffer = round == 0 ? data_.get_device_buffer() : copy_received_data();
+            
             // create thread to asynchronously perform MPI communication
             std::thread mpi_thread(&data_type::send_receive_host_buffer, &data_);
 
@@ -283,6 +280,7 @@ namespace sycl_lsh {
         if (max_local_size == local_size) {
             local_size /= 2;
         }
+        
         const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
 
         // create SYCL buffers for knn class
