@@ -38,6 +38,7 @@ namespace sycl_lsh {
     class kernel_calculate_offsets;
     class kernel_fill_hash_tables;
     class kernel_calculate_knn;
+    class kernel_zero_out_buffer;
 
     // forward declare hash_tables class
     template <memory_layout layout, typename Options, typename Data, typename HashFunctionType>
@@ -415,6 +416,16 @@ namespace sycl_lsh {
         {
             // create temporary buffer to count the occurrence of each hash value
             device_buffer_type hash_values_count(options_.num_hash_tables * options_.hash_table_size);
+            // initialize buffer to all zeros
+            queue_.submit([&](sycl::handler& cgh) {
+              auto acc_hash_values_count = hash_values_count.template get_access<sycl::access::mode::discard_write>(cgh);
+
+              cgh.parallel_for<kernel_zero_out_buffer>(sycl::range<>(hash_values_count.get_count()), [=](sycl::item<> item) {
+                const index_type idx = item.get_linear_id();
+
+                acc_hash_values_count[idx] = 0;
+              });
+            });
 
             // count the occurrence of each hash value per hash table
             this->count_hash_values(hash_values_count);
@@ -530,7 +541,7 @@ namespace sycl_lsh {
                     const index_type hash_table_idx = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1].fetch_add(1);
                     acc_hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
                 }
-                
+               
                 // fill additional values needed for blocking
                 if (idx == attr.rank_size - 1) {
                     for (index_type block = 0; block < options_type::blocking_size; ++block) {
@@ -542,7 +553,7 @@ namespace sycl_lsh {
         #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
             queue_.wait_and_throw();
         #endif
-
+      
         logger_.log("Filled hash tables in {}.\n", t.elapsed());
     }
 
