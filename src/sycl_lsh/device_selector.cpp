@@ -54,7 +54,7 @@ int sycl_lsh::device_selector::operator()([[maybe_unused]] const sycl_lsh::sycl:
         return sycl::cpu_selector{}.operator()(device);
     #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA || SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
         if (device.is_gpu()) {
-            return sycl::default_selector{}.operator()(device);
+            return sycl::gpu_selector{}.operator()(device);
         } else {
             return -1;
         }
