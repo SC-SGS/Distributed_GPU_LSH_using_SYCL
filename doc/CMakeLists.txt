@@ -1,7 +1,7 @@
 ### based on https://vicrucann.github.io/tutorials/quick-cmake-doxygen/ ###
 
 # find doxygen
-find_package(Doxygen REQUIRED dot)
+find_package(Doxygen REQUIRED)
 
 # configure doxygen files
 set(DOXYGEN_IN Doxyfile.in)
