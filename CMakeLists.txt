@@ -1,33 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
-
-# specify used SYCL implementation
-set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp oneAPI)
-set(SYCL_LSH_IMPLEMENTATION hipSYCL CACHE STRING "The used SYCL implementation backend.")
-set_property(CACHE SYCL_LSH_IMPLEMENTATION PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS})
-if (NOT SYCL_LSH_IMPLEMENTATION IN_LIST SUPPORTED_SYCL_LSH_IMPLEMENTATIONS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_IMPLEMENTATIONS_OUT "${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS}")
-    message(FATAL_ERROR "SYCL implementation \"${SYCL_LSH_IMPLEMENTATION}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS_OUT}")
-else ()
-    message(STATUS "Using \"${SYCL_LSH_IMPLEMENTATION}\" as SYCL implementation.")
-endif ()
-
-
-# set compiler wrapper to dpcpp if using Intel's oneAPI, since find_package(oneAPI) isn't supported
-if (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
-    set(CMAKE_CXX_COMPILER dpcpp)
-endif()
-
-
-# set supported SYCL targets
-set(SUPPORTED_SYCL_LSH_TARGETS CPU NVIDIA AMD INTEL) # CPU = 0, NVIDIA GPU = 1, AMD GPU = 2, INTEL GPU = 3
-set(SYCL_LSH_TARGET NVIDIA CACHE STRING "The used SYCL target.")
-set_property(CACHE SYCL_LSH_TARGET PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_TARGETS})
-if (NOT SYCL_LSH_TARGET IN_LIST SUPPORTED_SYCL_LSH_TARGETS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_TARGETS_OUT "${SUPPORTED_SYCL_LSH_TARGETS}")
-    message(FATAL_ERROR "SYCL target \"${SYCL_LSH_TARGET}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_TARGETS_OUT}")
-else ()
-    message(STATUS "Using \"${SYCL_LSH_TARGET}\" as SYCL target.")
-endif ()
+cmake_minimum_required(VERSION 3.19)
 
 
 project("Distributed k-nearest Neighbors using Locality Sensitive Hashing and SYCL"
@@ -36,76 +7,70 @@ project("Distributed k-nearest Neighbors using Locality Sensitive Hashing and SY
         DESCRIPTION "Master Thesis Marcel Breyer")
 
 
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-
-    # MUST set the environment variable hipSYCL_DIR to the root directory of hipSYCL
-    set(hipSYCL_DIR $ENV{hipSYCL_DIR}/lib/cmake CACHE INTERNAL "Path to the root directory of the hipSYCL installation.")
-
-    # set HIPSYCL_PLATFORM based on the provided SYCL_LSH_TARGET
-    # MUST set the environment variable hipSYCL_GPU_ARCH to the correct architecture value
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        # use the CPU as target
-        set(HIPSYCL_PLATFORM cpu CACHE INTERNAL "")
-    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        # use NVIDIA GPUs as target
-        set(HIPSYCL_PLATFORM cuda CACHE INTERNAL "")
-        set(HIPSYCL_GPU_ARCH $ENV{hipSYCL_GPU_ARCH} CACHE INTERNAL "The GPU architecture used.")
-    elseif (SYCL_LSH_TARGET MATCHES "AMD")
-        # use AMD GPUs as target
-        set(HIPSYCL_PLATFORM rocm CACHE INTERNAL "")
-        set(HIPSYCL_GPU_ARCH $ENV{HIPSYCL_GPU_ARCH} CACHE INTERNAL "The GPU architecture used.")
-    elseif (SYCL_LSH_TARGET MATCHES "INTEL")
-        # Intel GPUs aren't supported by hipSYCL
-        unset(HIPSYCL_PLATFORM CACHE)
-        message(FATAL_ERROR "Intel GPUs aren't supported with hipSYCL.")
-    endif ()
-
-    # find hipSYCL
-    find_package(hipSYCL REQUIRED)
-
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-
-    # needed to be able to use ComputeCpp
-    set(CMAKE_CXX_STANDARD 17)
-    
-    # set bitcode to ptx64 if targeting NVIDIA GPUs
-    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        set(COMPUTECPP_BITCODE ptx64 CACHE INTERNAL "")
-    else ()
-        unset(COMPUTECPP_BITCODE CACHE)
-    endif ()
-
-    # MUST set the environment variable ComputeCpp_DIR to the root directory of ComputeCpp
-    set(ComputeCpp_DIR $ENV{ComputeCpp_DIR} CACHE INTERNAL "Path to the root directory of the ComputeCpp installation.")
-    
-    # MUST set the environment variable ComputeCpp_SDK_DIR to the root directory of the ComputeCpp SDK
-    list(APPEND CMAKE_MODULE_PATH "$ENV{ComputeCpp_SDK_DIR}/cmake/Modules")
-
-    # find ComputeCpp
-    include(FindComputeCpp)
-    include_directories(${COMPUTE_CPP_INCLUDE_DIRECTORIES})
-
-endif ()
+message(STATUS "Using \"${SYCL_LSH_SYCL_IMPLEMENTATION}\" as SYCL implementation.")
 
 
-
-
-# set cmake build type if none was specified
-set(SUPPORTED_SYCL_LSH_BUILD_TYPES Debug Release MinSizeRel RelWithDebInfo)
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(SYCL_LSH_DEFAULT_BUILD_TYPE "Release")
-    message(STATUS "Setting build type to \"${SYCL_LSH_DEFAULT_BUILD_TYPE}\" as none was specified!")
-    set(CMAKE_BUILD_TYPE "${SYCL_LSH_DEFAULT_BUILD_TYPE}" CACHE STRING "The used CMake build type." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_BUILD_TYPES})
-endif ()
-if (NOT CMAKE_BUILD_TYPE IN_LIST SUPPORTED_SYCL_LSH_BUILD_TYPES)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_BUILD_TYPES_OUT "${SUPPORTED_SYCL_LSH_BUILD_TYPES}")
-    message(FATAL_ERROR "Build type \"${CMAKE_BUILD_TYPE}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_BUILD_TYPES_OUT}")
+# get target hardware
+# omp = CPU, cuda = NVIDIA GPUs, hip = AMD GPUs, spirv = Intel GPUs
+if (DEFINED SYCL_LSH_TARGET)
+  set(SYCL_LSH_TARGET_LIST ${SYCL_LSH_TARGET})
+elseif (DEFINED ENV{SYCL_LSH_TARGET})
+  set(SYCL_LSH_TARGET_LIST $ENV{SYCL_LSH_TARGET})
 else ()
-    message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
+  message(FATAL_ERROR "Either the command line argument '-DSYCL_LSH_TARGET' must be present or the environment variable 'SYCL_LSH_TAREGT' must be defined!")
+endif ()
+list(LENGTH SYCL_LSH_TARGET_LIST SYCL_LSH_TARGET_LIST_LEN)
+if (NOT ${SYCL_LSH_TARGET_LIST_LEN} MATCHES 1)
+  message(FATAL_ERROR "Currently only exactly one target architecture is supported!")
+endif ()
+string(FIND "${SYCL_LSH_TARGET_LIST}" ":" SYCL_LSH_ARCH_POS)
+string(SUBSTRING "${SYCL_LSH_TARGET_LIST}" 0 ${SYCL_LSH_ARCH_POS} SYCL_LSH_ARCH)
+set(SYCL_LSH_TARGETS omp cuda hip spirv)
+list(FIND SYCL_LSH_TARGETS "${SYCL_LSH_ARCH}" SYCL_LSH_TARGET_IDX)
+if (${SYCL_LSH_TARGET_IDX} MATCHES -1)
+  message(FATAL_ERROR "Unrecognized target \"${SYCL_LSH_ARCH}\"!")
+endif ()
+message(STATUS "Using \"${SYCL_LSH_ARCH}\" as SYCL target architecture.")
+
+
+# find different SYCL implementations
+if (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "hipsycl")
+
+  set(HIPSYCL_TARGETS ${SYCL_LSH_TARGET_LIST})
+
+  find_package(hipSYCL CONFIG REQUIRED)
+  message(STATUS "Found hipSYCL.")
+
+elseif (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "computecpp")
+
+  # must explicitly set bitcode to ptx64 if targetting NVIDIA GPUs using ComputeCpp
+  if (SYCL_LSH_ARCH MATCHES "cuda")
+    set(COMPUTECPP_BITCODE ptx64 CACHE INTERNAL "")
+  else ()
+    unset(COMPUTECPP_BITCODE CACHE)
+  endif ()
+
+  list(APPEND CMAKE_MODULE_PATH "${COMPUTECPP_MODULE_PATH}")
+  include(FindComputeCpp)
+  include_directories(${COMPUTE_CPP_INCLUDE_DIRECTORIES})
+  message(STATUS "Found ComputeCpp.")
+
+elseif (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "dpcpp")
+
+  message(STATUS "Found dpcpp.")
+
 endif ()
 
 
+
+# check for correct CMAKE_BUILD_TYPE
+set(SYCL_LSH_BUILD_TYPES Debug Release MinSizeRel RelWithDebInfo)
+if (NOT CMAKE_BUILD_TYPE IN_LIST SYCL_LSH_BUILD_TYPES)
+  string(REPLACE ";" ", " SYCL_LSH_BUILD_TYPES_OUT "${SYCL_LSH_BUILD_TYPES}")
+  message(FATAL_ERROR "CMAKE_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\" not supported!\nMust be one if ${SYCL_LSH_BUILD_TYPES_OUT}")
+else ()
+  message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
+endif ()
 
 
 # create library
@@ -133,41 +98,47 @@ target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC include)
 # set c++ standard
 target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
 
+# link against pthread
+target_link_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lpthread)
+
+
+# set SYCL implementation specific options
+if (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "hipsycl")
+
+  #find_package(OpenMP REQUIRED)
+  #target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC ${OpenMP_CXX_INCLUDE_DIRS})
+  #target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
+
+elseif (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "computecpp")
+
+elseif (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "dpcpp")
+
+  if (SYCL_LSH_ARCH MATCHES "cuda")
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl-targets=nvptx64-nvidia-cuda-sycldevice)
+    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl-targets=nvptx64-nvidia-cuda-sycldevice)
+  endif ()
+
+endif ()
+
+
 
 # find MPI library and add it to the target
 find_package(MPI REQUIRED)
+message(STATUS "Found MPI message passing library.")
 include_directories(${MPI_CXX_INCLUDE_DIRS})
 target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
 
 
 # find {fmt} formatting library and add it to the target
 find_package(fmt REQUIRED)
-option(SYCL_LSH_FMT_HEADER_ONLY "Use the header only mode of the {fmt} formatting library." OFF)
-if (SYCL_LSH_FMT_HEADER_ONLY)
-    message(STATUS "Using the {fmt} library in its header only mode.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC FMT_HEADER_ONLY=1)
-else ()
-    message(STATUS "Using the {fmt} library as shared library and link against it.")
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
-endif ()
-
-
-# if the current target is CPU, use OpenMP (if OpenMP has been found)
-if ((SYCL_LSH_TARGET MATCHES "CPU") OR (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL"))
-    find_package(OpenMP)
-    if (OpenMP_CXX_FOUND)
-        message(STATUS "Linking against OpenMP since the current SYCL_LSH_TARGET is 'CPU'.")
-        target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
-    else ()
-        message(STATUS "Can't find OpenMP although the current SYCL_LSH_TARGET is 'CPU'. Performance may be degraded!")
-    endif ()
-endif ()
+message(STATUS "Found {fmt} formatting library.")
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
 
 
 # add debug mode
-option(SYCL_LSH_ENABLE_DEBUG "Enable Debug mode using assertion macros." OFF)
+option(SYCL_LSH_ENABLE_DEBUG "Enable debug mode using assertion macros." OFF)
 if (SYCL_LSH_ENABLE_DEBUG)
-    message(STATUS "Enabled Debug mode.")
+    message(STATUS "Enabled sycl_lsh debug mode.")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC -DSYCL_LSH_DEBUG)
 
     # sanitizers
@@ -177,23 +148,24 @@ endif ()
 
 
 # set timer behavior
-set(SUPPORTED_SYCL_LSH_TIMERS NONE NON_BLOCKING BLOCKING) # NONE = 0, NON_BLOCKING = 1, BLOCKING = 2
+set(SYCL_LSH_TIMERS NONE NON_BLOCKING BLOCKING) # NONE = 0, NON_BLOCKING = 1, BLOCKING = 2
 set(SYCL_LSH_TIMER BLOCKING CACHE STRING "The used timer implementation.")
-set_property(CACHE SYCL_LSH_TIMER PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_TIMERS})
-if (NOT SYCL_LSH_TIMER IN_LIST SUPPORTED_SYCL_LSH_TIMERS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_TIMERS_OUT "${SUPPORTED_SYCL_LSH_TIMERS}")
-    message(FATAL_ERROR "Timer \"${SYCL_LSH_TIMER}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_TIMERS_OUT}")
+set_property(CACHE SYCL_LSH_TIMER PROPERTY STRINGS ${SYCL_LSH_TIMERS})
+if (NOT SYCL_LSH_TIMER IN_LIST SYCL_LSH_TIMERS)
+    string(REPLACE ";" ", " SYCL_LSH_TIMERS_OUT "${SYCL_LSH_TIMERS}")
+    message(FATAL_ERROR "Timer \"${SYCL_LSH_TIMER}\" not supported!\nMust be one of: ${SYCL_LSH_TIMERS_OUT}")
 else ()
     message(STATUS "Using \"${SYCL_LSH_TIMER}\" as timer implementation.")
 
-    list(FIND SUPPORTED_SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
+    list(FIND SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL_LSH_TIMER_IDX})
 endif ()
 
 
-# in order to benchmark the code, a timer must be enabled
+# enable benchmarking using an output file
 set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
 if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
+    # in order to benchmark the code, a timer must be enabled
     if (SYCL_LSH_TIMER MATCHES "NONE")
         message(FATAL_ERROR "In order to enable benchmarking, a valid timer (NON_BLOCKING or BLOCKING) must be enabled!")
     endif ()
@@ -202,51 +174,31 @@ if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
 endif ()
 
 
-# enable <experimental/filesystem> header if requested
-option(SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM "Use the <experimental/filesystem> header instead of <filesystem>." OFF)
-if (SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
-    message(STATUS "Using <experimental/filesystem> instead of <filesystem>.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
-    # silence LLVM deprecated warning
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM)
+# propagate SYCL_LSH_IMPLEMENTATION to library
+set(SYCL_LSH_SYCL_IMPLEMENTATIONS hipsycl computecpp dpcpp)
+list(FIND SYCL_LSH_SYCL_IMPLEMENTATIONS "${SYCL_LSH_SYCL_IMPLEMENTATION}" SYCL_LSH_SYCL_IMPLEMENTATION_IDX)
+if (${SYCL_LSH_SYCL_IMPLEMENTATION_IDX} MATCHES -1)
+  message(FATAL_ERROR "Unrecognized SYCL implementation \"${SYCL_LSH_SYCL_IMPLEMENTATION}\"!")
 endif ()
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION=${SYCL_LSH_SYCL_IMPLEMENTATION_IDX})
 
-
-# propagate SYCL_LSH_IMPLEMENTATION and SYCL_LSH_TARGET to library
-list(FIND SUPPORTED_SYCL_LSH_IMPLEMENTATIONS "${SYCL_LSH_IMPLEMENTATION}" SYCL_LSH_IMPLEMENTATION_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION=${SYCL_LSH_IMPLEMENTATION_IDX})
-list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
+# propagate SYCL_LSH_TARGET to library
 target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
 
 
-# set SYCL implementation specific options
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-    # disable -Wpedantic if compiling for hipSYCL targeting the CPU
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-pedantic)
-    endif ()
-    # disable -Wunused-parameter if compiling for hipSYCL
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter -Wno-gcc-compat)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-    # add additional ComputeCpp specific flags
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lstdc++fs)
-    list(APPEND COMPUTECPP_USER_FLAGS -no-serial-memop)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --gcc-toolchain=$ENV{DPCPP_GCC_TOOLCHAIN})
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl -lstdc++fs)
-endif()
-
 
 # create executable
+set(SYCL_LSH_EXECUTABLE_NAME prog)
 add_executable(prog src/main.cpp)
-target_compile_options(prog PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
+target_compile_options(${SYCL_LSH_EXECUTABLE_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(${SYCL_LSH_EXECUTABLE_NAME} PRIVATE ${SYCL_LSH_LIBRARY_NAME})
 
 
 # add necessary SYCL flags to the target
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL|ComputeCpp")
-    add_sycl_to_target(TARGET prog SOURCES src/main.cpp)
+if (SYCL_LSH_SYCL_IMPLEMENTATION MATCHES "hipsycl|computecpp")
+    add_sycl_to_target(TARGET ${SYCL_LSH_EXECUTABLE_NAME} SOURCES src/main.cpp)
 endif ()
+
 
 
 # generate documentation if requested

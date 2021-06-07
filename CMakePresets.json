@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": true,
+      "displayName": "Base config",
+      "description": "Base config used by the other presets",
+     "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SYCL_LSH_SYCL_IMPLEMENTATION": "${presetName}"
+      }
+    },
+    {
+      "name": "hipsycl",
+      "inherits": "default",
+      "displayName": "hipSYCL",
+      "description": "Build options for hipSYCL",
+      "cacheVariables": {
+        "hipSYCL_DIR": "$penv{HIPSYCL_INSTALL_DIR}/lib/cmake/hipSYCL",
+        "CMAKE_CXX_FLAGS": "-Wno-pedantic -Wno-unused-parameter -Wno-gcc-compat -Wno-deprecated-declarations"
+      },
+      "environment": {
+        "CPLUS_INCLUDE_PATH": "$penv{HIPSYCL_INSTALL_DIR}/include:$penv{CPLUS_INCLUDE_PATH}"
+      }
+    },
+    {
+      "name": "dpcpp",
+      "inherits": "default",
+      "displayName": "DPC++",
+      "description": "Build options for DPC++",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsycl",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsycl"
+      },
+      "environment": {
+        "CC": "$penv{DPCPP_INSTALL_DIR}/bin/clang",
+        "CXX": "$penv{DPCPP_INSTALL_DIR}/bin/clang++",
+        "CPLUS_INCLUDE_PATH": "$penv{DPCPP_INSTALL_DIR}/install/include/sycl:$penv{CPLUS_INCLUDE_PATH}"
+      }
+    },
+    {
+      "name": "computecpp",
+      "inherits": "default",
+      "displayName": "ComputeCpp",
+      "description": "Build options for ComputeCpp",
+      "cacheVariables": {
+        "COMPUTECPP_MODULE_PATH": "$penv{COMPUTECPP_SDK_INSTALL_DIR}/cmake/Modules",
+        "COMPUTECPP_USER_FLAGS": "-no-serial-memop",
+        "CMAKE_CXX_STANDARD": "17",
+        "ComputeCpp_DIR": "$penv{COMPUTECPP_INSTALL_DIR}"
+      },
+      "environment": {
+        "CPLUS_INCLUDE_PATH": "$penv{COMPUTECPP_INSTALL_DIR}/include:$penv{CPLUS_INCLUDE_PATH}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "hipsycl",
+      "configurePreset": "hipsycl"
+    },
+    {
+      "name": "dpcpp",
+      "configurePreset": "dpcpp"
+    },
+    {
+      "name": "computecpp",
+      "configurePreset": "computecpp"
+    }
+  ]
+}
