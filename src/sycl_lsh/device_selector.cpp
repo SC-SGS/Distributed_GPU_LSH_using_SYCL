@@ -37,11 +37,7 @@ void sycl_lsh::detail::setup_devices(const sycl_lsh::mpi::communicator& comm, co
 
 [[nodiscard]]
 bool sycl_lsh::detail::compare_devices(const sycl_lsh::sycl::device& lhs, const sycl_lsh::sycl::device& rhs) {
-    #if SYCL_LSH_IMPLEMENTATION == SYCL_LSH_IMPLEMENTATION_HIPSYCL
-        return lhs == rhs;
-    #else
-        return lhs.get() == rhs.get();
-    #endif
+    return lhs == rhs;
 }
 
 
@@ -49,20 +45,10 @@ sycl_lsh::device_selector::device_selector(const sycl_lsh::mpi::communicator& co
 
 
 int sycl_lsh::device_selector::operator()([[maybe_unused]] const sycl_lsh::sycl::device& device) const {
-    #if SYCL_LSH_TARGET == SYCL_LSH_TARGET_CPU
+    #if defined(SYCL_LSH_USE_CPU)
         // TODO 2020-10-12 17:02 marcel: implement correctly
         return sycl::cpu_selector{}.operator()(device);
-    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_NVIDIA || SYCL_LSH_TARGET == SYCL_LSH_TARGET_AMD
-        if (device.is_gpu()) {
-            return sycl::gpu_selector{}.operator()(device);
-        } else {
-            return -1;
-        }
-    #elif SYCL_LSH_TARGET == SYCL_LSH_TARGET_INTEL
-        return sycl::gpu_selector{}.operator()(device);
-//        throw sycl_lsh::not_implemented("Can't currently select AMD or INTEL devices!");
     #else
-        // never choose current device otherwise
-        return -1;
+        return sycl::gpu_selector{}.operator()(device);
     #endif
 }

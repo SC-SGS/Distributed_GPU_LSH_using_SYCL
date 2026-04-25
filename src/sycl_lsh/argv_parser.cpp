@@ -102,16 +102,16 @@ std::string sycl_lsh::argv_parser::description() {
     const auto max_reduction = [](const std::size_t value, const auto& pair) { return std::max(value, pair.first.size()); };
     const std::size_t alignment_size = std::accumulate(list_of_argvs_.begin(), list_of_argvs_.end(), 0, max_reduction) + 2;
 
-    fmt::memory_buffer buf;
+    std::string buf;
 
     // write header information
-    fmt::format_to(buf, "Usage: ./prog --data_file \"path_to_data_file\" --k \"number_of_knn_to_search\" [options]\n");
-    fmt::format_to(buf, "options:\n");
+    buf += fmt::format("Usage: ./prog --data_file \"path_to_data_file\" --k \"number_of_knn_to_search\" [options]\n");
+    buf += "options:\n";
 
     // write command line arguments and their respective description
     for (const auto& [key, desc] : list_of_argvs_) {
-        fmt::format_to(buf, "   --{:<{}} {} {}\n", key, alignment_size, desc.first, desc.second ? "(required)" : "");
+        buf += fmt::format("   --{:<{}} {} {}\n", key, alignment_size, desc.first, desc.second ? "(required)" : "");
     }
 
-    return fmt::to_string(buf);
+    return buf;
 }

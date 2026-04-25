@@ -45,4 +45,7 @@ namespace sycl_lsh {
 
 }
 
+template <>
+struct fmt::formatter<sycl_lsh::memory_layout> : fmt::ostream_formatter {};
+
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_MEMORY_LAYOUT_HPP

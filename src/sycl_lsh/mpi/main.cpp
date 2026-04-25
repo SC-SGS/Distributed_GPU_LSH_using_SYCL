@@ -58,6 +58,8 @@ namespace {
     }
 }
 
+template <>
+struct fmt::formatter<thread_support> : fmt::ostream_formatter {};
 
 int sycl_lsh::mpi::main(int argc, char** argv, sycl_lsh::mpi::custom_main_ptr func) {
     int return_code = EXIT_SUCCESS;

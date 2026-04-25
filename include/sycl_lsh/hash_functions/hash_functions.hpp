@@ -15,8 +15,8 @@
 
 #include <ostream>
 
-namespace sycl_lsh {
-
+namespace sycl_lsh
+{
     /**
      * @brief Enum class for the different hash function types.
      */
@@ -37,19 +37,24 @@ namespace sycl_lsh {
      */
     inline std::ostream& operator<<(std::ostream& out, const hash_functions_type type) {
         switch (type) {
-            case hash_functions_type::random_projections:
-                out << "random_projections";
-                break;
-            case hash_functions_type::entropy_based:
-                out << "entropy_based";
-                break;
-            case hash_functions_type::mixed_hash_functions:
-                out << "mixed_hash_functions";
-                break;
+        case hash_functions_type::random_projections:
+            out << "random_projections";
+            break;
+        case hash_functions_type::entropy_based:
+            out << "entropy_based";
+            break;
+        case hash_functions_type::mixed_hash_functions:
+            out << "mixed_hash_functions";
+            break;
         }
         return out;
     }
+}
 
+template <>
+struct fmt::formatter<sycl_lsh::hash_functions_type> : fmt::ostream_formatter {};
+
+namespace sycl_lsh {
 
     // forward declare hash functions classes
     template <memory_layout layout, typename Options, typename Data>
@@ -66,7 +71,7 @@ namespace sycl_lsh {
          * @tparam layout the used @ref sycl_lsh::memory_layout type
          * @tparam Options the used @ref sycl_lsh::options type
          * @tparam Data the used @ref sycl_lsh::data type
-         * @tparam type the @ref sycl_lsh::hash_functions_type 
+         * @tparam type the @ref sycl_lsh::hash_functions_type
          */
         template <memory_layout layout, typename Options, typename Data, hash_functions_type type>
         struct get_hash_functions_type { };

@@ -312,4 +312,7 @@ namespace sycl_lsh {
 
 }
 
+template <typename real_t, typename index_t, typename hash_value_t, index_t blocking_size_v, sycl_lsh::hash_functions_type hash_functions_t>
+struct fmt::formatter<sycl_lsh::options<real_t, index_t, hash_value_t, blocking_size_v, hash_functions_t>> : fmt::ostream_formatter {};
+
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_OPTIONS_HPP

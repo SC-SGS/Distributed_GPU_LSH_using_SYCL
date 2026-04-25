@@ -121,7 +121,7 @@ namespace sycl_lsh {
         using real_type = typename options_type::real_type;
         /// The used integral type for indices.
         using index_type = typename options_type::index_type;
-        
+
         /// The type of the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
         using data_attributes_type = data_attributes<layout, index_type>;
 
@@ -191,7 +191,7 @@ namespace sycl_lsh {
         device_buffer_type device_buffer_;
         host_buffer_type host_buffer_;
     };
-    
+
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                            output stream overload                                          //
@@ -264,5 +264,8 @@ namespace sycl_lsh {
     }
 
 }
+
+template <sycl_lsh::memory_layout layout, typename Options>
+struct fmt::formatter<sycl_lsh::data<layout, Options>> : fmt::ostream_formatter {};
 
 #endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DATA_HPP
