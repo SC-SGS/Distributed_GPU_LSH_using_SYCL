@@ -37,15 +37,9 @@ namespace detail {
  * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::random_projections class to convert a
  *        multidimensional index to a one-dimensional one.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
-struct get_linear_id<random_projections<layout, Data>> {
-    /// The used @ref sycl_lsh::data type.
-    using data_type = Data;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
+template <memory_layout layout>
+struct get_linear_id<random_projections<layout>> {
     /**
      * @brief Convert the multidimensional index to a one-dimensional index.
      * @param[in] hash_table the requested hash table
@@ -59,7 +53,7 @@ struct get_linear_id<random_projections<layout, Data>> {
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
      */
-    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes_type &attr) const noexcept {  // TODO options
+    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr) const noexcept {  // TODO options
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
         // SYCL_LSH_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!");
         // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!");
@@ -78,17 +72,11 @@ struct get_linear_id<random_projections<layout, Data>> {
  * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::random_projections class to calculate the
  *        hash value.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
-struct lsh_hash<random_projections<layout, Data>> {
-    /// The used @ref sycl_lsh::data type.
-    using data_type = Data;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
+template <memory_layout layout>
+struct lsh_hash<random_projections<layout>> {
     /// The used hash functions type (random projections for this specialization).
-    using hash_function_type = random_projections<layout, Data>;
+    using hash_function_type = random_projections<layout>;
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using random projections.
@@ -106,13 +94,13 @@ struct lsh_hash<random_projections<layout, Data>> {
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
     template <typename AccData, typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes_type &attr) const {  // TODO: replace accessor with USM
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        const get_linear_id<data_type> get_linear_id_data{};
+        const get_linear_id<data<layout>> get_linear_id_data{};
 
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
@@ -134,19 +122,13 @@ struct lsh_hash<random_projections<layout, Data>> {
 /**
  * @brief Class which represents the random projections hash functions used in the LSH algorithm.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the used @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
+template <memory_layout layout>
 class random_projections {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                type aliases                                                //
     // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::data object.
-    using data_type = Data;
-    /// The type of the @ref sycl_lsh::data_attributes object.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
     /// The type of the device buffer used by SYCL.
     using device_buffer_type = sycl::buffer<real_type, 1>;
 
@@ -160,7 +142,7 @@ class random_projections {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    random_projections(const device_accessible_options &opt, const data_type &data, const mpi::communicator &comm, const mpi::logger &logger);
+    random_projections(const device_accessible_options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -185,11 +167,11 @@ class random_projections {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Data>
-random_projections<layout, Data>::random_projections(const device_accessible_options &opt, const data_type &data, const mpi::communicator &comm, const mpi::logger &logger) : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1)) {
+template <memory_layout layout>
+random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1)) {
     const mpi::timer mpi_timer{ comm };
 
-    const data_attributes_type &attr = data.get_attributes();
+    const data_attributes &attr = data.get_attributes();
 
     std::vector<real_type> host_buffer(device_buffer_.size());
 

@@ -8,6 +8,8 @@
 
 #include "sycl_lsh/core.hpp"
 
+#include <variant>  // std::visit
+
 int custom_main(const int argc, char **argv) {
     // create MPI communicator
     const sycl_lsh::mpi::communicator comm{};
@@ -17,7 +19,7 @@ int custom_main(const int argc, char **argv) {
 
     try {
         // parse options and print
-        const sycl_lsh::options<sycl_lsh::hash_function_type::random_projections> opt(argc, argv, logger);
+        const sycl_lsh::options opt(argc, argv, logger);
         logger.log("Used options: \n{}\n", opt);
 
         // log current number of MPI ranks
@@ -27,33 +29,35 @@ int custom_main(const int argc, char **argv) {
         auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(opt, comm, logger);
         logger.log("\nUsed data set:\n{}\n", data);
 
-        // generate LSH hash tables
-        auto lsh_tables = sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, comm, logger);
-        // calculate k-nearest-neighbors
-        auto knns = lsh_tables.get_k_nearest_neighbors(opt.k);
+        // generate LSH hash tables and calculate the nearest-neighbors
+        std::visit([&](auto &&lsh_tables) {
+            // calculate k-nearest-neighbors
+            auto knns = lsh_tables.k_nearest_neighbors(opt.k);
 
-        // optionally save calculated k-nearest-neighbor IDs
-        if (opt.knn_save_file.has_value()) {
-            knns.save_knns(opt);
-        }
-        // optionally save calculated k-nearest-neighbor distances
-        if (opt.knn_dist_save_file.has_value()) {
-            knns.save_distances(opt);
-        }
-
-        // optionally calculate the recall of the calculated k-nearest-neighbors
-        if (opt.evaluate_knn_file.has_value()) {
-            logger.log("recall: {}%\n", knns.recall(opt));
-        }
-        // optionally calculate the error ration of the calculated k-nearest-neighbors
-        if (opt.evaluate_knn_dist_file.has_value()) {
-            const auto [error_ratio, num_points, num_knn_not_found] = knns.error_ratio(opt);
-            if (num_points == 0) {
-                logger.log("error ratio: {}\n", error_ratio);
-            } else {
-                logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
+            // optionally save calculated k-nearest-neighbor IDs
+            if (opt.knn_save_file.has_value()) {
+                knns.save_knns(opt);
             }
-        }
+            // optionally save calculated k-nearest-neighbor distances
+            if (opt.knn_dist_save_file.has_value()) {
+                knns.save_distances(opt);
+            }
+
+            // optionally calculate the recall of the calculated k-nearest-neighbors
+            if (opt.evaluate_knn_file.has_value()) {
+                logger.log("recall: {}%\n", knns.recall(opt));
+            }
+            // optionally calculate the error ration of the calculated k-nearest-neighbors
+            if (opt.evaluate_knn_dist_file.has_value()) {
+                const auto [error_ratio, num_points, num_knn_not_found] = knns.error_ratio(opt);
+                if (num_points == 0) {
+                    logger.log("error ratio: {}\n", error_ratio);
+                } else {
+                    logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
+                }
+            }
+        },
+                   sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, comm, logger));
 
         // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
         opt.save_benchmark_options(comm);

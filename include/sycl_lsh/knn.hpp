@@ -34,7 +34,7 @@
 namespace sycl_lsh {
 
 // forward declare knn class
-template <memory_layout layout, typename Options, typename Data>
+template <memory_layout layout>
 class knn;
 
 namespace detail {
@@ -43,19 +43,9 @@ namespace detail {
  * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::knn class to convert a multidimensional
  *        index to a one-dimensional one.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Options the @ref sycl_lsh::options type
- * @tparam Data the @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Options, typename Data>
-struct get_linear_id<knn<layout, Options, Data>> {
-    /// The used @ref sycl_lsh::options type.
-    using options_type = Options;
-
-    /// The used @ref sycl_lsh::data type.
-    using data_type = Data;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
+template <memory_layout layout>
+struct get_linear_id<knn<layout>> {
     /**
      * @brief Convert the multidimensional index to a one-dimensional index.
      * @param[in] point the requested data point
@@ -68,7 +58,7 @@ struct get_linear_id<knn<layout, Options, Data>> {
      * @pre @p k must be greater than `0`.
      * @pre @p nn must be in the range `[0, number of nearest-neighbors to search for)` (currently disabled).
      */
-    [[nodiscard]] index_type operator()(const index_type point, const index_type nn, [[maybe_unused]] const data_attributes_type &attr, [[maybe_unused]] const index_type k) const noexcept {  // TODO
+    [[nodiscard]] index_type operator()(const index_type point, const index_type nn, [[maybe_unused]] const data_attributes &attr, [[maybe_unused]] const index_type k) const noexcept {  // TODO
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
         // SYCL_LSH_ASSERT(0 < k, "Illegal number of k-nearest-neighbors!");
         // SYCL_LSH_ASSERT(0 <= nn && nn < k, "Out-of-bounce access for nearest-neighbor!");
@@ -89,54 +79,40 @@ struct get_linear_id<knn<layout, Options, Data>> {
  * @brief Factory function for the @ref sycl_lsh::knn class.
  * @brief Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
  * @tparam layout the used @ref sycl_lsh::memory_layout type
- * @tparam Options the used @ref sycl_lsh::options type
- * @tparam Data the used @ref sycl_lsh::data type
  * @param[in] k the number of nearest-neighbors to search for
  * @param[in] data the used @ref sycl_lsh::data representing the used data set
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::knn object representing the result of the nearest-neighbor search (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] auto make_knn(const index_type k, const Options &, const Data &data, const mpi::communicator &comm, const mpi::logger &logger) {
-    return knn<layout, Options, Data>(k, data, comm, logger);
+template <memory_layout layout>
+[[nodiscard]] auto make_knn(const index_type k, const options &, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
+    return knn<layout>(k, data, comm, logger);
 }
 /**
  * @brief Factory function for the @ref sycl_lsh::knn class.
  * @brief Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
  * @tparam layout the used @ref sycl_lsh::memory_layout type
- * @tparam Options the used @ref sycl_lsh::options type
- * @tparam Data the used @ref sycl_lsh::data type
  * @param[in] opt the used @ref sycl_lsh::options
  * @param[in] data the used @ref sycl_lsh::data representing the used data set
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::knn object representing the result of the nearest-neighbor search (`[[nodiscard]]`)
  */
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] auto make_knn(const Options &opt, const Data &data, const mpi::communicator &comm, const mpi::logger &logger) {
+template <memory_layout layout>
+[[nodiscard]] auto make_knn(const options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
     return make_knn<layout>(opt.k, opt, data, comm, logger);
 }
 
 /**
  * @brief Class representing the result of the k-nearest-neighbor search.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Options the used @ref sycl_lsh::options type
- * @tparam Data the used @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Options, typename Data>
+template <memory_layout layout>
 class knn {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::options object.
-    using options_type = Options;
-
-    /// The type of the @ref sycl_lsh::data object.
-    using data_type = Data;
-    /// The type of the @ref sycl_lsh::data_attributes object.
-    using data_attributes_type = typename data_type::data_attributes_type;
 
     /// The type of the host buffer representing the k-nearest-neighbor IDs used to hide the MPI communications.
     using knn_host_buffer_type = std::vector<index_type>;
@@ -185,7 +161,7 @@ class knn {
      *
      * @throws sycl_lsh::exception if the command line argument `knn_save_file` isn't present in @p parser.
      */
-    void save_knns(const options_type &opt);
+    void save_knns(const options &opt);
     /**
      * @brief Saves the calculated k-nearest-neighbor distances. \n
      *        **Always** saves the k-nearest-neighbor distances in *Array of Structs* layout.
@@ -193,7 +169,7 @@ class knn {
      *
      * @throws sycl_lsh::exception if the command line argument `knn_dist_save_file` isn't present in @p parser.
      */
-    void save_distances(const options_type &opt);
+    void save_distances(const options &opt);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                evaluate knn                                                //
@@ -208,7 +184,7 @@ class knn {
      * @throws sycl_lsh::exception if the parsed number of points per MPI rank doesn't match with the current `rank_size`.
      * @throws sycl_lsh::exception if the parsed number of dimensions doesn't match with the current `dims`.
      */
-    [[nodiscard]] real_type recall(const options_type &opt);
+    [[nodiscard]] real_type recall(const options &opt);
     /**
      * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
      * @param[in] opt the used @ref sycl_lsh::options
@@ -220,7 +196,7 @@ class knn {
      * @throws sycl_lsh::exception if the parsed number of points per MPI rank doesn't match with the current `rank_size`.
      * @throws sycl_lsh::exception if the parsed number of dimensions doesn't match with the current `dims`.
      */
-    [[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(const options_type &opt);
+    [[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(const options &opt);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -245,8 +221,8 @@ class knn {
 
   private:
     // befriend the factory function
-    friend auto make_knn<layout, Options, Data>(index_type, const Options &, const Data &, const mpi::communicator &, const mpi::logger &);
-    friend auto make_knn<layout, Options, Data>(const Options &, const Data &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_knn<layout>(index_type, const options &, const data<layout> &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_knn<layout>(const options &, const data<layout> &, const mpi::communicator &, const mpi::logger &);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -260,19 +236,10 @@ class knn {
      *
      * @pre @p k **must** be greater than `0`.
      */
-    /**
-     * @brief Construct a new @ref sycl_lsh::knn object given @p k, the number of nearest-neighbors to search for.
-     * @param[in] k the number of nearest-neighbors to search for
-     * @param[in] data the used @ref sycl_lsh::data representing the used data set
-     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
-     *
-     * @pre @p k **must** be greater than `0`.
-     */
-    knn(index_type k, const data_type &data, const mpi::communicator &comm, const mpi::logger &logger);
+    knn(index_type k, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     /// The data attributes.
-    const data_attributes_type attr_;
+    const data_attributes attr_;
     /// The associated MPI communicator.
     const mpi::communicator &comm_;
     /// The associated MPI logger.
@@ -290,8 +257,8 @@ class knn {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options, typename Data>
-knn<layout, Options, Data>::knn(const index_type k, const data_type &data, const mpi::communicator &comm, const mpi::logger &logger) :
+template <memory_layout layout>
+knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) :
     attr_{ data.get_attributes() }, comm_{ comm }, logger_{ logger }, k_{ k }, knn_host_buffer_(attr_.rank_size * k), dist_host_buffer_(attr_.rank_size * k, std::numeric_limits<real_type>::max()) {
     const mpi::timer mpi_timer{ comm_ };
 
@@ -325,8 +292,8 @@ knn<layout, Options, Data>::knn(const index_type k, const data_type &data, const
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                knn results                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] auto knn<layout, Options, Data>::get_knn_ids(const index_type point) const -> knn_host_buffer_type {
+template <memory_layout layout>
+[[nodiscard]] auto knn<layout>::get_knn_ids(const index_type point) const -> knn_host_buffer_type {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!");
 
     const detail::get_linear_id<knn> get_linear_id_functor{};
@@ -337,8 +304,8 @@ template <memory_layout layout, typename Options, typename Data>
     }
     return res;
 }
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] auto knn<layout, Options, Data>::get_knn_dists(const index_type point) const -> dist_host_buffer_type {
+template <memory_layout layout>
+[[nodiscard]] auto knn<layout>::get_knn_dists(const index_type point) const -> dist_host_buffer_type {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n");
 
     const detail::get_linear_id<knn> get_linear_id_functor{};
@@ -353,8 +320,8 @@ template <memory_layout layout, typename Options, typename Data>
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                  save knn                                                  //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options, typename Data>
-void knn<layout, Options, Data>::save_knns(const options_type &opt) {
+template <memory_layout layout>
+void knn<layout>::save_knns(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // check if the required command line argument is present
@@ -366,8 +333,8 @@ void knn<layout, Options, Data>::save_knns(const options_type &opt) {
 
     if constexpr (layout == memory_layout::soa) {
         // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
-        const detail::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
-        const detail::get_linear_id<knn<memory_layout::soa, options_type, data_type>> get_linear_id_soa{};
+        const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
+        const detail::get_linear_id<knn<memory_layout::soa>> get_linear_id_soa{};
 
         for (index_type point = 0; point < attr_.rank_size; ++point) {
             for (index_type nn = 0; nn < k_; ++nn) {
@@ -385,8 +352,8 @@ void knn<layout, Options, Data>::save_knns(const options_type &opt) {
 
     logger_.log("Saved k-nearest-neighbor IDs in {}.\n", mpi_timer.elapsed());
 }
-template <memory_layout layout, typename Options, typename Data>
-void knn<layout, Options, Data>::save_distances(const options_type &opt) {
+template <memory_layout layout>
+void knn<layout>::save_distances(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // check if the required command line argument is present
@@ -398,8 +365,8 @@ void knn<layout, Options, Data>::save_distances(const options_type &opt) {
 
     if constexpr (layout == memory_layout::soa) {
         // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
-        const detail::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
-        const detail::get_linear_id<knn<memory_layout::soa, options_type, data_type>> get_linear_id_soa{};
+        const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
+        const detail::get_linear_id<knn<memory_layout::soa>> get_linear_id_soa{};
 
         for (index_type point = 0; point < attr_.rank_size; ++point) {
             for (index_type nn = 0; nn < k_; ++nn) {
@@ -424,9 +391,9 @@ void knn<layout, Options, Data>::save_distances(const options_type &opt) {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                evaluate knn                                                //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options, typename Data>
+template <memory_layout layout>
 [[nodiscard]]
-real_type knn<layout, Options, Data>::recall(const options_type &opt) {
+real_type knn<layout>::recall(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // load correct k-nearest-neighbor IDs
@@ -457,7 +424,7 @@ real_type knn<layout, Options, Data>::recall(const options_type &opt) {
     const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
 
     const detail::get_linear_id<knn> get_linear_id_this{};
-    const detail::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+    const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
 
     index_type count = 0;
     for (index_type point = 0; point < correct_rank_size; ++point) {
@@ -487,8 +454,8 @@ real_type knn<layout, Options, Data>::recall(const options_type &opt) {
     return res;
 }
 
-template <memory_layout layout, typename Options, typename Data>
-[[nodiscard]] std::tuple<real_type, index_type, index_type> knn<layout, Options, Data>::error_ratio(const options_type &opt) {
+template <memory_layout layout>
+[[nodiscard]] std::tuple<real_type, index_type, index_type> knn<layout>::error_ratio(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // load correct k-nearest-neighbor distances
@@ -518,8 +485,8 @@ template <memory_layout layout, typename Options, typename Data>
 
     const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
 
-    const detail::get_linear_id<knn<layout, options_type, data_type>> get_linear_id_this{};
-    const detail::get_linear_id<knn<memory_layout::aos, options_type, data_type>> get_linear_id_aos{};
+    const detail::get_linear_id<knn> get_linear_id_this{};
+    const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
 
     // calculate error ratio
     index_type num_points_not_found = 0;
@@ -593,8 +560,8 @@ template <memory_layout layout, typename Options, typename Data>
 // ---------------------------------------------------------------------------------------------------------- //
 //                                             update host buffer                                             //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options, typename Data>
-void knn<layout, Options, Data>::send_receive_host_buffer() {
+template <memory_layout layout>
+void knn<layout>::send_receive_host_buffer() {
     const int destination = (comm_.rank() + 1) % comm_.size();
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 

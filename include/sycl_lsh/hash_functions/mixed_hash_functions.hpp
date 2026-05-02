@@ -25,8 +25,9 @@
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "mpi.h"          // MPI_Bcast, MPI_Allreduce
 #include "sycl/sycl.hpp"  // sycl::buffer, sycl::accessor, sycl::queue
+
+#include "mpi.h"  // MPI_Bcast, MPI_Allreduce
 
 #include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
 #include <vector>  // std::vector
@@ -39,17 +40,11 @@ namespace detail {
  * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::mixed_hash_functions class to convert a
  *        multidimensional index to a one-dimensional one.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
-struct get_linear_id<mixed_hash_functions<layout, Data>> {
-    /// The used @ref sycl_lsh::data type.
-    using data_type = Data;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
+template <memory_layout layout>
+struct get_linear_id<mixed_hash_functions<layout>> {
     /// The used hash functions type (mixed hash functions for this specialization).
-    using hash_function_type = mixed_hash_functions<layout, Data>;
+    using hash_function_type = mixed_hash_functions<layout>;
 
     /**
      * @brief Convert the multidimensional index to a one-dimensional index.
@@ -65,7 +60,7 @@ struct get_linear_id<mixed_hash_functions<layout, Data>> {
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
      */
-    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes_type &attr, typename hash_function_type::buffer_part::hash_functions_t) const noexcept {  // TODO
+    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::hash_functions_t) const noexcept {  // TODO
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
         // SYCL_LSH_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!");
         // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!\n");
@@ -93,7 +88,7 @@ struct get_linear_id<mixed_hash_functions<layout, Data>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p dim must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes_type &attr, typename hash_function_type::buffer_part::hash_combine_t) const noexcept {  // TODO
+    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::hash_combine_t) const noexcept {  // TODO
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
         // SYCL_LSH_ASSERT(0 <= dim && dim < opt.num_hash_functions, "Out-of-bounce access for dimension!");
 
@@ -115,7 +110,7 @@ struct get_linear_id<mixed_hash_functions<layout, Data>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p dim must be in the range `[0, number of cut-off points)` (currently disabled).
      */
-    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes_type &attr, typename hash_function_type::buffer_part::cut_off_points_t) const noexcept {  // TODO
+    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::cut_off_points_t) const noexcept {  // TODO
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
         // SYCL_LSH_ASSERT(0 <= dim && dim < opt.num_cut_off_points, "Out-of-bounce access for dimension!");
 
@@ -131,17 +126,11 @@ struct get_linear_id<mixed_hash_functions<layout, Data>> {
  * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::mixed_hash_functions class to calculate the
  *        hash value.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
-struct lsh_hash<mixed_hash_functions<layout, Data>> {
-    /// The used @ref sycl_lsh::data type.
-    using data_type = Data;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
+template <memory_layout layout>
+struct lsh_hash<mixed_hash_functions<layout>> {
     /// The used hash functions type (mixed hash functions for this specialization).
-    using hash_function_type = mixed_hash_functions<layout, Data>;
+    using hash_function_type = mixed_hash_functions<layout>;
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using mixed hash functions.
@@ -159,13 +148,13 @@ struct lsh_hash<mixed_hash_functions<layout, Data>> {
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
     template <typename AccData, typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes_type &attr) const {  // TODO
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        const get_linear_id<data_type> get_linear_id_data{};
+        const get_linear_id<data<layout>> get_linear_id_data{};
 
         real_type value = 0.0;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
@@ -193,9 +182,8 @@ struct lsh_hash<mixed_hash_functions<layout, Data>> {
 /**
  * @brief Class which represents the mixed hash functions used in the LSH algorithm.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Data the used @ref sycl_lsh::data type
  */
-template <memory_layout layout, typename Data>
+template <memory_layout layout>
 class mixed_hash_functions {
   public:
     /**
@@ -206,9 +194,11 @@ class mixed_hash_functions {
         /** Calculate conversion only for the random projections part. */
         constexpr static struct hash_functions_t {
         } hash_functions{};
+
         /** Calculate conversion only for the entropy-based part. */
         constexpr static struct hash_combine_t {
         } hash_combine{};
+
         /** Calculate conversion only for the cut-off points part. */
         constexpr static struct cut_off_points_t {
         } cut_off_points{};
@@ -217,11 +207,6 @@ class mixed_hash_functions {
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                type aliases                                                //
     // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::data object.
-    using data_type = Data;
-    /// The type of the @ref sycl_lsh::data_attributes object.
-    using data_attributes_type = typename data_type::data_attributes_type;
-
     /// The type of the device buffer used by SYCL.
     using device_buffer_type = sycl::buffer<real_type, 1>;
 
@@ -235,7 +220,7 @@ class mixed_hash_functions {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    mixed_hash_functions(const device_accessible_options &opt, data_type &data, const mpi::communicator &comm, const mpi::logger &logger);
+    mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -244,7 +229,7 @@ class mixed_hash_functions {
      * @brief Returns the specified @ref sycl_lsh::memory_layout type.
      * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
      */
-    [[nodiscard]] static constexpr memory_layout get_memory_layout() noexcept { return layout; }
+    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
      * @brief Returns the device buffer used in the SYCL kernels.
@@ -260,13 +245,14 @@ class mixed_hash_functions {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Data>
-mixed_hash_functions<layout, Data>::mixed_hash_functions(const device_accessible_options &opt, data_type &data, const mpi::communicator &comm, const mpi::logger &logger) : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
-                                                                                                                                                                                           opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1))       // entropy-based as hash combine
+template <memory_layout layout>
+mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &input_data, const mpi::communicator &comm, const mpi::logger &logger) :
+    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (input_data.get_attributes().dims + 1) +  // random projections as hash functions
+                   opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1))             // entropy-based as hash combine
 {
     const mpi::timer mpi_timer{ comm };
 
-    const data_attributes_type attr = data.get_attributes();
+    const data_attributes attr = input_data.get_attributes();
 
     std::vector<real_type> host_buffer(device_buffer_.size());
     const detail::get_linear_id<mixed_hash_functions> get_linear_id_functor{};
@@ -358,13 +344,13 @@ mixed_hash_functions<layout, Data>::mixed_hash_functions(const device_accessible
             {
                 sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
                 queue.submit([&](sycl::handler &cgh) {
-                    auto acc_data = data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+                    auto acc_data = input_data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_functions = hash_functions_buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
                     const device_accessible_options options = opt;
-                    const data_attributes_type attributes = attr;
-                    const detail::get_linear_id<data_type> get_linear_id_data{};
+                    const data_attributes attributes = attr;
+                    const detail::get_linear_id<data<layout>> get_linear_id_data{};
                     const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
 
                     cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {

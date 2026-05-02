@@ -17,12 +17,12 @@
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
 #include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
+#include "sycl_lsh/options.hpp"                      // sycl_lsh::options
 
-#include "sycl_lsh/options.hpp"  // sycl_lsh::options
+#include "sycl/sycl.hpp"
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
-#include "mpi.h"      // MPI_Sendrecv_replace
-#include "sycl/sycl.hpp"
+#include "mpi.h"          // MPI_Sendrecv_replace
 
 #include <memory>   // std::unique_ptr
 #include <ostream>  // std::ostream
@@ -32,7 +32,7 @@
 namespace sycl_lsh {
 
 // forward declare data class
-template <memory_layout layout, typename Options>
+template <memory_layout layout>
 class data;
 
 namespace detail {
@@ -41,14 +41,11 @@ namespace detail {
  * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::data class to convert a multidimensional
  *        index to a one-dimensional one.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Options the @ref sycl_lsh::options type
  */
-template <memory_layout layout, typename Options>
-struct get_linear_id<data<layout, Options>> {
+template <memory_layout layout>
+struct get_linear_id<data<layout>> {
     /// The used @ref sycl_lsh::data type.
-    using data_type = data<layout, Options>;
-    /// The used @ref sycl_lsh::data_attributes type.
-    using data_attributes_type = typename data_type::data_attributes_type;
+    using data_type = data<layout>;
 
     /**
      * @brief Convert the multidimensional index to a one-dimensional index.
@@ -60,8 +57,7 @@ struct get_linear_id<data<layout, Options>> {
      * @pre @p point must be in the range `[0, number of data points on the current MPI rank)` (currently disabled).
      * @pre @p dim must be in the range `[0, number of dimensions per data point)` (currently disabled).
      */
-    [[nodiscard]]
-    index_type operator()(const index_type point, const index_type dim, const data_attributes_type &attr) const noexcept {  // TODO
+    [[nodiscard]] index_type operator()(const index_type point, const index_type dim, const data_attributes &attr) const noexcept {  // TODO
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!\n");
         // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!\n");
 
@@ -86,29 +82,22 @@ struct get_linear_id<data<layout, Options>> {
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::data object representing the used data set (`[[nodiscard]]`)
  */
-template <memory_layout layout, hash_function_type hash_function_t>
-[[nodiscard]] auto make_data(const options<hash_function_t> &opt, const mpi::communicator &comm, const mpi::logger &logger) {
+template <memory_layout layout>
+[[nodiscard]] auto make_data(const options &opt, const mpi::communicator &comm, const mpi::logger &logger) {
     auto file_parser = mpi::make_file_parser<real_type>(opt.data_file, opt.file_parser, mpi::file::mode::read, comm, logger);
-    return data<layout, options<hash_function_t>>(*file_parser, comm, logger);
+    return data<layout>(*file_parser, comm, logger);
 }
 
 /**
  * @brief Class which represents the used data set.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Options the used @ref sycl_lsh::options type
  */
-template <memory_layout layout, typename Options>
+template <memory_layout layout>
 class data {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                type aliases                                                //
     // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::options object.
-    using options_type = Options;
-
-    /// The type of the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
-    using data_attributes_type = data_attributes<layout>;
-
     /// The type of the device buffer used by SYCL.
     using device_buffer_type = sycl::buffer<real_type, 1>;
     /// The type of the host buffer used to hide the MPI communications.
@@ -129,18 +118,20 @@ class data {
      * @brief Returns the specified @ref sycl_lsh::memory_layout type.
      * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
      */
-    [[nodiscard]] static constexpr memory_layout get_memory_layout() noexcept { return layout; }
+    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
+
     /**
      * @brief Return the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
      * @return the @ref sycl_lsh::data_attributes (`[[nodiscard]]`)
      */
-    [[nodiscard]] data_attributes_type get_attributes() const noexcept { return data_attributes_; }
+    [[nodiscard]] data_attributes get_attributes() const noexcept { return data_attributes_; }
 
     /**
      * @brief Returns the device buffer used in the SYCL kernels.
      * @return the device buffer (`[[nodiscard]]`)
      */
     [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
+
     /**
      * @brief Returns the host buffer used to hide the MPI communication.
      * @return the host buffer (`[[nodiscard]]`)
@@ -149,7 +140,7 @@ class data {
 
   private:
     // befriend the factory function
-    friend auto make_data<layout, options_type::used_hash_function_type>(const options_type &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_data<layout>(const options &, const mpi::communicator &, const mpi::logger &);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -165,7 +156,7 @@ class data {
     /// The associated MPI communicator.
     const mpi::communicator &comm_;
     /// The associated data attributes.
-    const data_attributes_type data_attributes_;
+    const data_attributes data_attributes_;
 
     /// The SYCL device buffer.
     device_buffer_type device_buffer_;
@@ -176,21 +167,21 @@ class data {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options>
-data<layout, Options>::data(const mpi::file_parser<real_type> &parser,
-                            const mpi::communicator &comm,
-                            const mpi::logger &logger) : comm_{ comm },
-                                                         data_attributes_{ parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims() },
-                                                         device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
-                                                         host_buffer_(parser.parse_content()) {
+template <memory_layout layout>
+data<layout>::data(const mpi::file_parser<real_type> &parser,
+                   const mpi::communicator &comm,
+                   const mpi::logger &logger) :
+    comm_{ comm },
+    data_attributes_{ parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims() },
+    device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
+    host_buffer_(parser.parse_content()) {
     const mpi::timer mpi_timer{ comm_ };
 
     // change memory layout from aos to soa if requested
     if constexpr (layout == memory_layout::soa) {
         host_buffer_type soa_host_buffer(data_attributes_.rank_size * data_attributes_.dims);
-        data_attributes<memory_layout::aos> parsed_data_attributes{ data_attributes_ };
 
-        const detail::get_linear_id<data<memory_layout::soa, options_type>> get_linear_id_soa{};
+        const detail::get_linear_id<data<memory_layout::soa>> get_linear_id_soa{};
 
         for (index_type point = 0; point < data_attributes_.rank_size; ++point) {
             for (index_type dim = 0; dim < data_attributes_.dims; ++dim) {
@@ -213,8 +204,8 @@ data<layout, Options>::data(const mpi::file_parser<real_type> &parser,
 // ---------------------------------------------------------------------------------------------------------- //
 //                                             update host buffer                                             //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename Options>
-void data<layout, Options>::send_receive_host_buffer() {
+template <memory_layout layout>
+void data<layout>::send_receive_host_buffer() {
     const int destination = (comm_.rank() + 1) % comm_.size();
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
@@ -227,19 +218,18 @@ void data<layout, Options>::send_receive_host_buffer() {
 /**
  * @brief Prints all attributes set in the @ref sycl_lsh::data_attributes associated with @p data to the output stream @p out.
  * @tparam layout the @ref sycl_lsh::memory_layout type
- * @tparam Options the used @ref sycl_lsh::options type
  * @param[in,out] out the output stream
  * @param data the @ref sycl_lsh::data object representing the used data set
  * @return the output stream
  */
-template <memory_layout layout, typename Options>
-std::ostream &operator<<(std::ostream &out, const data<layout, Options> &data) {
+template <memory_layout layout>
+std::ostream &operator<<(std::ostream &out, const data<layout> &data) {
     return out << data.get_attributes();
 }
 
 }  // namespace sycl_lsh
 
-template <sycl_lsh::memory_layout layout, typename Options>
-struct fmt::formatter<sycl_lsh::data<layout, Options>> : fmt::ostream_formatter {};
+template <sycl_lsh::memory_layout layout>
+struct fmt::formatter<sycl_lsh::data<layout>> : fmt::ostream_formatter { };
 
 #endif  // SYCL_LSH_DATA_HPP
