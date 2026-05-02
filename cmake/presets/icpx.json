@@ -1,6 +1,8 @@
 {
   "version": 6,
-  "include": ["common.json"],
+  "include": [
+    "common.json"
+  ],
   "configurePresets": [
     {
       "name": "icpx",
@@ -8,7 +10,7 @@
       "inherits": "build",
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "icpx",
-        "SYCL_LSH_SYCL_IMPLEMENTATION": "icpx"
+        "SYCL_LSH_IMPLEMENTATION": "icpx"
       }
     }
   ],

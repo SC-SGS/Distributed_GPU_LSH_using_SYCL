@@ -32,3 +32,17 @@
  *
  * @brief This directory contains all wrapper classes or functions around MPI functions.
  */
+
+/**
+ * @dir include/sycl_lsh/mpi/detail
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all helper wrapper classes or functions around MPI functions.
+ */
+
+/**
+ * @dir include/sycl_lsh/mpi/file_parser
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all MPI file parsing related classes and functions.
+ */

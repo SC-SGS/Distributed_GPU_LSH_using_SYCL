@@ -1,26 +1,25 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-today
  */
 
-#include <sycl_lsh/mpi/communicator.hpp>
+#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 
-#include <mpi.h>
+#include "mpi/mpi.h"  // MPI_Comm related functionality
 
-#include <memory>
-#include <stdexcept>
-#include <utility>
+#include <memory>   // std::addressof
+#include <utility>  // std::exchange
 
-
+namespace sycl_lsh::mpi {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                        constructors and destructor                                         //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::mpi::communicator::communicator() : is_freeable_(true) {
+communicator::communicator() : is_freeable_{ true } {
     MPI_Comm_dup(MPI_COMM_WORLD, &comm_);
 }
 
-sycl_lsh::mpi::communicator::communicator(const sycl_lsh::mpi::communicator& other) {
+communicator::communicator(const communicator &other) {
     if (other.comm_ == MPI_COMM_NULL) {
         // copy a communicator which refers to MPI_COMM_NULL
         comm_ = MPI_COMM_NULL;
@@ -32,28 +31,23 @@ sycl_lsh::mpi::communicator::communicator(const sycl_lsh::mpi::communicator& oth
     }
 }
 
-sycl_lsh::mpi::communicator::communicator(sycl_lsh::mpi::communicator&& other) noexcept
-    : comm_(std::move(other.comm_)), is_freeable_(std::move(other.is_freeable_))
-{
-    // set other to the moved-from state
-    other.comm_ = MPI_COMM_NULL;
-    other.is_freeable_ = false;
-}
+communicator::communicator(communicator &&other) noexcept
+    : comm_{ std::exchange(other.comm_, MPI_COMM_NULL) },
+      is_freeable_{ std::exchange(other.is_freeable_, false) } {}
 
-sycl_lsh::mpi::communicator::communicator(MPI_Comm comm, const bool is_freeable) noexcept : comm_(comm), is_freeable_(is_freeable) { }
+communicator::communicator(MPI_Comm comm, const bool is_freeable) noexcept : comm_{ comm }, is_freeable_{ is_freeable } {}
 
-sycl_lsh::mpi::communicator::~communicator() {
+communicator::~communicator() {
     // destroy communicator if marked as freeable
-    if (is_freeable_) {
+    if (is_freeable_ && comm_ != MPI_COMM_NULL) {
         MPI_Comm_free(&comm_);
     }
 }
 
-
 // ---------------------------------------------------------------------------------------------------------- //
 //                                            assignment operators                                            //
 // ---------------------------------------------------------------------------------------------------------- //
-sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(const sycl_lsh::mpi::communicator& rhs) {
+communicator &communicator::operator=(const communicator &rhs) {
     // check against self-assignment
     if (this != std::addressof(rhs)) {
         // delete current communicator if and only if it is marked as freeable
@@ -75,48 +69,38 @@ sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(const sycl_l
     return *this;
 }
 
-sycl_lsh::mpi::communicator& sycl_lsh::mpi::communicator::operator=(sycl_lsh::mpi::communicator&& rhs) noexcept {
-    // delete current communicator if and only if it is marked as freeable
-    if (is_freeable_) {
-        MPI_Comm_free(&comm_);
+communicator &communicator::operator=(communicator &&rhs) noexcept {
+    // check against self-assignment
+    if (this != std::addressof(rhs)) {
+        // delete current communicator if and only if it is marked as freeable
+        if (is_freeable_) {
+            MPI_Comm_free(&comm_);
+        }
+        // transfer ownership
+        comm_ = std::exchange(rhs.comm_, MPI_COMM_NULL);
+        is_freeable_ = std::exchange(rhs.is_freeable_, false);
     }
-    // transfer ownership
-    comm_ = std::move(rhs.comm_);
-    is_freeable_ = std::move(rhs.is_freeable_);
-    // set rhs to the moved-from state
-    rhs.comm_ = MPI_COMM_NULL;
-    rhs.is_freeable_ = false;
     return *this;
 }
-
 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                         MPI communicator functions                                         //
 // ---------------------------------------------------------------------------------------------------------- //
-int sycl_lsh::mpi::communicator::rank() const {
+int communicator::rank() const {
     int comm_rank;
     MPI_Comm_rank(comm_, &comm_rank);
     return comm_rank;
 }
-int sycl_lsh::mpi::communicator::size() const {
+int communicator::size() const {
     int comm_size;
     MPI_Comm_size(comm_, &comm_size);
     return comm_size;
 }
-bool sycl_lsh::mpi::communicator::master_rank() const {
-    return this->rank() == 0;
+bool communicator::is_main_rank() const {
+    return this->rank() == main_rank();
 }
-void sycl_lsh::mpi::communicator::wait() const {
+void communicator::barrier() const {
     MPI_Barrier(comm_);
 }
 
-
-// ---------------------------------------------------------------------------------------------------------- //
-//                                            errhandler functions                                            //
-// ---------------------------------------------------------------------------------------------------------- //
-void sycl_lsh::mpi::communicator::attach_errhandler(const sycl_lsh::mpi::errhandler& handler) {
-    if (handler.handler_type() != sycl_lsh::mpi::errhandler::type::comm) {
-        throw std::logic_error("Illegal errhandler type!");
-    }
-    MPI_Comm_set_errhandler(comm_, handler.get());
-}
+}  // namespace sycl_lsh::mpi

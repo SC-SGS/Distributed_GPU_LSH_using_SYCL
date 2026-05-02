@@ -1,0 +1,87 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-today
+ *
+ * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
+ */
+
+#ifndef SYCL_LSH_EXCEPTIONS_SOURCE_LOCATION_HPP
+#define SYCL_LSH_EXCEPTIONS_SOURCE_LOCATION_HPP
+#pragma once
+
+#include <cstdint>      // std::uint_least32_t
+#include <optional>     // std::optional, std::nullopt, std::make_optional
+#include <string_view>  // std::string_view
+
+namespace sycl_lsh {
+
+/**
+ * @brief The sycl_lsh::source_location class represents certain information about the source code, such as file names, line numbers, or function names.
+ * @details Based on [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location).
+ */
+class source_location {
+  public:
+    /**
+     * @brief Construct new source location information about the current call side.
+     * @param[in] file_name the file name including its absolute path, as given by `__builtin_FILE()`
+     * @param[in] function_name the function name (without return type and parameters), as given by `__builtin_FUNCTION()`
+     * @param[in] line the line number, as given by `__builtin_LINE()`
+     * @param[in] column the column number, always `0`
+     * @return the source location object holding the information about the current call side (`[[nodiscard]]`)
+     */
+    [[nodiscard]] static source_location current(
+        const char *file_name = __builtin_FILE(),
+        const char *function_name = __builtin_FUNCTION(),
+        int line = __builtin_LINE(),
+        int column = 0) noexcept;
+
+    /**
+     * @brief Returns the absolute path name of the file or `"unknown"` if no information could be retrieved.
+     * @return the file name (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::string_view function_name() const noexcept { return function_name_; }
+
+    /**
+     * @brief Returns the function name without additional signature information (i.e. return type and parameters)
+     *        or `"unknown"` if no information could be retrieved.
+     * @return the function name (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::string_view file_name() const noexcept { return file_name_; }
+
+    /**
+     * @brief Returns the line number or `0` if no information could be retrieved.
+     * @return the line number (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::uint_least32_t line() const noexcept { return line_; }
+
+    /**
+     * @brief Returns the column number.
+     * @attention Always `0`!
+     * @return `0` (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::uint_least32_t column() const noexcept { return column_; }
+
+    /**
+     * @brief Returns the current MPI rank.
+     * @attention Only available in an active MPI environment.
+     * @return the current MPI rank, or `std::nullopt` if not available (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::optional<int> world_rank() const noexcept { return world_rank_; }
+
+  private:
+    /// The line number as retrieved by `__builtin_LINE()`.
+    std::uint_least32_t line_{ 0 };
+    /// The column number (always `0`).
+    std::uint_least32_t column_{ 0 };
+    /// The file name as retrieved by `__builtin_FILE()`.
+    const char *file_name_{ "unknown" };
+    /// The function name as retrieved by `__builtin_FUNCTION()`.
+    const char *function_name_{ "unknown" };
+    /// The current MPI rank **with respect to** MPI_COMM_WORLD, if an MPI environment is active!
+    std::optional<int> world_rank_{ std::nullopt };
+};
+
+}  // namespace sycl_lsh
+
+#endif  // SYCL_LSH_EXCEPTIONS_SOURCE_LOCATION_HPP

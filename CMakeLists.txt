@@ -25,20 +25,23 @@ endif ()
 ########################################################################################################################
 # set all library source files
 set(SYCL_LSH_LIBRARY_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/argv_parser.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/sycl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/device_selector.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/communicator_exception.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/file_exception.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/not_implemented_exception.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/window_exception.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/source_location.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/hash_function_types.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/utility.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file_parser_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/errhandler.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/environment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/logger.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/memory_layout.cpp
 )
 
 # create library
@@ -74,6 +77,21 @@ target_compile_options(
         -Wimplicit-fallthrough=5>
         $<$<COMPILE_LANG_AND_ID:CXX,Clang,IntelLLVM>:-Wmost>>
         -Wno-double-promotion
+)
+
+target_compile_options(
+        ${SYCL_LSH_LIBRARY_NAME}
+        PUBLIC $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,IntelLLVM>:-Werror=switch
+        -fstrict-enums>
+        $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/we4062
+        /wd4005
+        /wd4702
+        /wd4849
+        /wd4127
+        /wd4250 # disable multiple-inheritance dominance warning
+        /wd4589> # disable constructor inheritance warning
+        # /wd4849: ignore "OpenMP 'reduction' clause ignored in 'simd' directive" -> no SIMD clause currently effective in MSVC /wd4127: ignore "conditional
+        # expression is constant" from {fmt} ranges.h header
 )
 
 # compile with more optimizations
@@ -124,6 +142,7 @@ endif ()
 if (SYCL_LSH_TARGET_ARCH STREQUAL "spir64_x86_64")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_CPU)
 endif ()
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET_ARCH="${SYCL_LSH_TARGET_ARCH}")
 
 list(POP_BACK CMAKE_MESSAGE_INDENT)
 
@@ -271,11 +290,18 @@ else ()
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL_LSH_TIMER_IDX})
 endif ()
 
-# add special debug mode
-option(SYCL_LSH_ENABLE_DEBUG "Enable debug mode using assertion macros." OFF)
-if (SYCL_LSH_ENABLE_DEBUG)
-    message(STATUS "Enabled sycl-lsh debug mode.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC -DSYCL_LSH_DEBUG) # TODO: per default in debug mode? -> what does it do?
+# add custom assertions
+option(SYCL_LSH_ENABLE_ASSERTS "Enable assertion macros." OFF)
+if (SYCL_LSH_ENABLE_ASSERTS)
+    message(STATUS "Enabled additional sycl-lsh sanity checks using assertions.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_ASSERTS_ENABLED)
+endif ()
+
+# do not seed random number generators
+option(SYCL_LSH_RANDOM_NUMBERS_DEBUG "If enabled, random number generators are not seeded resulting in predictability." OFF)
+if (SYCL_LSH_RANDOM_NUMBERS_DEBUG)
+    message(STATUS "Random numbers are not seeded enabling easier debugability.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_RANDOM_NUMBERS_DEBUG)
 endif ()
 
 # enable benchmarking using an output file # TODO: combine with hardware sampling?
@@ -292,7 +318,7 @@ endif ()
 ########################################################################################################################
 #                                               enable hardware sampling                                               #
 ########################################################################################################################
-list(APPEND CMAKE_MESSAGE_INDENT "hws:  ")
+list(APPEND CMAKE_MESSAGE_INDENT "hws:  ") #  TODO: implement on the C++ side!
 
 # option for the used sampling interval
 set(SYCL_LSH_HARDWARE_SAMPLING_INTERVAL "100" CACHE STRING "The interval in milliseconds in which the hardware information (like clock frequency or power draw) are queried.")

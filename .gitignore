@@ -185,3 +185,4 @@ data_sets/*
 ### Evaluation ###
 evaluation/*
 !evaluation/distribution.py
+!evaluation/calculate_exact_nearest_neighbors.py

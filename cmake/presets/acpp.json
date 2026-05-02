@@ -1,13 +1,15 @@
 {
   "version": 6,
-  "include": ["common.json"],
+  "include": [
+    "common.json"
+  ],
   "configurePresets": [
     {
       "name": "acpp",
       "displayName": "AdaptiveCpp SYCL backend",
       "inherits": "build",
       "cacheVariables": {
-        "N_BODY_SYCL_IMPLEMENTATION": "acpp"
+        "SYCL_LSH_IMPLEMENTATION": "acpp"
       }
     }
   ],

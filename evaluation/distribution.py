@@ -10,12 +10,10 @@ import math
 import statistics
 import tabulate
 
-
 # setup command line arguments parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_file", help="the distribution file to plot", type=str, required=True)
 args = parser.parse_args()
-
 
 data = np.loadtxt(args.input_file, delimiter=",")
 print("shape: ", data.shape)

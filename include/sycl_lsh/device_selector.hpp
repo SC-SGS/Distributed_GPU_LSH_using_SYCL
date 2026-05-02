@@ -1,75 +1,25 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-11-11
+ * @date 2020-today
  *
- * @brief Implements a device selector that every MPI rank allocates only **one** device based on the `SYCL_LSH_TARGET` specified during
- *        [CMake](https://cmake.org/)'s configuration step (e.g. NVIDIA GPU).
+ * @brief Implements a device selector based on the `SYCL_LSH_TARGET` specified during [CMake](https://cmake.org/)'s configuration step.
  */
 
-#ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DEVICE_SELECTOR_HPP
-#define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DEVICE_SELECTOR_HPP
+#ifndef SYCL_LSH_DEVICE_SELECTOR_HPP
+#define SYCL_LSH_DEVICE_SELECTOR_HPP
+#pragma once
 
-#include <sycl_lsh/detail/sycl.hpp>
-#include <sycl_lsh/mpi/communicator.hpp>
-
-#include <string>
-
+#include "sycl/sycl.hpp"  // sycl::cpu_selector_v, sycl::cpu_selector_v
 
 namespace sycl_lsh {
 
-    namespace detail {
+#if defined(SYCL_LSH_USE_CPU)
+constexpr auto device_selector = sycl::cpu_selector_v;
+#else
+constexpr auto device_selector = sycl::gpu_selector_v;
+#endif
 
-        /**
-         * @brief Select exactly one NVIDIA GPU device per MPI rank.
-         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-         * @param[in] env_var_name the name of the environmental variable used to control the GPU selection
-         *
-         * @note Only supports NVIDIA GPUs!
-         */
-        void setup_devices(const sycl_lsh::mpi::communicator& comm, const std::string& env_var_name);
+}  // namespace sycl_lsh
 
-        /**
-         * @brief Compares the two devices @p lhs and @p rhs on equality.
-         * @param[in] lhs a SYCL device
-         * @param[in] rhs a SYCL device
-         * @return `true` if the devices compare equal, `false` otherwise (`[[nodiscard]]`)
-         */
-        [[nodiscard]]
-        bool compare_devices(const sycl_lsh::sycl::device& lhs, const sycl_lsh::sycl::device& rhs);
-
-    }
-
-    /**
-     * @brief SYCL device selector class to only select **one** device per MPI rank.
-     */
-    class device_selector final : public sycl::device_selector {
-    public:
-        // ---------------------------------------------------------------------------------------------------------- //
-        //                                                constructor                                                 //
-        // ---------------------------------------------------------------------------------------------------------- //
-        /**
-         * @brief Construct a new @ref sycl_lsh::device_selector.
-         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-         */
-        device_selector(const mpi::communicator& comm);
-
-
-        // ---------------------------------------------------------------------------------------------------------- //
-        //                                              device selecting                                              //
-        // ---------------------------------------------------------------------------------------------------------- //
-        /**
-         * @brief Selects the device equal to the current MIP rank.
-         * @details The device type can be specified during [CMake](https://cmake.org/)'s configuration step.
-         * @param[in] device the current `sycl::device`
-         * @return the device score
-         */
-        int operator()([[maybe_unused]] const sycl::device& device) const override;
-
-    private:
-        const mpi::communicator& comm_;
-    };
-
-}
-
-#endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_DEVICE_SELECTOR_HPP
+#endif  // SYCL_LSH_DEVICE_SELECTOR_HPP

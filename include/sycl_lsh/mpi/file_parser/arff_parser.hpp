@@ -1,134 +1,122 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-today
  *
  * @brief File parser for parsing `.arff` data files.
  */
 
-#ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARFF_PARSER_HPP
-#define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARFF_PARSER_HPP
+#ifndef SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
+#define SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
+#pragma once
 
-#include <sycl_lsh/exceptions/not_implemented_exception.hpp>
-#include <sycl_lsh/mpi/communicator.hpp>
-#include <sycl_lsh/mpi/file.hpp>
-#include <sycl_lsh/mpi/file_parser/base_parser.hpp>
-#include <sycl_lsh/mpi/logger.hpp>
+#include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
+#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lsh::not_implemented_exception
+#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/file_parser/base_parser.hpp"  // sycl_lsh::mpi::file_parser
+#include "sycl_lsh/mpi/file_parser/file.hpp"         // sycl_lsh::mpi::file::mode
+#include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
 
-#include <stdexcept>
-#include <string_view>
-#include <vector>
+#include <string>  // std::string
+#include <vector>  // std::vector
 
 namespace sycl_lsh::mpi {
 
-    /**
-     * @brief File parser class for the **arff** data format.
-     * @details Not yet implemented.
-     * @tparam Options  type of the used @ref sycl_lsh::options class
-     * @tparam T the type of the data to parse
-     */
-    template <typename Options, typename T>
-    class arff_parser final : public file_parser<Options, T> {
-        using base_type = file_parser<Options, T>;
-    public:
-        /// The index type as specified in the provided @ref sycl_lsh::options template type.
-        using index_type = typename base_type::index_type;
-        /// The type of the data which should get parsed.
-        using parsing_type = typename base_type::parsing_type;
+/**
+ * @brief File parser class for the **arff** data format.
+ * @details Not yet implemented.
+ * @tparam T the type of the data to parse
+ */
+template <typename T>
+class arff_parser final : public file_parser<T> {
+    using base_type = file_parser<T>;
 
-
-        // ---------------------------------------------------------------------------------------------------------- //
-        //                                                constructor                                                 //
-        // ---------------------------------------------------------------------------------------------------------- //
-        /**
-         * @brief Construct a new @ref sycl_lsh::mpi::arff_parser object responsible for parsing
-         *        [`.arff´](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
-         * @param[in] file_name the file to parse
-         * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
-         * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-         * @param[in] logger the used @ref sycl_lsh::mpi::logger
-         *
-         * @throws std::logic_error since `.arff` files aren't currently supported.
-         */
-        arff_parser(std::string_view file_name, file::mode mode, const communicator& comm, const logger& logger);
-
-        
-        // ---------------------------------------------------------------------------------------------------------- //
-        //                                                  parsing                                                   //
-        // ---------------------------------------------------------------------------------------------------------- //
-        /**
-         * @brief Parse the **total** number of data points in the file.
-         * @return the total number of data points (`[[nodiscard]]`)
-         *
-         * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
-         */
-        [[nodiscard]]
-        index_type parse_total_size() const override;
-        /**
-         * @brief Parse the number of dimensions of each data point in the file.
-         * @return the number of dimensions (`[[nodiscard]]`)
-         *
-         * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
-         */
-        [[nodiscard]]
-        index_type parse_dims() const override;
-        /**
-         * @brief Parse the content of the file.
-         * @return the parsed data (`[[nodiscard]]`)
-         *
-         * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
-         */
-        [[nodiscard]] 
-        std::vector<parsing_type> parse_content() const override;
-        /**
-         * @brief Write the content in @p buffer to the file.
-         * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
-         * @param[in] dims the number of dimensions of each value
-         * @param[in] buffer the data to write to the file
-         *
-         * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
-         */
-        void write_content(index_type total_size, index_type dims, const std::vector<parsing_type>& buffer) const override;
-
-    };
-
+  public:
+    /// The type of the data which should get parsed.
+    using parsing_type = typename base_type::parsing_type;
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
-    template <typename Options, typename T>
-    arff_parser<Options, T>::arff_parser(const std::string_view file_name, const file::mode mode, const communicator& comm, const logger& logger)
-            : file_parser<Options, T>(file_name, mode, comm, logger)
-    {
-        throw std::logic_error("Parsing an '.arff' file is currently no supported! Maybe run data_sets/convert_arff_to_binary.py first?");
-    }
-
+    /**
+     * @brief Construct a new @ref sycl_lsh::mpi::arff_parser object responsible for parsing
+     *        [`.arff´](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
+     * @param[in] file_name the file to parse
+     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] logger the used @ref sycl_lsh::mpi::logger
+     *
+     * @throws sycl_lsh::exception since `.arff` files aren't currently supported.
+     */
+    arff_parser(const std::string &file_name, file::mode mode, const communicator &comm, const logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                  parsing                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
-    template <typename Options, typename T>
-    [[nodiscard]]
-    typename arff_parser<Options, T>::index_type arff_parser<Options, T>::parse_total_size() const {
-        throw sycl_lsh::not_implemented();
-    }
+    /**
+     * @brief Parse the **total** number of data points in the file.
+     * @return the total number of data points (`[[nodiscard]]`)
+     *
+     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     */
+    [[nodiscard]] index_type parse_total_size() const override;
+    /**
+     * @brief Parse the number of dimensions of each data point in the file.
+     * @return the number of dimensions (`[[nodiscard]]`)
+     *
+     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     */
+    [[nodiscard]] index_type parse_dims() const override;
+    /**
+     * @brief Parse the content of the file.
+     * @return the parsed data (`[[nodiscard]]`)
+     *
+     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     */
+    [[nodiscard]] std::vector<parsing_type> parse_content() const override;
+    /**
+     * @brief Write the content in @p buffer to the file.
+     * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
+     * @param[in] dims the number of dimensions of each value
+     * @param[in] buffer the data to write to the file
+     *
+     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     */
+    void write_content(index_type total_size, index_type dims, const std::vector<parsing_type> &buffer) const override;
+};
 
-    template <typename Options, typename T>
-    [[nodiscard]]
-    typename arff_parser<Options, T>::index_type arff_parser<Options, T>::parse_dims() const {
-        throw sycl_lsh::not_implemented();
-    }
-
-    template <typename Options, typename T>
-    std::vector<typename arff_parser<Options, T>::parsing_type> arff_parser<Options, T>::parse_content() const {
-        throw sycl_lsh::not_implemented();
-    }
-
-    template <typename Options, typename T>
-    void arff_parser<Options, T>::write_content(const index_type, const index_type, const std::vector<parsing_type>&) const {
-        throw sycl_lsh::not_implemented();
-    }
-
+// ---------------------------------------------------------------------------------------------------------- //
+//                                                constructor                                                 //
+// ---------------------------------------------------------------------------------------------------------- //
+template <typename T>
+arff_parser<T>::arff_parser(const std::string &file_name, const file::mode mode, const communicator &comm, const logger &logger) :
+    file_parser<T>{ file_name, mode, comm, logger } {
+    throw not_implemented_exception{ "Parsing an '.arff' file is currently no supported! Maybe run data_sets/convert_arff_to_binary.py first?" };
 }
 
-#endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ARFF_PARSER_HPP
+// ---------------------------------------------------------------------------------------------------------- //
+//                                                  parsing                                                   //
+// ---------------------------------------------------------------------------------------------------------- //
+template <typename T>
+index_type arff_parser<T>::parse_total_size() const {
+    throw not_implemented_exception{};
+}
+
+template <typename T>
+index_type arff_parser<T>::parse_dims() const {
+    throw not_implemented_exception{};
+}
+
+template <typename T>
+auto arff_parser<T>::parse_content() const -> std::vector<parsing_type> {
+    throw not_implemented_exception{};
+}
+
+template <typename T>
+void arff_parser<T>::write_content(const index_type, const index_type, const std::vector<parsing_type> &) const {
+    throw not_implemented_exception{};
+}
+
+}  // namespace sycl_lsh::mpi
+
+#endif  // SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
