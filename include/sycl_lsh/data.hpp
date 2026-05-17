@@ -96,13 +96,10 @@ template <memory_layout layout>
 template <memory_layout layout>
 class data {
   public:
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the device buffer used by SYCL.
-    using device_buffer_type = sycl::buffer<real_type, 1>;
-    /// The type of the host buffer used to hide the MPI communications.
-    using host_buffer_type = std::vector<real_type>;
+    /**
+     * @brief Free the allocated SYCL device memory.
+     */
+    ~data();
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                             update host buffer                                             //
@@ -131,13 +128,13 @@ class data {
      * @brief Returns the device buffer used in the SYCL kernels.
      * @return the device buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
+    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
 
     /**
      * @brief Returns the host buffer used to hide the MPI communication.
      * @return the host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] host_buffer_type &get_host_buffer() noexcept { return host_buffer_; }
+    [[nodiscard]] std::vector<real_type> &get_host_buffer() noexcept { return host_buffer_; }
 
   private:
     // befriend the factory function
@@ -164,9 +161,9 @@ class data {
     const data_attributes data_attributes_;
 
     /// The SYCL device buffer.
-    device_buffer_type device_buffer_;
+    real_type *device_buffer_{ nullptr };
     /// The SYCL host buffer
-    host_buffer_type host_buffer_;
+    std::vector<real_type> host_buffer_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -180,13 +177,12 @@ data<layout>::data(const mpi::file_parser<real_type> &parser,
     queue_{ queue },
     comm_{ comm },
     data_attributes_{ parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims() },
-    device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
     host_buffer_(parser.parse_content()) {
     const mpi::timer mpi_timer{ comm_ };
 
     // change memory layout from aos to soa if requested
     if constexpr (layout == memory_layout::soa) {
-        host_buffer_type soa_host_buffer(data_attributes_.rank_size * data_attributes_.dims);
+        std::vector<real_type> soa_host_buffer(data_attributes_.rank_size * data_attributes_.dims);
 
         const detail::get_linear_id<data<memory_layout::soa>> get_linear_id_soa{};
 
@@ -199,13 +195,17 @@ data<layout>::data(const mpi::file_parser<real_type> &parser,
         host_buffer_ = std::move(soa_host_buffer);
     }
 
-    // copy data to device buffer
-    auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
-    for (index_type i = 0; i < acc.size(); ++i) {
-        acc[i] = host_buffer_[i];
-    }
+    // allocate memory on the device and copy the data over
+    device_buffer_ = sycl::malloc_device<real_type>(host_buffer_.size(), queue_);
+    queue_.memcpy(device_buffer_, host_buffer_.data(), host_buffer_.size() * sizeof(real_type));
+    queue_.wait_and_throw();
 
     logger.log("Created data object in {}.\n", mpi_timer.elapsed());
+}
+
+template <memory_layout layout>
+data<layout>::~data() {
+    sycl::free(device_buffer_, queue_);
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -216,7 +216,7 @@ void data<layout>::send_receive_host_buffer() {
     const int destination = (comm_.rank() + 1) % comm_.size();
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(host_buffer_.data(), host_buffer_.size(), mpi::detail::mpi_datatype<typename host_buffer_type::value_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(host_buffer_.data(), host_buffer_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

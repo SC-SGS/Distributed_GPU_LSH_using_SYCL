@@ -81,11 +81,10 @@ struct lsh_hash<random_projections<layout>> {
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using random projections.
-     * @tparam AccData the type of the data set `sycl::accessor`
      * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
-     * @param[in] acc_data the data set `sycl::accessor`
+     * @param[in] data_d the data set
      * @param[in] acc_hash_functions the hash functions `sycl::accessor`
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] attr the used @ref sycl_lsh::data_attributes
@@ -94,8 +93,8 @@ struct lsh_hash<random_projections<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    template <typename AccData, typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
+    template <typename AccHashFunctions>
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
@@ -108,7 +107,7 @@ struct lsh_hash<random_projections<layout>> {
             // calculate hash for current hash function
             real_type hash = acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += acc_data[get_linear_id_data(point, dim, attr)]
+                hash += data_d[get_linear_id_data(point, dim, attr)]
                         * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // combine hashes

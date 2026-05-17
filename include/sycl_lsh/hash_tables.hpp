@@ -98,10 +98,6 @@ class hash_tables {
     // ---------------------------------------------------------------------------------------------------------- //
     /// The type of the @ref sycl_lsh::data object.
     using data_type = data<layout>;
-    /// The type of the device buffer used in the @ref sycl_lsh::data object.
-    using data_device_buffer_type = typename data_type::device_buffer_type;
-    /// The type of the host buffer used in the @ref sycl_lsh::data object.
-    using data_host_buffer_type = typename data_type::host_buffer_type;
 
     /// The type of the @ref sycl_lsh::knn object as the result of the k-nearest-neighbor search.
     using knn_type = knn<layout>;
@@ -177,7 +173,7 @@ class hash_tables {
      * @param[in] data_buffer the data to perform the nearest-neighbors search on
      * @param[in,out] knns the (already partially) calculated nearest-neighbors
      */
-    void calculate_knn_round(index_type k, data_device_buffer_type &data_buffer, knn_type &knns) const;
+    void calculate_knn_round(index_type k, const real_type *data_buffer, knn_type &knns) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in,out] hash_values_count the number of data points per hash bucket
@@ -234,29 +230,24 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 
     knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
 
+    real_type *data_d = sycl::malloc_device<real_type>(data_.get_host_buffer().size(), queue_);
+
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
 
         logger_.log("Round {} of {} ... ", round + 1, comm_.size());
 
-        const auto copy_received_data = [&]() {
-            data_host_buffer_type data_host_buffer = data_.get_host_buffer();
-            data_device_buffer_type buf(data_host_buffer.size());
-
-            // copy data to device buffer
-            auto acc = buf.template get_access<sycl::access::mode::discard_write>();
-            for (index_type i = 0; i < data_host_buffer.size(); ++i) {
-                acc[i] = data_host_buffer[i];
-            }
-            return buf;
-        };
-        data_device_buffer_type data_device_buffer = round == 0 ? data_.get_device_buffer() : copy_received_data();
-
         // create thread to asynchronously perform MPI communication
         std::thread mpi_thread{ &data_type::send_receive_host_buffer, &data_ };
 
         // calculate k-nearest-neighbors on current MPI rank
-        calculate_knn_round(k, data_device_buffer, knns);
+        if (round == 0) {
+            calculate_knn_round(k, data_.get_device_buffer(), knns);
+        } else {
+            queue_.memcpy(data_d, data_.get_host_buffer().data(), data_.get_host_buffer().size() * sizeof(real_type));
+            queue_.wait_and_throw();
+            calculate_knn_round(k, data_d, knns);
+        }
 
         // send calculated k-nearest-neighbors and distances to next rank
         knns.send_receive_host_buffer();
@@ -267,13 +258,15 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
         logger_.log("finished in {}.\n", mpi_round_timer.elapsed());
     }
 
+    sycl::free(data_d, queue_);
+
     logger_.log("Calculated {}-nearest-neighbors in {}.\n\n", k, mpi_timer.elapsed());
 
     return knns;
 }
 
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, data_device_buffer_type &data_buffer, knn_type &knns) const {
+void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const real_type *data_buffer, knn_type &knns) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -291,8 +284,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     queue_.submit([&](sycl::handler &cgh) {
         // get accessors
-        auto acc_data_owned = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
-        auto acc_data_received = data_buffer.template get_access<sycl::access::mode::read>(cgh);
+        const real_type *data_owned = data_.get_device_buffer();
+        const real_type *data_received = data_buffer;
         auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
         auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::read>(cgh);
         auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::read>(cgh);
@@ -337,7 +330,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
             // perform nearest-neighbor search for all hash tables
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
                 // calculate hash value (= hash bucket) for current point
-                const hash_value_type hash_bucket = hasher(hash_table, global_idx, acc_data_received, acc_hash_functions, options, attr);
+                const hash_value_type hash_bucket = hasher(hash_table, global_idx, data_received, acc_hash_functions, options, attr);
 
                 // calculate hash bucket offsets
                 const index_type bucket_begin = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket];
@@ -354,8 +347,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
                     // calculate distances
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
                         for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            const real_type x = acc_data_received[get_linear_id_data(global_idx, dim, attr)];
-                            const real_type y = acc_data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
+                            const real_type x = data_received[get_linear_id_data(global_idx, dim, attr)];
+                            const real_type y = data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
                             knn_dist_blocked[block] += (x - y) * (x - y);
                         }
                     }
@@ -454,7 +447,7 @@ void hash_tables<layout, HashFunction>::count_hash_values(device_buffer_type &ha
         // get accessors
         auto acc_hash_values_count = hash_values_count.template get_access<sycl::access::mode::atomic>(cgh);
         auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
-        auto acc_data = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+        const real_type *data = data_.get_device_buffer();
         // get additional information
         auto options = options_.device_accessible;
         auto attr = attr_;
@@ -465,14 +458,14 @@ void hash_tables<layout, HashFunction>::count_hash_values(device_buffer_type &ha
             const index_type idx = item.get_linear_id();
 
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
-                const hash_value_type hash_value = hasher(hash_table, idx, acc_data, acc_hash_functions, options, attr);
+                const hash_value_type hash_value = hasher(hash_table, idx, data, acc_hash_functions, options, attr);
                 acc_hash_values_count[hash_table * options.hash_table_size + hash_value].fetch_add(1);
             }
         });
     });
-#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
     queue_.wait_and_throw();
-#endif
+    // #endif
 
     logger_.log("Counted hash values in {}.\n", mpi_timer.elapsed());
 }
@@ -505,9 +498,9 @@ void hash_tables<layout, HashFunction>::calculate_offsets(device_buffer_type &ha
             }
         });
     });
-#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
     queue_.wait_and_throw();
-#endif
+    // #endif
 
     logger_.log("Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
@@ -518,7 +511,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
 
     queue_.submit([&](sycl::handler &cgh) {
         // get accessors
-        auto acc_data = data_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+        const real_type *data = data_.get_device_buffer();
         auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
         auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::atomic>(cgh);
         auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::write>(cgh);
@@ -545,7 +538,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
 
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
                 // get hash value
-                const hash_value_type hash_value = hasher(hash_table, idx, acc_data, acc_hash_functions, options, attr);
+                const hash_value_type hash_value = hasher(hash_table, idx, data, acc_hash_functions, options, attr);
                 // update offsets
                 const index_type hash_table_idx = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1].fetch_add(1);
                 acc_hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
@@ -559,9 +552,9 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
             }
         });
     });
-#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
     queue_.wait_and_throw();
-#endif
+    // #endif
 
     logger_.log("Filled hash tables in {}.\n", mpi_timer.elapsed());
 }

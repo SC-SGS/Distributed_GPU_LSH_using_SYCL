@@ -87,11 +87,10 @@ struct lsh_hash<entropy_based<layout>> {
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using entropy based hash functions.
-     * @tparam AccData the type of the data set `sycl::accessor`
      * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
-     * @param[in] acc_data the data set `sycl::accessor`
+     * @param[in] data_d the data set
      * @param[in] acc_hash_functions the hash functions `sycl::accessor`
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] attr the used @ref sycl_lsh::data_attributes
@@ -100,8 +99,8 @@ struct lsh_hash<entropy_based<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    template <typename AccData, typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, AccData &acc_data, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO:
+    template <typename AccHashFunctions>
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type* data_d, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO:
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
@@ -114,7 +113,7 @@ struct lsh_hash<entropy_based<layout>> {
             // calculate dot product for current hash function
             real_type hash = 0.0;
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += acc_data[get_linear_id_data(point, dim, attr)]
+                hash += data_d[get_linear_id_data(point, dim, attr)]
                         * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // calculate entropy hash for current hash function
@@ -237,7 +236,7 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
             {
                 sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
                 queue_.submit([&](sycl::handler &cgh) {
-                    auto acc_data = data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+                    const real_type* data_d = data.get_device_buffer();
                     auto acc_hash_functions = hash_functions_pool_buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
@@ -249,7 +248,7 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
 
                         real_type value = 0.0;
                         for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            value += acc_data[get_linear_id_data(idx, dim, attr)]
+                            value += data_d[get_linear_id_data(idx, dim, attr)]
                                      * acc_hash_functions[get_linear_id_hash_pool(hash_function, dim, options, attr)];
                         }
                         acc_hash_values[idx] = value;
