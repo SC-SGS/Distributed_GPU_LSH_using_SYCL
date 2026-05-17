@@ -11,6 +11,9 @@
 #include <variant>  // std::visit
 
 int custom_main(const int argc, char **argv) {
+    // create a SYCL queue
+    sycl::queue queue{ sycl_lsh::device_selector };
+
     // create MPI communicator
     const sycl_lsh::mpi::communicator comm{};
 
@@ -26,7 +29,7 @@ int custom_main(const int argc, char **argv) {
         logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
         // parse data and print data attributes
-        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(opt, comm, logger);
+        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(opt, queue, comm, logger);
         logger.log("\nUsed data set:\n{}\n", data);
 
         // generate LSH hash tables and calculate the nearest-neighbors
@@ -57,7 +60,7 @@ int custom_main(const int argc, char **argv) {
                 }
             }
         },
-                   sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, comm, logger));
+                   sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, queue, comm, logger));
 
         // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
         opt.save_benchmark_options(comm);

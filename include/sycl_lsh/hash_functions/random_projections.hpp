@@ -23,8 +23,9 @@
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "mpi.h"      // MPI_Bcast
 #include "sycl/sycl.hpp"  // sycl::buffer, sycl::accessor
+
+#include "mpi.h"  // MPI_Bcast
 
 #include <cmath>   // std::abs
 #include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
@@ -139,10 +140,11 @@ class random_projections {
      * @brief Construct a new @ref sycl_lsh::random_projections object representing the hash functions used in the LSH algorithm.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data
+     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    random_projections(const device_accessible_options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
+    random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -151,7 +153,7 @@ class random_projections {
      * @brief Returns the specified @ref sycl_lsh::memory_layout type.
      * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
      */
-    [[nodiscard]] static constexpr memory_layout get_memory_layout() noexcept { return layout; }
+    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
      * @brief Returns the device buffer used in the SYCL kernels.
@@ -160,6 +162,8 @@ class random_projections {
     [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
 
   private:
+    /// The associated SYCL queue representing the device to run on.
+    sycl::queue &queue_;
     /// The device buffer.
     device_buffer_type device_buffer_;
 };
@@ -168,7 +172,9 @@ class random_projections {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) : device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1)) {
+random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+    queue_{ queue },
+    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1)) {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes &attr = data.get_attributes();

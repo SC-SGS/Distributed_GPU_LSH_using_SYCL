@@ -53,13 +53,14 @@ using hash_table_types = std::variant<
  * @tparam HashFunction the used hash function
  * @param[in] opt the used @ref sycl_lsh::options
  * @param[in] data the used @ref sycl_lsh::data representing the used data set
+ * @param[in] queue the SYCL queue to run on
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
  */
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-[[nodiscard]] auto make_hash_tables(const options &opt, data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
-    return hash_tables<layout, HashFunction>(opt, data, comm, logger);
+[[nodiscard]] auto make_hash_tables(const options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
+    return hash_tables<layout, HashFunction>(opt, data, queue, comm, logger);
 }
 
 /**
@@ -67,19 +68,20 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
  * @tparam layout the used @ref sycl_lsh::memory_layout type
  * @param[in] opt the used @ref sycl_lsh::options
  * @param[in] data the used @ref sycl_lsh::data representing the used data set
+ * @param[in] queue the SYCL queue to run on
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
  */
 template <memory_layout layout>
-[[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     switch (opt.hash_function) {
         case hash_function_type::random_projections:
-            return make_hash_tables<layout, random_projections>(opt, data, comm, logger);
+            return make_hash_tables<layout, random_projections>(opt, data, queue, comm, logger);
         case hash_function_type::entropy_based:
-            return make_hash_tables<layout, entropy_based>(opt, data, comm, logger);
+            return make_hash_tables<layout, entropy_based>(opt, data, queue, comm, logger);
         case hash_function_type::mixed_hash_functions:
-            return make_hash_tables<layout, mixed_hash_functions>(opt, data, comm, logger);
+            return make_hash_tables<layout, mixed_hash_functions>(opt, data, queue, comm, logger);
     }
     // unreachable
 }
@@ -154,7 +156,7 @@ class hash_tables {
 
   private:
     // befriend factory function
-    friend auto make_hash_tables<layout, HashFunction>(const options &, data_type &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_hash_tables<layout, HashFunction>(const options &, data_type &, sycl::queue &, const mpi::communicator &, const mpi::logger &);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -163,10 +165,11 @@ class hash_tables {
      * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
+     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    hash_tables(const options &opt, data_type &data, const mpi::communicator &comm, const mpi::logger &logger);
+    hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     /**
      * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
@@ -190,6 +193,9 @@ class hash_tables {
      */
     void fill_hash_tables();
 
+    /// The associated SYCL queue representing the device to run on.
+    sycl::queue &queue_;
+
     /// The used options.
     const options &options_;
     /// The used data.
@@ -204,8 +210,6 @@ class hash_tables {
     /// The used has functions.
     mutable hash_function_type hash_functions_;
 
-    /// The SYCL queue to offload the calculations to.
-    mutable sycl::queue queue_;  // mutable since wait_and_throw is not const
     /// The SYCL device buffer for the hash functions.
     mutable device_buffer_type hash_tables_buffer_;
     /// The SYCL device buffer for the offsets.
@@ -403,14 +407,14 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &data, const mpi::communicator &comm, const mpi::logger &logger) :
+hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+    queue_{ queue },
     options_{ opt },
     data_{ data },
     attr_{ data.get_attributes() },
     comm_{ comm },
     logger_{ logger },
-    hash_functions_{ opt.device_accessible, data, comm, logger },
-    queue_{ device_selector },
+    hash_functions_{ opt.device_accessible, data, queue_, comm, logger },
     hash_tables_buffer_(opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE),
     offsets_buffer_(opt.device_accessible.num_hash_tables * (opt.device_accessible.hash_table_size + 1)) {
     // log used devices

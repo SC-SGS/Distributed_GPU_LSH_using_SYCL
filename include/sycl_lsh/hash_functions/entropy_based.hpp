@@ -151,10 +151,11 @@ class entropy_based {
      * @brief Construct a new @ref sycl_lsh::entropy_based object representing the hash functions used in the LSH algorithm.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data
+     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    entropy_based(const device_accessible_options &opt, data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
+    entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -172,6 +173,8 @@ class entropy_based {
     [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
 
   private:
+    /// The associated SYCL queue representing the device to run on.
+    sycl::queue &queue_;
     /// The device buffer.
     device_buffer_type device_buffer_;
 };
@@ -180,11 +183,12 @@ class entropy_based {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &input_data, const mpi::communicator &comm, const mpi::logger &logger) :
-    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (input_data.get_attributes().dims + opt.num_cut_off_points - 1)) {
+entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+    queue_{ queue },
+    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + opt.num_cut_off_points - 1)) {
     const mpi::timer mpi_timer{ comm };
 
-    const data_attributes attr = input_data.get_attributes();
+    const data_attributes attr = data.get_attributes();
 
     // create hash pool functions on MPI master rank and distribute to all other ranks
     std::vector<real_type> hash_functions_pool(opt.hash_pool_size * attr.dims);
@@ -226,20 +230,19 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
 
     // calculate cut-off points
     {
-        sycl::queue queue{ device_selector };
         sycl::buffer<real_type, 1> hash_functions_pool_buffer(hash_functions_pool.data(), hash_functions_pool.size());
 
         std::vector<real_type> hash_values(attr.rank_size);
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
             {
                 sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
-                queue.submit([&](sycl::handler &cgh) {
-                    auto acc_data = input_data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+                queue_.submit([&](sycl::handler &cgh) {
+                    auto acc_data = data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_functions = hash_functions_pool_buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
                     const device_accessible_options options = opt;
-                    detail::get_linear_id<data<layout>> get_linear_id_data{};
+                    detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
 
                     cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
                         const index_type idx = item.get_linear_id();

@@ -217,10 +217,11 @@ class mixed_hash_functions {
      * @brief Construct a new @ref sycl_lsh::mixed_hash_functions object representing the hash functions used in the LSH algorithm.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data
+     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
+    mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -238,6 +239,8 @@ class mixed_hash_functions {
     [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
 
   private:
+    /// The associated SYCL queue representing the device to run on.
+    sycl::queue &queue_;
     /// The device buffer.
     device_buffer_type device_buffer_;
 };
@@ -246,13 +249,14 @@ class mixed_hash_functions {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &input_data, const mpi::communicator &comm, const mpi::logger &logger) :
-    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (input_data.get_attributes().dims + 1) +  // random projections as hash functions
-                   opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1))             // entropy-based as hash combine
+mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+    queue_{ queue },
+    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
+                   opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1))       // entropy-based as hash combine
 {
     const mpi::timer mpi_timer{ comm };
 
-    const data_attributes attr = input_data.get_attributes();
+    const data_attributes attr = data.get_attributes();
 
     std::vector<real_type> host_buffer(device_buffer_.size());
     const detail::get_linear_id<mixed_hash_functions> get_linear_id_functor{};
@@ -336,21 +340,20 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
 
     // calculate cut-off points
     {
-        sycl::queue queue{ device_selector };
         sycl::buffer<real_type, 1> hash_functions_buffer(host_buffer.data(), host_buffer.size());
 
         std::vector<real_type> hash_values(attr.rank_size);
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             {
                 sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
-                queue.submit([&](sycl::handler &cgh) {
-                    auto acc_data = input_data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+                queue_.submit([&](sycl::handler &cgh) {
+                    auto acc_data = data.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_functions = hash_functions_buffer.template get_access<sycl::access::mode::read>(cgh);
                     auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
 
                     const device_accessible_options options = opt;
                     const data_attributes attributes = attr;
-                    const detail::get_linear_id<data<layout>> get_linear_id_data{};
+                    const detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
                     const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
 
                     cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {

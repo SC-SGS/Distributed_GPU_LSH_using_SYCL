@@ -78,14 +78,15 @@ struct get_linear_id<data<layout>> {
  * @details Used to be able to automatically deduce the @ref sycl_lsh::options type.
  * @tparam layout the used @ref sycl_lsh::memory_layout type
  * @param[in] opt the used @ref sycl_lsh::options
+ * @param[in] queue the SYCL queue to run on
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::data object representing the used data set (`[[nodiscard]]`)
  */
 template <memory_layout layout>
-[[nodiscard]] auto make_data(const options &opt, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] auto make_data(const options &opt, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     auto file_parser = mpi::make_file_parser<real_type>(opt.data_file, opt.file_parser, mpi::file::mode::read, comm, logger);
-    return data<layout>(*file_parser, comm, logger);
+    return data<layout>(*file_parser, queue, comm, logger);
 }
 
 /**
@@ -140,7 +141,7 @@ class data {
 
   private:
     // befriend the factory function
-    friend auto make_data<layout>(const options &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_data<layout>(const options &, sycl::queue &, const mpi::communicator &, const mpi::logger &);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -148,10 +149,14 @@ class data {
     /**
      * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file @p parser.
      * @param[in] parser the file parser used to parse the given data file
+     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    data(const mpi::file_parser<real_type> &parser, const mpi::communicator &comm, const mpi::logger &logger);
+    data(const mpi::file_parser<real_type> &parser, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+
+    /// The associated SYCL queue representing the device to run on.
+    sycl::queue &queue_;
 
     /// The associated MPI communicator.
     const mpi::communicator &comm_;
@@ -169,8 +174,10 @@ class data {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 data<layout>::data(const mpi::file_parser<real_type> &parser,
+                   sycl::queue &queue,
                    const mpi::communicator &comm,
                    const mpi::logger &logger) :
+    queue_{ queue },
     comm_{ comm },
     data_attributes_{ parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims() },
     device_buffer_(data_attributes_.rank_size * data_attributes_.dims),
