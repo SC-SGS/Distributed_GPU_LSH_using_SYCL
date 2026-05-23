@@ -22,7 +22,7 @@
 #include "sycl_lsh/options.hpp"               // sycl_lsh::options
 
 #include "fmt/format.h"  // fmt::format
-#include "mpi.h"     // MPI_Sendrecv_replace, MPI_STATUS_IGNORE
+#include "mpi.h"         // MPI_Sendrecv_replace, MPI_STATUS_IGNORE
 
 #include <algorithm>  // std::copy, std::transform, std::count, std::sort
 #include <cmath>      // std::sqrt
@@ -89,6 +89,7 @@ template <memory_layout layout>
 [[nodiscard]] auto make_knn(const index_type k, const options &, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
     return knn<layout>(k, data, comm, logger);
 }
+
 /**
  * @brief Factory function for the @ref sycl_lsh::knn class.
  * @brief Used to be able to automatically deduce the @ref sycl_lsh::options and @ref sycl_lsh::data types.
@@ -112,14 +113,6 @@ template <memory_layout layout>
 class knn {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-
-    /// The type of the host buffer representing the k-nearest-neighbor IDs used to hide the MPI communications.
-    using knn_host_buffer_type = std::vector<index_type>;
-    /// The type of the host buffer representing the k-nearest-neighbor distances used to hide the MPI communications.
-    using dist_host_buffer_type = std::vector<real_type>;
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                             update host buffer                                             //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
@@ -139,7 +132,7 @@ class knn {
      *
      * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
      */
-    [[nodiscard]] knn_host_buffer_type get_knn_ids(index_type point) const;
+    [[nodiscard]] std::vector<index_type> get_knn_ids(index_type point) const;
     /**
      * @brief Returns the distances of the k-nearest-neighbors found for @p point.
      * @param[in] point the data point to return the nearest-neighbors for
@@ -149,7 +142,7 @@ class knn {
      *
      * @pre @p point must be in the range `[0, number of data points on the current MPI rank)`.
      */
-    [[nodiscard]] dist_host_buffer_type get_knn_dists(index_type point) const;
+    [[nodiscard]] std::vector<real_type> get_knn_dists(index_type point) const;
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                  save knn                                                  //
@@ -205,19 +198,20 @@ class knn {
      * @brief Returns the specified @ref sycl_lsh::memory_layout type.
      * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
      */
-    [[nodiscard]] static constexpr memory_layout get_memory_layout() noexcept { return layout; }
+    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
      * @brief Returns the host buffer containing the k-nearest-neighbor IDs used to hide the MPI communication.
      * @return the knn host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] knn_host_buffer_type &get_knn_host_buffer() noexcept { return knn_host_buffer_; }
+    [[nodiscard]] std::vector<index_type> &get_knn_host_buffer() noexcept { return knn_host_buffer_; }
+
     /**
      * @brief Returns the host buffer containing the k-nearest-neighbor distances used to hide the MPI communication.
      * @details The distances are calculated without the use of `std::sqrt`!
      * @return the knn distances host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] dist_host_buffer_type &get_distance_host_buffer() noexcept { return dist_host_buffer_; }
+    [[nodiscard]] std::vector<real_type> &get_distance_host_buffer() noexcept { return dist_host_buffer_; }
 
   private:
     // befriend the factory function
@@ -249,9 +243,9 @@ class knn {
     const index_type k_;
 
     /// The SYCL host buffer for the nearest-neighbors.
-    knn_host_buffer_type knn_host_buffer_;
+    std::vector<index_type> knn_host_buffer_;
     /// The SYCL host buffer for the nearest-neighbor distances.
-    dist_host_buffer_type dist_host_buffer_;
+    std::vector<real_type> dist_host_buffer_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -259,7 +253,12 @@ class knn {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) :
-    attr_{ data.get_attributes() }, comm_{ comm }, logger_{ logger }, k_{ k }, knn_host_buffer_(attr_.rank_size * k), dist_host_buffer_(attr_.rank_size * k, std::numeric_limits<real_type>::max()) {
+    attr_{ data.get_attributes() },
+    comm_{ comm },
+    logger_{ logger },
+    k_{ k },
+    knn_host_buffer_(attr_.rank_size * k),
+    dist_host_buffer_(attr_.rank_size * k, std::numeric_limits<real_type>::max()) {
     const mpi::timer mpi_timer{ comm_ };
 
     SYCL_LSH_ASSERT(0 < k, "Illegal number of k-nearest-neighbors!");
@@ -293,24 +292,25 @@ knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::commun
 //                                                knn results                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-[[nodiscard]] auto knn<layout>::get_knn_ids(const index_type point) const -> knn_host_buffer_type {
+[[nodiscard]] std::vector<index_type> knn<layout>::get_knn_ids(const index_type point) const {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!");
 
     const detail::get_linear_id<knn> get_linear_id_functor{};
 
-    knn_host_buffer_type res(k_);
+    std::vector<index_type> res(k_);
     for (index_type nn = 0; nn < k_; ++nn) {
         res[nn] = knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
     }
     return res;
 }
+
 template <memory_layout layout>
-[[nodiscard]] auto knn<layout>::get_knn_dists(const index_type point) const -> dist_host_buffer_type {
+[[nodiscard]] std::vector<real_type> knn<layout>::get_knn_dists(const index_type point) const {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n");
 
     const detail::get_linear_id<knn> get_linear_id_functor{};
 
-    dist_host_buffer_type res(k_);
+    std::vector<real_type> res(k_);
     for (index_type nn = 0; nn < k_; ++nn) {
         res[nn] = dist_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
     }
@@ -329,7 +329,7 @@ void knn<layout>::save_knns(const options &opt) {
         throw exception{ "Required command line argument 'knn_save_file' not provided!" };
     }
 
-    knn_host_buffer_type tmp_buffer(knn_host_buffer_.size());
+    std::vector<index_type> tmp_buffer(knn_host_buffer_.size());
 
     if constexpr (layout == memory_layout::soa) {
         // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
@@ -352,6 +352,7 @@ void knn<layout>::save_knns(const options &opt) {
 
     logger_.log("Saved k-nearest-neighbor IDs in {}.\n", mpi_timer.elapsed());
 }
+
 template <memory_layout layout>
 void knn<layout>::save_distances(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
@@ -361,7 +362,7 @@ void knn<layout>::save_distances(const options &opt) {
         throw exception{ "Required command line argument 'knn_dist_save_file' not provided!" };
     }
 
-    dist_host_buffer_type tmp_buffer(dist_host_buffer_.size());
+    std::vector<real_type> tmp_buffer(dist_host_buffer_.size());
 
     if constexpr (layout == memory_layout::soa) {
         // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
@@ -392,8 +393,7 @@ void knn<layout>::save_distances(const options &opt) {
 //                                                evaluate knn                                                //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-[[nodiscard]]
-real_type knn<layout>::recall(const options &opt) {
+[[nodiscard]] real_type knn<layout>::recall(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // load correct k-nearest-neighbor IDs
@@ -408,7 +408,7 @@ real_type knn<layout>::recall(const options &opt) {
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    knn_host_buffer_type correct_knn = file_parser->parse_content();
+    std::vector<index_type> correct_knn = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {
@@ -470,7 +470,7 @@ template <memory_layout layout>
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    dist_host_buffer_type correct_knn_dist = file_parser->parse_content();
+    std::vector<real_type> correct_knn_dist = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {
@@ -494,8 +494,8 @@ template <memory_layout layout>
     index_type mean_error_count = 0;
     real_type mean_error_ratio = 0.0;
 
-    dist_host_buffer_type calculated_knn_dist_sorted(k_);
-    dist_host_buffer_type correct_knn_dist_sorted(k_);
+    std::vector<real_type> calculated_knn_dist_sorted(k_);
+    std::vector<real_type> correct_knn_dist_sorted(k_);
 
     for (index_type point = 0; point < correct_rank_size; ++point) {
         // fill k-nearest-neighbor distances for current point
@@ -566,10 +566,10 @@ void knn<layout>::send_receive_host_buffer() {
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
     // send/receive k-nearest-neighbor IDs
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_host_buffer_.data(), knn_host_buffer_.size(), mpi::detail::mpi_datatype<typename knn_host_buffer_type::value_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_host_buffer_.data(), knn_host_buffer_.size(), mpi::detail::mpi_datatype<index_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 
     // send/receive k-nearest-neighbor distances
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(dist_host_buffer_.data(), dist_host_buffer_.size(), mpi::detail::mpi_datatype<typename dist_host_buffer_type::value_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(dist_host_buffer_.data(), dist_host_buffer_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 }
 
 }  // namespace sycl_lsh

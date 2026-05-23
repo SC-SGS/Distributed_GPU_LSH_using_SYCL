@@ -12,6 +12,8 @@
 
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::exception
 
+#include "sycl/sycl.hpp"
+
 #include "fmt/format.h"  // fmt::format
 
 #include <charconv>      // std::form_char
@@ -26,6 +28,12 @@
 #define SYCL_LSH_REQUIRES(...) std::enable_if_t<(__VA_ARGS__), bool> = true
 
 namespace sycl_lsh::detail {
+
+/**
+ * A shorthand alias for a general sycl::atomic_ref.
+ */
+template <typename T>
+using atomic_op = sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>;
 
 /**
  * @brief Return a new string with the same content as @p str but all lower case.
