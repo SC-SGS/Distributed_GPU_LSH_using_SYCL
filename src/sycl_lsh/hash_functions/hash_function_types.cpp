@@ -37,7 +37,7 @@ std::istream &operator>>(std::istream &in, hash_function_type &hash_function) {
 
     if (str == "random_projections" || str == "random-projections") {
         hash_function = hash_function_type::random_projections;
-    } else if (str == "entropy_based" || str == "entropy-based") {
+    } else if (str == "entropy_based" || str == "entropy-based" || str == "entropy") {
         hash_function = hash_function_type::entropy_based;
     } else if (str == "mixed_hash_functions" || str == "mixed-hash-functions" || str == "mixed") {
         hash_function = hash_function_type::mixed_hash_functions;
