@@ -19,7 +19,7 @@ int sycl_lsh::mpi::main(int argc, char **argv, custom_main_ptr func) {
     int return_code = EXIT_SUCCESS;
 
     // initialize the MPI environment with thread support
-    constexpr int required = MPI_THREAD_SERIALIZED;
+    constexpr int required = MPI_THREAD_MULTIPLE;
     int provided{};
     MPI_Init_thread(&argc, &argv, required, &provided);
 

@@ -217,76 +217,82 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     std::vector<real_type> cut_off_points_pool(opt.hash_pool_size * (opt.num_cut_off_points - 1));
 
     // calculate cut-off points
+    std::vector<real_type> hash_values(attr.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
         auto *hash_functions_pool_d = sycl::malloc_device<real_type>(hash_functions_pool.size(), queue_);
         queue_.copy(hash_functions_pool.data(), hash_functions_pool_d, hash_functions_pool.size());
 
-        std::vector<real_type> hash_values(attr.rank_size);
         auto *hash_values_d = sycl::malloc_device<real_type>(hash_values.size(), queue_);
         queue_.memset(hash_values_d, 0, hash_values.size() * sizeof(real_type));
+
+        // wait until all memory operations are finished
         queue_.wait_and_throw();
 
-        for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
-            queue_.submit([&](sycl::handler &cgh) {
-                // get device data
-                const real_type *data_d = data.get_device_buffer();
+        queue_.submit([&](sycl::handler &cgh) {
+            // get device data
+            const real_type *data_d = data.get_device_buffer();
 
-                // get additional information
-                const device_accessible_options options = opt;
+            // get additional information
+            const device_accessible_options options = opt;
+            const data_attributes attribute = attr;
 
-                // get get_linear_id functor instantiation
-                detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
+            // get get_linear_id functor instantiation
+            detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
 
-                cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
-                    const index_type idx = item.get_linear_id();
+            cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
+                const index_type idx = item.get_linear_id();
 
+                for (index_type hash_function = 0; hash_function < options.hash_pool_size; ++hash_function) {
                     real_type value = 0.0;
                     for (index_type dim = 0; dim < attr.dims; ++dim) {
                         value += data_d[get_linear_id_data(idx, dim, attr)]
                                  * hash_functions_pool_d[get_linear_id_hash_pool(hash_function, dim, options, attr)];
                     }
-                    hash_values_d[idx] = value;
-                });
-            });
-
-            // wait until the kernel has finished
-            queue_.wait_and_throw();
-
-            // copy the hash values back to the host
-            queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
-            queue_.wait_and_throw();
-
-            // sort hash_values vector in a distributed fashion
-            mpi::detail::sort(hash_values, comm);
-
-            std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
-
-            // calculate cut-off points indices
-            std::vector<index_type> cut_off_points_idx(cut_off_points.size());
-            const index_type jump = (attr.rank_size * comm.size()) / opt.num_cut_off_points;
-            for (index_type cop = 0; cop < cut_off_points_idx.size(); ++cop) {
-                cut_off_points_idx[cop] = (cop + 1) * jump;
-            }
-
-            // fill cut-off points which are located on the current MPI rank
-            for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-                // check if index belongs to current MPI rank
-                if (cut_off_points_idx[cop] >= attr.rank_size * comm.rank() && cut_off_points_idx[cop] < attr.rank_size * (comm.rank() + 1)) {
-                    cut_off_points[cop] = hash_values[cut_off_points_idx[cop] % attr.rank_size];
+                    hash_values_d[hash_function * attribute.rank_size + idx] = value;
                 }
-            }
+            });
+        });
 
-            // combine to final cut-off points on all MPI ranks
-            SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), static_cast<int>(cut_off_points.size()), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm.get()));
+        // wait until the kernel has finished
+        queue_.wait_and_throw();
 
-            // copy current cut-off points to pool
-            std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
-        }
+        // copy the hash values back to the host
+        queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
+        queue_.wait_and_throw();
 
         // free the device memory again
         sycl::free(hash_functions_pool_d, queue_);
         sycl::free(hash_values_d, queue_);
+    }
+
+#pragma omp parallel for
+    for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
+        // sort hash_values vector in a distributed fashion
+        mpi::detail::sort(hash_values.begin() + hash_function * attr.rank_size, hash_values.begin() + (hash_function + 1) * attr.rank_size, comm);
+
+        std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
+
+        // calculate cut-off points indices
+        std::vector<index_type> cut_off_points_idx(cut_off_points.size());
+        const index_type jump = (attr.rank_size * comm.size()) / opt.num_cut_off_points;
+        for (index_type cop = 0; cop < cut_off_points_idx.size(); ++cop) {
+            cut_off_points_idx[cop] = (cop + 1) * jump;
+        }
+
+        // fill cut-off points which are located on the current MPI rank
+        for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
+            // check if index belongs to current MPI rank
+            if (cut_off_points_idx[cop] >= attr.rank_size * comm.rank() && cut_off_points_idx[cop] < attr.rank_size * (comm.rank() + 1)) {
+                cut_off_points[cop] = hash_values[hash_function * attr.rank_size + cut_off_points_idx[cop] % attr.rank_size];
+            }
+        }
+
+        // combine to final cut-off points on all MPI ranks
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), static_cast<int>(cut_off_points.size()), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm.get()));
+
+        // copy current cut-off points to pool
+        std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + static_cast<std::vector<real_type>::difference_type>(hash_function * cut_off_points.size()));
     }
 
     // select actual hash functions
