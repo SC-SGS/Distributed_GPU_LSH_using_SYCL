@@ -15,7 +15,7 @@
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
 
 #include "fmt/format.h"  // fmt::format
-#include "mpi.h"     // MPI_Gather, MPI_Gatherv
+#include "mpi.h"         // MPI_Gather, MPI_Gatherv
 
 #include <cstddef>      // std::size_t
 #include <iostream>     // std::ostream, std::cout
@@ -93,7 +93,7 @@ class logger {
 template <typename... Args>
 void logger::log(const int comm_rank, const std::string_view msg, Args &&...args) const {
     SYCL_LSH_ASSERT(0 <= comm_rank && comm_rank < comm_.size(),
-                          "Illegal MPI rank! Must be greater or equal than 0 and less than comm.size().");
+                    "Illegal MPI rank! Must be greater or equal than 0 and less than comm.size().");
 
     // print message only on requested MPI rank
     if (comm_rank == comm_.rank()) {
