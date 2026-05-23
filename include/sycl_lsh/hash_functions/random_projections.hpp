@@ -55,10 +55,6 @@ struct get_linear_id<random_projections<layout>> {
      * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
      */
     [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr) const noexcept {  // TODO options
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
-        // SYCL_LSH_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!");
-        // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!");
-
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
             return hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim;
@@ -92,10 +88,7 @@ struct lsh_hash<random_projections<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
-        // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
-
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
         const get_linear_id<data<layout>> get_linear_id_data{};

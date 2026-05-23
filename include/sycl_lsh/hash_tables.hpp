@@ -288,7 +288,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
     queue_.wait_and_throw();
 
     queue_.submit([&](sycl::handler &cgh) {
-        // get accessors
+        // get device data
         const real_type *data_owned = data_.get_device_buffer();
         const real_type *data_received = data_buffer;
         const real_type *hash_functions = hash_functions_.get_device_buffer();
@@ -296,13 +296,16 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const index_type *hash_tables = hash_tables_d_;
         index_type *knn = knn_d;
         real_type *knn_dist = knn_dist_d;
+
         // get additional information
-        auto options = options_.device_accessible;
-        auto attr = attr_;
+        const device_accessible_options options = options_.device_accessible;
+        const data_attributes attr = attr_;
         const index_type base_id = comm_.rank() * attr_.rank_size;
+
         // get get_linear_id functor instantiation
         const detail::get_linear_id<data_type> get_linear_id_data{};
         const detail::get_linear_id<knn_type> get_linear_id_knn{};
+
         // get hasher functor instantiation
         const detail::lsh_hash<hash_function_type> hasher{};
 
@@ -310,9 +313,9 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ local_size * k }, cgh };
         sycl::local_accessor<real_type, 1> knn_dist_local_mem{ sycl::range<1>{ local_size * k }, cgh };
 
-        const auto execution_range = sycl::nd_range<>(sycl::range<>(global_size), sycl::range<>(local_size));
+        const sycl::nd_range<1> execution_range{ sycl::range<1>{ global_size }, sycl::range<1>{ local_size } };
 
-        cgh.parallel_for(execution_range, [=](sycl::nd_item<> item) {
+        cgh.parallel_for(execution_range, [=](sycl::nd_item<1> item) {
             const index_type global_idx = item.get_global_linear_id();
             const index_type local_idx = item.get_local_linear_id();
 
@@ -321,8 +324,9 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
                 return;
             }
 
-            index_type knn_blocked[BLOCKING_SIZE];
-            real_type knn_dist_blocked[BLOCKING_SIZE];
+            // create work-item local memory
+            std::array<index_type, BLOCKING_SIZE> knn_blocked{};
+            std::array<real_type, BLOCKING_SIZE> knn_dist_blocked{};
 
             // initialize local memory arrays
             for (index_type nn = 0; nn < k; ++nn) {
@@ -339,7 +343,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
                 const index_type bucket_begin = offsets[hash_table * (options.hash_table_size + 1) + hash_bucket];
                 const index_type bucket_end = offsets[hash_table * (options.hash_table_size + 1) + hash_bucket + 1];
 
-                // perform nearest-neighbor search for all data points in the calculate hash bucket
+                // perform nearest-neighbor search for all data points in the calculated hash bucket
                 for (index_type bucket_elem = bucket_begin; bucket_elem < bucket_end; bucket_elem += BLOCKING_SIZE) {
                     // initialize thread local blocking array
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
@@ -357,7 +361,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
                     }
 
                     // check candidate function
-                    const auto is_candidate = [&](const index_type candidate_idx, const index_type global_idx, const index_type local_idx) {
+                    const auto is_candidate = [&](const index_type candidate_idx) {
                         if (candidate_idx - base_id == global_idx) {
                             return false;
                         }
@@ -371,11 +375,11 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
                     // update nearest-neighbors
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
-                        if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx * k] && is_candidate(knn_blocked[block], global_idx, local_idx)) {
+                        if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx * k] && is_candidate(knn_blocked[block])) {
                             knn_local_mem[local_idx * k] = knn_blocked[block];
                             knn_dist_local_mem[local_idx * k] = knn_dist_blocked[block];
 
-                            // ensure that the greatest distance is at pos 0
+                            // ensure that the greatest distance is at pos 0 (bubble-sort)
                             for (index_type nn = 0; nn < k - 1; ++nn) {
                                 if (knn_dist_local_mem[local_idx * k + nn] < knn_dist_local_mem[local_idx * k + nn + 1]) {
                                     std::swap(knn_local_mem[local_idx * k + nn], knn_local_mem[local_idx * k + nn + 1]);
@@ -454,17 +458,19 @@ void hash_tables<layout, HashFunction>::count_hash_values(index_type *hash_value
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
-        // get accessors
+        // get device data
         index_type *hash_values_count = hash_values_count_d;
         const real_type *hash_functions = hash_functions_.get_device_buffer();
         const real_type *data = data_.get_device_buffer();
+
         // get additional information
-        auto options = options_.device_accessible;
-        auto attr = attr_;
+        const device_accessible_options options = options_.device_accessible;
+        const data_attributes attr = attr_;
+
         // get hasher functor instantiation
         const detail::lsh_hash<hash_function_type> hasher{};
 
-        cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+        cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<1> item) {
             const index_type idx = item.get_linear_id();
 
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
@@ -473,9 +479,9 @@ void hash_tables<layout, HashFunction>::count_hash_values(index_type *hash_value
             }
         });
     });
-    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+
+    // wait until the kernel finished
     queue_.wait_and_throw();
-    // #endif
 
     logger_.log("Counted hash values in {}.\n", mpi_timer.elapsed());
 }
@@ -485,22 +491,21 @@ void hash_tables<layout, HashFunction>::calculate_offsets(const index_type *hash
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
-        // get accessors
+        // get device data
         const index_type *hash_values_count = hash_values_count_d;
         index_type *offsets = offsets_d_;
-        // get additional information
-        auto options = options_.device_accessible;
 
-        cgh.parallel_for(sycl::range<>(options.num_hash_tables), [=](sycl::item<> item) {
+        // get additional information
+        const device_accessible_options options = options_.device_accessible;
+
+        cgh.parallel_for(sycl::range<1>{ options.num_hash_tables }, [=](sycl::item<1> item) {
             const index_type idx = item.get_linear_id();
 
             // calculate constant offsets
-            const index_type hash_table_offset = idx * (options.hash_table_size + 1);
             const index_type hash_value_count_offset = idx * options.hash_table_size;
-            // zero out the first two offsets in each hash table  // TODO: sholdn't be necessary anymore
-            offsets[hash_table_offset] = 0;
-            offsets[hash_table_offset + 1] = 0;
-            // fill remaining offset values
+            const index_type hash_table_offset = idx * (options.hash_table_size + 1);
+
+            // fill the offset values
             for (index_type hash_value = 2; hash_value <= options.hash_table_size; ++hash_value) {
                 // calculated modified prefix sum
                 offsets[hash_table_offset + hash_value] =
@@ -508,9 +513,9 @@ void hash_tables<layout, HashFunction>::calculate_offsets(const index_type *hash
             }
         });
     });
-    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+
+    // wait until the kernel finished
     queue_.wait_and_throw();
-    // #endif
 
     logger_.log("Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
@@ -520,23 +525,26 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
-        // get accessors
+        // get device data
         const real_type *data = data_.get_device_buffer();
         const real_type *hash_functions = hash_functions_.get_device_buffer();
         index_type *offsets = offsets_d_;
         index_type *hash_tables = hash_tables_d_;
+
         // get additional information
-        auto options = options_.device_accessible;
-        auto attr = attr_;
+        const device_accessible_options options = options_.device_accessible;
+        const data_attributes attr = attr_;
         const index_type base_id = comm_.rank() * attr_.rank_size;
         const index_type comm_rank = comm_.rank();
         const index_type comm_size = comm_.size();
+
         // get hasher functor instantiation
         const detail::lsh_hash<hash_function_type> hasher{};
 
-        cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+        cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<1> item) {
             const index_type idx = item.get_linear_id();
 
+            // TODO: understand of this could be mitigated by padding
             index_type val = base_id + idx;
             if (comm_rank == comm_size - 1) {
                 // set correct values IDs for dummy points
@@ -554,6 +562,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
                 hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
             }
 
+            // TODO: understand of this could be mitigated by padding
             // fill additional values needed for blocking
             if (idx == attr.rank_size - 1) {
                 for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
@@ -562,9 +571,9 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
             }
         });
     });
-    // #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
+
+    // wait until the kernel finished
     queue_.wait_and_throw();
-    // #endif
 
     logger_.log("Filled hash tables in {}.\n", mpi_timer.elapsed());
 }

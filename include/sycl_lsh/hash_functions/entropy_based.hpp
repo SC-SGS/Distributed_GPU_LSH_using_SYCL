@@ -57,10 +57,6 @@ struct get_linear_id<entropy_based<layout>> {
      * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
      */
     [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr) const noexcept {  // TODO
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
-        // SYCL_LSH_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!");
-        // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!");
-
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
             return hash_table * opt.num_hash_functions * (attr.dims + opt.num_cut_off_points - 1)
@@ -98,10 +94,7 @@ struct lsh_hash<entropy_based<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO:
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
-        // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
-
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
         const get_linear_id<data<layout>> get_linear_id_data{};
@@ -120,7 +113,7 @@ struct lsh_hash<entropy_based<layout>> {
                 entropy_hash += hash > hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims + cop, opt, attr)];
             }
             // combine hashes
-            combined_hash = detail::hash_combine(combined_hash, entropy_hash);
+            combined_hash = hash_combine(combined_hash, entropy_hash);
         }
         return combined_hash % opt.hash_table_size;
     }
@@ -236,12 +229,16 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
 
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
             queue_.submit([&](sycl::handler &cgh) {
+                // get device data
                 const real_type *data_d = data.get_device_buffer();
 
+                // get additional information
                 const device_accessible_options options = opt;
+
+                // get get_linear_id functor instantiation
                 detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
 
-                cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+                cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
                     const index_type idx = item.get_linear_id();
 
                     real_type value = 0.0;

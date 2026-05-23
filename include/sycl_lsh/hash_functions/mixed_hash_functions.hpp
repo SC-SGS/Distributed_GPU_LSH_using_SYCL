@@ -61,10 +61,6 @@ struct get_linear_id<mixed_hash_functions<layout>> {
      * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
      */
     [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::hash_functions_t) const noexcept {  // TODO
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
-        // SYCL_LSH_ASSERT(0 <= hash_function && hash_function < opt.hash_pool_size, "Out-of-bounce access for hash function!");
-        // SYCL_LSH_ASSERT(0 <= dim && dim < attr.dims, "Out-of-bounce access for dimension!\n");
-
         if constexpr (layout == memory_layout::aos) {
             // Array of Structs
             const index_type hash_table_offset = hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1);
@@ -89,9 +85,6 @@ struct get_linear_id<mixed_hash_functions<layout>> {
      * @pre @p dim must be in the range `[0, number of hash functions)` (currently disabled).
      */
     [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::hash_combine_t) const noexcept {  // TODO
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
-        // SYCL_LSH_ASSERT(0 <= dim && dim < opt.num_hash_functions, "Out-of-bounce access for dimension!");
-
         // no difference between AoS and SoA
         const index_type hash_table_offset = hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1);
         const index_type hash_combine_offset = hash_table_offset + opt.num_hash_functions * (attr.dims + 1);
@@ -111,9 +104,6 @@ struct get_linear_id<mixed_hash_functions<layout>> {
      * @pre @p dim must be in the range `[0, number of cut-off points)` (currently disabled).
      */
     [[nodiscard]] index_type operator()(const index_type hash_table, const index_type dim, const device_accessible_options &opt, const data_attributes &attr, typename hash_function_type::buffer_part::cut_off_points_t) const noexcept {  // TODO
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash table!");
-        // SYCL_LSH_ASSERT(0 <= dim && dim < opt.num_cut_off_points, "Out-of-bounce access for dimension!");
-
         // no difference between AoS and SoA
         const index_type hash_table_offset = hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1);
         const index_type hash_combine_offset = hash_table_offset + opt.num_hash_functions * (attr.dims + 1);
@@ -145,10 +135,7 @@ struct lsh_hash<mixed_hash_functions<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO
-        // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
-        // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
-
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
         const get_linear_id<data<layout>> get_linear_id_data{};
@@ -345,14 +332,18 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
 
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             queue_.submit([&](sycl::handler &cgh) {
+                // get device data
                 const real_type *data_d = data.get_device_buffer();
 
+                // get additional information
                 const device_accessible_options options = opt;
                 const data_attributes attributes = attr;
+
+                // get get_linear_id functor instantiation
                 const detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
                 const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
 
-                cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+                cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
                     const index_type idx = item.get_linear_id();
 
                     real_type value = 0.0;
