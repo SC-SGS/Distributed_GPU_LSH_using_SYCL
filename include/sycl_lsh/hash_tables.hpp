@@ -550,7 +550,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
                 // get hash value
                 const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
                 // update offsets
-                const index_type hash_table_idx = detail::atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(1);
+                const index_type hash_table_idx = detail::atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
                 hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
             }
 
