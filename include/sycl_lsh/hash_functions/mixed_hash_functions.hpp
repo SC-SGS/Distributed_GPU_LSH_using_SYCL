@@ -25,7 +25,7 @@
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "sycl/sycl.hpp"  // sycl::buffer, sycl::accessor, sycl::queue
+#include "sycl/sycl.hpp"
 
 #include "mpi.h"  // MPI_Bcast, MPI_Allreduce
 
@@ -134,11 +134,10 @@ struct lsh_hash<mixed_hash_functions<layout>> {
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using mixed hash functions.
-     * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
      * @param[in] data_d the data set
-     * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+     * @param[in] hash_functions_d the hash functions
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] attr the used @ref sycl_lsh::data_attributes
      * @return the calculated hash value using mixed hash functions (`[[nodiscard]]`)
@@ -146,8 +145,7 @@ struct lsh_hash<mixed_hash_functions<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    template <typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type* data_d, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
@@ -158,19 +156,19 @@ struct lsh_hash<mixed_hash_functions<layout>> {
         real_type value = 0.0;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash value using random projections
-            real_type hash = acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr, hash_function_type::buffer_part::hash_functions)];
+            real_type hash = hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr, hash_function_type::buffer_part::hash_functions)];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
                 hash += data_d[get_linear_id_data(point, dim, attr)]
-                        * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr, hash_function_type::buffer_part::hash_functions)];
+                        * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr, hash_function_type::buffer_part::hash_functions)];
             }
             // combine hash values using the entropy-based hash functions
             value += static_cast<hash_value_type>(hash / opt.w)
-                     * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, opt, attr, hash_function_type::buffer_part::hash_combine)];
+                     * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, opt, attr, hash_function_type::buffer_part::hash_combine)];
         }
         // calculate final hash value using the cut-off points of the combined hash values
         hash_value_type combined_hash = 0;
         for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-            combined_hash += value > acc_hash_functions[get_linear_id_hash_function(hash_table, cop, opt, attr, hash_function_type::buffer_part::cut_off_points)];
+            combined_hash += value > hash_functions_d[get_linear_id_hash_function(hash_table, cop, opt, attr, hash_function_type::buffer_part::cut_off_points)];
         }
         return combined_hash % opt.hash_table_size;
     }
@@ -204,12 +202,6 @@ class mixed_hash_functions {
     };
 
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the device buffer used by SYCL.
-    using device_buffer_type = sycl::buffer<real_type, 1>;
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
@@ -221,6 +213,11 @@ class mixed_hash_functions {
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
     mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+
+    /**
+     * @brief Free the allocated SYCL device memory.
+     */
+    ~mixed_hash_functions();
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -235,13 +232,13 @@ class mixed_hash_functions {
      * @brief Returns the device buffer used in the SYCL kernels.
      * @return the device buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
+    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    device_buffer_type device_buffer_;
+    real_type *device_buffer_{ nullptr };
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -249,15 +246,13 @@ class mixed_hash_functions {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue },
-    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
-                   opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1))       // entropy-based as hash combine
-{
+    queue_{ queue } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
 
-    std::vector<real_type> host_buffer(device_buffer_.size());
+    std::vector<real_type> host_buffer(opt.num_hash_tables * opt.num_hash_functions * (attr.dims + 1) +               // random projections as hash functions
+                                       opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1));  // entropy-based as hash combine
     const detail::get_linear_id<mixed_hash_functions> get_linear_id_functor{};
 
     //
@@ -339,39 +334,47 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
 
     // calculate cut-off points
     {
-        sycl::buffer<real_type, 1> hash_functions_buffer(host_buffer.data(), host_buffer.size());
+        // copy the hash function pool to the device
+        auto *hash_functions_d = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
+        queue_.copy(host_buffer.data(), hash_functions_d, host_buffer.size());
 
         std::vector<real_type> hash_values(attr.rank_size);
+        auto *hash_values_d = sycl::malloc_device<real_type>(hash_values.size(), queue_);
+        queue_.memset(hash_values_d, 0, hash_values.size() * sizeof(real_type));
+        queue_.wait_and_throw();
+
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-            {
-                sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
-                queue_.submit([&](sycl::handler &cgh) {
-                    const real_type* data_d = data.get_device_buffer();
-                    auto acc_hash_functions = hash_functions_buffer.template get_access<sycl::access::mode::read>(cgh);
-                    auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
+            queue_.submit([&](sycl::handler &cgh) {
+                const real_type *data_d = data.get_device_buffer();
 
-                    const device_accessible_options options = opt;
-                    const data_attributes attributes = attr;
-                    const detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
-                    const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
+                const device_accessible_options options = opt;
+                const data_attributes attributes = attr;
+                const detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
+                const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
 
-                    cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
-                        const index_type idx = item.get_linear_id();
+                cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+                    const index_type idx = item.get_linear_id();
 
-                        real_type value = 0.0;
-                        for (index_type hash_function = 0; hash_function < options.num_hash_functions; ++hash_function) {
-                            real_type hash = acc_hash_functions[get_linear_id_hash_functions(hash_table, hash_function, attributes.dims, options, attributes, buffer_part::hash_functions)];
-                            for (index_type dim = 0; dim < attributes.dims; ++dim) {
-                                hash += data_d[get_linear_id_data(idx, dim, attributes)]
-                                        * acc_hash_functions[get_linear_id_hash_functions(hash_table, hash_function, dim, options, attributes, buffer_part::hash_functions)];
-                            }
-                            value += static_cast<hash_value_type>(hash / options.w)
-                                     * acc_hash_functions[get_linear_id_hash_functions(hash_table, hash_function, options, attributes, buffer_part::hash_combine)];
+                    real_type value = 0.0;
+                    for (index_type hash_function = 0; hash_function < options.num_hash_functions; ++hash_function) {
+                        real_type hash = hash_functions_d[get_linear_id_hash_functions(hash_table, hash_function, attributes.dims, options, attributes, buffer_part::hash_functions)];
+                        for (index_type dim = 0; dim < attributes.dims; ++dim) {
+                            hash += data_d[get_linear_id_data(idx, dim, attributes)]
+                                    * hash_functions_d[get_linear_id_hash_functions(hash_table, hash_function, dim, options, attributes, buffer_part::hash_functions)];
                         }
-                        acc_hash_values[idx] = value;
-                    });
+                        value += static_cast<hash_value_type>(hash / options.w)
+                                 * hash_functions_d[get_linear_id_hash_functions(hash_table, hash_function, options, attributes, buffer_part::hash_combine)];
+                    }
+                    hash_values_d[idx] = value;
                 });
-            }
+            });
+
+            // wait until the kernel has finished
+            queue_.wait_and_throw();
+
+            // copy the hash values back to the host
+            queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
+            queue_.wait_and_throw();
 
             // sort hash_values vector in a distributed fashion
             mpi::detail::sort(hash_values, comm);
@@ -397,23 +400,30 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
             SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm.get()));
 
             // copy current cut-off points to hash functions
-            const detail::get_linear_id<mixed_hash_functions> get_linear_id_functor{};
             for (index_type cop = 0; cop < cut_off_points.size(); ++cop) {
                 host_buffer[get_linear_id_functor(hash_table, cop, opt, attr, buffer_part::cut_off_points)] = cut_off_points[cop];
             }
         }
+
+        // free the device memory again
+        sycl::free(hash_functions_d, queue_);
+        sycl::free(hash_values_d, queue_);
     }
 
     // broadcast hash function to other MPI ranks
-    MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get());
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // copy data to device buffer
-    auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
-    for (index_type i = 0; i < acc.size(); ++i) {
-        acc[i] = host_buffer[i];
-    }
+    // allocate memory on the device and copy the data over
+    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
+    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
+    queue_.wait_and_throw();
 
     logger.log("Created 'mixed_hash_functions' hash functions in {}.\n", mpi_timer.elapsed());
+}
+
+template <memory_layout layout>
+mixed_hash_functions<layout>::~mixed_hash_functions() {
+    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh

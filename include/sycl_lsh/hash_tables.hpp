@@ -77,11 +77,11 @@ template <memory_layout layout>
 [[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     switch (opt.hash_function) {
         case hash_function_type::random_projections:
-            return make_hash_tables<layout, random_projections>(opt, data, queue, comm, logger);
+            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, random_projections>>, opt, data, queue, comm, logger };
         case hash_function_type::entropy_based:
-            return make_hash_tables<layout, entropy_based>(opt, data, queue, comm, logger);
+            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, entropy_based>>, opt, data, queue, comm, logger };
         case hash_function_type::mixed_hash_functions:
-            return make_hash_tables<layout, mixed_hash_functions>(opt, data, queue, comm, logger);
+            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, mixed_hash_functions>>, opt, data, queue, comm, logger };
     }
     // unreachable
 }
@@ -150,13 +150,10 @@ class hash_tables {
      */
     [[nodiscard]] const data_type &get_data() const noexcept { return data_; }
 
-  private:
-    // befriend factory function
-    friend auto make_hash_tables<layout, HashFunction>(const options &, data_type &, sycl::queue &, const mpi::communicator &, const mpi::logger &);
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
+    // TODO: shouldn't be public as it is now
     /**
      * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
      * @param[in] opt the used @ref sycl_lsh::options
@@ -167,6 +164,7 @@ class hash_tables {
      */
     hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
+  private:
     /**
      * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
      * @param[in] k the number of nearest neighbors to search for
@@ -286,7 +284,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         // get accessors
         const real_type *data_owned = data_.get_device_buffer();
         const real_type *data_received = data_buffer;
-        auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+        const real_type *hash_functions = hash_functions_.get_device_buffer();
         auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::read>(cgh);
         auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::read>(cgh);
         auto acc_knn = knn_buffer.template get_access<sycl::access::mode::read_write>(cgh);
@@ -330,7 +328,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
             // perform nearest-neighbor search for all hash tables
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
                 // calculate hash value (= hash bucket) for current point
-                const hash_value_type hash_bucket = hasher(hash_table, global_idx, data_received, acc_hash_functions, options, attr);
+                const hash_value_type hash_bucket = hasher(hash_table, global_idx, data_received, hash_functions, options, attr);
 
                 // calculate hash bucket offsets
                 const index_type bucket_begin = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_bucket];
@@ -446,7 +444,7 @@ void hash_tables<layout, HashFunction>::count_hash_values(device_buffer_type &ha
     queue_.submit([&](sycl::handler &cgh) {
         // get accessors
         auto acc_hash_values_count = hash_values_count.template get_access<sycl::access::mode::atomic>(cgh);
-        auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+        const real_type *hash_functions = hash_functions_.get_device_buffer();
         const real_type *data = data_.get_device_buffer();
         // get additional information
         auto options = options_.device_accessible;
@@ -458,7 +456,7 @@ void hash_tables<layout, HashFunction>::count_hash_values(device_buffer_type &ha
             const index_type idx = item.get_linear_id();
 
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
-                const hash_value_type hash_value = hasher(hash_table, idx, data, acc_hash_functions, options, attr);
+                const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
                 acc_hash_values_count[hash_table * options.hash_table_size + hash_value].fetch_add(1);
             }
         });
@@ -512,7 +510,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
     queue_.submit([&](sycl::handler &cgh) {
         // get accessors
         const real_type *data = data_.get_device_buffer();
-        auto acc_hash_functions = hash_functions_.get_device_buffer().template get_access<sycl::access::mode::read>(cgh);
+        const real_type *hash_functions = hash_functions_.get_device_buffer();
         auto acc_offsets = offsets_buffer_.template get_access<sycl::access::mode::atomic>(cgh);
         auto acc_hash_tables = hash_tables_buffer_.template get_access<sycl::access::mode::write>(cgh);
         // get additional information
@@ -538,7 +536,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
 
             for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
                 // get hash value
-                const hash_value_type hash_value = hasher(hash_table, idx, data, acc_hash_functions, options, attr);
+                const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
                 // update offsets
                 const index_type hash_table_idx = acc_offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1].fetch_add(1);
                 acc_hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;

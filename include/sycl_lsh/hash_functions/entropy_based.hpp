@@ -25,7 +25,7 @@
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "sycl/sycl.hpp"  // sycl::buffer, sycl::accessor, sycl::queue
+#include "sycl/sycl.hpp"
 
 #include "mpi.h"  // MPI_Bcast, MPI_Allreduce
 
@@ -87,11 +87,10 @@ struct lsh_hash<entropy_based<layout>> {
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using entropy based hash functions.
-     * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
      * @param[in] data_d the data set
-     * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+     * @param[in] hash_functions_d the hash functions
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] attr the used @ref sycl_lsh::data_attributes
      * @return the calculated hash value using entropy based hash functions (`[[nodiscard]]`)
@@ -99,8 +98,7 @@ struct lsh_hash<entropy_based<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    template <typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type* data_d, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO:
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO:
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
@@ -114,12 +112,12 @@ struct lsh_hash<entropy_based<layout>> {
             real_type hash = 0.0;
             for (index_type dim = 0; dim < attr.dims; ++dim) {
                 hash += data_d[get_linear_id_data(point, dim, attr)]
-                        * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
+                        * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // calculate entropy hash for current hash function
             hash_value_type entropy_hash = 0;
             for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
-                entropy_hash += hash > acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims + cop, opt, attr)];
+                entropy_hash += hash > hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims + cop, opt, attr)];
             }
             // combine hashes
             combined_hash = detail::hash_combine(combined_hash, entropy_hash);
@@ -138,12 +136,6 @@ template <memory_layout layout>
 class entropy_based {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the device buffer used by SYCL.
-    using device_buffer_type = sycl::buffer<real_type, 1>;
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
@@ -155,6 +147,11 @@ class entropy_based {
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
     entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+
+    /**
+     * @brief Free the allocated SYCL device memory.
+     */
+    ~entropy_based();
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -169,13 +166,13 @@ class entropy_based {
      * @brief Returns the device buffer used in the SYCL kernels.
      * @return the device buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
+    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    device_buffer_type device_buffer_;
+    real_type *device_buffer_{ nullptr };
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -183,8 +180,7 @@ class entropy_based {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue },
-    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + opt.num_cut_off_points - 1)) {
+    queue_{ queue } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
@@ -229,32 +225,40 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
 
     // calculate cut-off points
     {
-        sycl::buffer<real_type, 1> hash_functions_pool_buffer(hash_functions_pool.data(), hash_functions_pool.size());
+        // copy the hash function pool to the device
+        auto *hash_functions_pool_d = sycl::malloc_device<real_type>(hash_functions_pool.size(), queue_);
+        queue_.copy(hash_functions_pool.data(), hash_functions_pool_d, hash_functions_pool.size());
 
         std::vector<real_type> hash_values(attr.rank_size);
+        auto *hash_values_d = sycl::malloc_device<real_type>(hash_values.size(), queue_);
+        queue_.memset(hash_values_d, 0, hash_values.size() * sizeof(real_type));
+        queue_.wait_and_throw();
+
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
-            {
-                sycl::buffer<real_type, 1> hash_values_buffer(hash_values.data(), hash_values.size());
-                queue_.submit([&](sycl::handler &cgh) {
-                    const real_type* data_d = data.get_device_buffer();
-                    auto acc_hash_functions = hash_functions_pool_buffer.template get_access<sycl::access::mode::read>(cgh);
-                    auto acc_hash_values = hash_values_buffer.template get_access<sycl::access::mode::discard_write>(cgh);
+            queue_.submit([&](sycl::handler &cgh) {
+                const real_type *data_d = data.get_device_buffer();
 
-                    const device_accessible_options options = opt;
-                    detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
+                const device_accessible_options options = opt;
+                detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
 
-                    cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
-                        const index_type idx = item.get_linear_id();
+                cgh.parallel_for(sycl::range<>(attr.rank_size), [=](sycl::item<> item) {
+                    const index_type idx = item.get_linear_id();
 
-                        real_type value = 0.0;
-                        for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            value += data_d[get_linear_id_data(idx, dim, attr)]
-                                     * acc_hash_functions[get_linear_id_hash_pool(hash_function, dim, options, attr)];
-                        }
-                        acc_hash_values[idx] = value;
-                    });
+                    real_type value = 0.0;
+                    for (index_type dim = 0; dim < attr.dims; ++dim) {
+                        value += data_d[get_linear_id_data(idx, dim, attr)]
+                                 * hash_functions_pool_d[get_linear_id_hash_pool(hash_function, dim, options, attr)];
+                    }
+                    hash_values_d[idx] = value;
                 });
-            }
+            });
+
+            // wait until the kernel has finished
+            queue_.wait_and_throw();
+
+            // copy the hash values back to the host
+            queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
+            queue_.wait_and_throw();
 
             // sort hash_values vector in a distributed fashion
             mpi::detail::sort(hash_values, comm);
@@ -282,10 +286,14 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
             // copy current cut-off points to pool
             std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + hash_function * cut_off_points.size());
         }
+
+        // free the device memory again
+        sycl::free(hash_functions_pool_d, queue_);
+        sycl::free(hash_values_d, queue_);
     }
 
     // select actual hash functions
-    std::vector<real_type> host_buffer(device_buffer_.size());
+    std::vector<real_type> host_buffer(opt.num_hash_tables * opt.num_hash_functions * (attr.dims + opt.num_cut_off_points - 1));
     if (comm.is_main_rank()) {
 // create random generator
 #if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
@@ -314,15 +322,19 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     }
 
     // broadcast hash function to other MPI ranks
-    MPI_Bcast(host_buffer.data(), static_cast<int>(host_buffer.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm.get());
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), static_cast<int>(host_buffer.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // copy data to device buffer
-    auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
-    for (index_type i = 0; i < acc.size(); ++i) {
-        acc[i] = host_buffer[i];
-    }
+    // allocate memory on the device and copy the data over
+    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
+    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
+    queue_.wait_and_throw();
 
     logger.log("Created 'entropy_based' hash functions in {}.\n", mpi_timer.elapsed());
+}
+
+template <memory_layout layout>
+entropy_based<layout>::~entropy_based() {
+    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh

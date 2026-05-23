@@ -23,7 +23,7 @@
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "sycl/sycl.hpp"  // sycl::buffer, sycl::accessor
+#include "sycl/sycl.hpp"
 
 #include "mpi.h"  // MPI_Bcast
 
@@ -81,11 +81,10 @@ struct lsh_hash<random_projections<layout>> {
 
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using random projections.
-     * @tparam AccHashFunctions the type of the hash functions `sycl::accessor`
      * @param[in] hash_table the provided hash table
      * @param[in] point the provided data point
      * @param[in] data_d the data set
-     * @param[in] acc_hash_functions the hash functions `sycl::accessor`
+     * @param[in] hash_functions_d the hash functions
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] attr the used @ref sycl_lsh::data_attributes
      * @return the calculated hash value using random projections (`[[nodiscard]]`)
@@ -93,8 +92,7 @@ struct lsh_hash<random_projections<layout>> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    template <typename AccHashFunctions>
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, AccHashFunctions &acc_hash_functions, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {  // TODO: replace accessor with USM
         // SYCL_LSH_ASSERT(0 <= hash_table && hash_table < opt.num_hash_tables, "Out-of-bounce access for hash tables!");
         // SYCL_LSH_ASSERT(0 <= point && point < attr.rank_size, "Out-of-bounce access for data point!");
 
@@ -105,10 +103,10 @@ struct lsh_hash<random_projections<layout>> {
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash for current hash function
-            real_type hash = acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
+            real_type hash = hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
                 hash += data_d[get_linear_id_data(point, dim, attr)]
-                        * acc_hash_functions[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
+                        * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // combine hashes
             combined_hash = hash_combine(combined_hash, static_cast<hash_value_type>(hash / opt.w));
@@ -127,12 +125,6 @@ template <memory_layout layout>
 class random_projections {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the device buffer used by SYCL.
-    using device_buffer_type = sycl::buffer<real_type, 1>;
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
@@ -144,6 +136,11 @@ class random_projections {
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
     random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+
+    /**
+     * @brief Free the allocated SYCL device memory.
+     */
+    ~random_projections();
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -158,13 +155,13 @@ class random_projections {
      * @brief Returns the device buffer used in the SYCL kernels.
      * @return the device buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] device_buffer_type &get_device_buffer() noexcept { return device_buffer_; }
+    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    device_buffer_type device_buffer_;
+    real_type *device_buffer_{ nullptr };
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -172,13 +169,12 @@ class random_projections {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue },
-    device_buffer_(opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1)) {
+    queue_{ queue } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes &attr = data.get_attributes();
 
-    std::vector<real_type> host_buffer(device_buffer_.size());
+    std::vector<real_type> host_buffer(opt.num_hash_tables * opt.num_hash_functions * (attr.dims + 1));
 
     // create hash pool only on MPI master rank
     if (comm.is_main_rank()) {
@@ -231,13 +227,17 @@ random_projections<layout>::random_projections(const device_accessible_options &
     // broadcast hash functions to other MPI ranks
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // copy data to device buffer
-    auto acc = device_buffer_.template get_access<sycl::access::mode::discard_write>();
-    for (index_type i = 0; i < acc.size(); ++i) {
-        acc[i] = host_buffer[i];
-    }
+    // allocate memory on the device and copy the data over
+    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
+    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
+    queue_.wait_and_throw();
 
     logger.log("Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
+}
+
+template <memory_layout layout>
+random_projections<layout>::~random_projections() {
+    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh
