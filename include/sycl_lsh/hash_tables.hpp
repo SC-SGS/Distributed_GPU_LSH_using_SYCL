@@ -278,10 +278,10 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     // TODO: do not allocate in each round!
     // create SYCL buffers for knn class
-    auto* knn_d = sycl::malloc_device<index_type>(knns.get_knn_host_buffer().size(), queue_);
+    auto *knn_d = sycl::malloc_device<index_type>(knns.get_knn_host_buffer().size(), queue_);
     queue_.memcpy(knn_d, knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size() * sizeof(index_type));
 
-    auto* knn_dist_d = sycl::malloc_device<real_type>(knns.get_distance_host_buffer().size(), queue_);
+    auto *knn_dist_d = sycl::malloc_device<real_type>(knns.get_distance_host_buffer().size(), queue_);
     queue_.memcpy(knn_dist_d, knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size() * sizeof(real_type));
 
     // wait until all memory operations are finished
@@ -292,10 +292,10 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const real_type *data_owned = data_.get_device_buffer();
         const real_type *data_received = data_buffer;
         const real_type *hash_functions = hash_functions_.get_device_buffer();
-        const index_type* offsets = offsets_d_;
-        const index_type* hash_tables = hash_tables_d_;
-        index_type* knn = knn_d;
-        real_type* knn_dist = knn_dist_d;
+        const index_type *offsets = offsets_d_;
+        const index_type *hash_tables = hash_tables_d_;
+        index_type *knn = knn_d;
+        real_type *knn_dist = knn_dist_d;
         // get additional information
         auto options = options_.device_accessible;
         auto attr = attr_;
@@ -307,10 +307,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const detail::lsh_hash<hash_function_type> hasher{};
 
         // create local memory accessors
-        sycl::accessor<index_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
-            knn_local_mem(sycl::range<>(local_size * k), cgh);
-        sycl::accessor<real_type, 1, sycl::access::mode::read_write, sycl::access::target::local>
-            knn_dist_local_mem(sycl::range<>(local_size * k), cgh);
+        sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ local_size * k }, cgh };
+        sycl::local_accessor<real_type, 1> knn_dist_local_mem{ sycl::range<1>{ local_size * k }, cgh };
 
         const auto execution_range = sycl::nd_range<>(sycl::range<>(global_size), sycl::range<>(local_size));
 
