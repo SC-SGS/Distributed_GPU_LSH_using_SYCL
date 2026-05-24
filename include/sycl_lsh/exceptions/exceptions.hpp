@@ -129,6 +129,19 @@ class file_parsing_exception : public exception {
     explicit file_parsing_exception(const std::string &msg, source_location loc = source_location::current());
 };
 
+/**
+ * @brief Exception type thrown if something went wrong when using the device_ptr wrapper.
+ */
+class device_ptr_exception : public exception {
+public:
+    /**
+     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @param[in] msg the exception's `what()` message
+     * @param[in] loc the exception's call side information
+     */
+    explicit device_ptr_exception(const std::string &msg, source_location loc = source_location::current());
+};
+
 }  // namespace sycl_lsh
 
 #endif  // SYCL_LSH_EXCEPTIONS_EXCEPTIONS_HPP

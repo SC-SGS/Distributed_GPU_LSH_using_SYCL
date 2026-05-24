@@ -12,6 +12,7 @@
 
 #include "sycl_lsh/data.hpp"                           // sycl_lsh::data
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
+#include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
@@ -130,11 +131,6 @@ class random_projections {
      */
     random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
-    /**
-     * @brief Free the allocated SYCL device memory.
-     */
-    ~random_projections();
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -145,16 +141,22 @@ class random_projections {
     [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
-     * @brief Returns the device buffer used in the SYCL kernels.
-     * @return the device buffer (`[[nodiscard]]`)
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
      */
-    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
+    [[nodiscard]] const detail::device_ptr<real_type> &get_device_ptr() const noexcept { return device_ptr_; }
+
+    /**
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
+     */
+    [[nodiscard]] detail::device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    real_type *device_buffer_{ nullptr };
+    detail::device_ptr<real_type> device_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -162,12 +164,13 @@ class random_projections {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue } {
+    queue_{ queue },
+    device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1), queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes &attr = data.get_attributes();
 
-    std::vector<real_type> host_buffer(opt.num_hash_tables * opt.num_hash_functions * (attr.dims + 1));
+    std::vector<real_type> host_buffer(device_ptr_.size());
 
     // create hash pool only on MPI master rank
     if (comm.is_main_rank()) {
@@ -220,17 +223,10 @@ random_projections<layout>::random_projections(const device_accessible_options &
     // broadcast hash functions to other MPI ranks
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // allocate memory on the device and copy the data over
-    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
-    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
-    queue_.wait_and_throw();
+    // copy the host data to the device
+    device_ptr_.copy_to_device(host_buffer);
 
     logger.log("Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
-}
-
-template <memory_layout layout>
-random_projections<layout>::~random_projections() {
-    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh

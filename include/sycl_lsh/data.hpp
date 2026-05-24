@@ -12,6 +12,7 @@
 
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::{real_type, index_type, hash_value_type}
 #include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
+#include "sycl_lsh/detail/device_ptr.hpp"            // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"         // forward declaration
 #include "sycl_lsh/memory_layout.hpp"                // sycl_lsh::memory_layout
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
@@ -96,11 +97,6 @@ template <memory_layout layout>
 template <memory_layout layout>
 class data {
   public:
-    /**
-     * @brief Free the allocated SYCL device memory.
-     */
-    ~data();
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                             update host buffer                                             //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -125,10 +121,16 @@ class data {
     [[nodiscard]] data_attributes get_attributes() const noexcept { return data_attributes_; }
 
     /**
-     * @brief Returns the device buffer used in the SYCL kernels.
-     * @return the device buffer (`[[nodiscard]]`)
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
      */
-    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
+    [[nodiscard]] const detail::device_ptr<real_type> &get_device_ptr() const noexcept { return device_ptr_; }
+
+    /**
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
+     */
+    [[nodiscard]] detail::device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
 
     /**
      * @brief Returns the host buffer used to hide the MPI communication.
@@ -161,8 +163,8 @@ class data {
     const data_attributes data_attributes_;
 
     /// The SYCL device buffer.
-    real_type *device_buffer_{ nullptr };
-    /// The SYCL host buffer
+    detail::device_ptr<real_type> device_ptr_{};
+    /// The host buffer,
     std::vector<real_type> host_buffer_;
 };
 
@@ -196,16 +198,10 @@ data<layout>::data(const mpi::file_parser<real_type> &parser,
     }
 
     // allocate memory on the device and copy the data over
-    device_buffer_ = sycl::malloc_device<real_type>(host_buffer_.size(), queue_);
-    queue_.memcpy(device_buffer_, host_buffer_.data(), host_buffer_.size() * sizeof(real_type));
-    queue_.wait_and_throw();
+    device_ptr_ = detail::device_ptr<real_type>{ host_buffer_.size(), queue_ };
+    device_ptr_.copy_to_device(host_buffer_);
 
     logger.log("Created data object in {}.\n", mpi_timer.elapsed());
-}
-
-template <memory_layout layout>
-data<layout>::~data() {
-    sycl::free(device_buffer_, queue_);
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

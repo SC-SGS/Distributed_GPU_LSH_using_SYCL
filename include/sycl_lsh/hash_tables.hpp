@@ -13,6 +13,7 @@
 #include "sycl_lsh/constants.hpp"                      // sycl_lsh::index_type
 #include "sycl_lsh/data.hpp"                           // sycl_lsh::data
 #include "sycl_lsh/data_attributes.hpp"                // sycl_lsh::data_attributes
+#include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/utility.hpp"                 // sycl_lsh::detail::swap
 #include "sycl_lsh/device_selector.hpp"                // sycl_lsh::device_selector
 #include "sycl_lsh/exceptions/exceptions.hpp"          // sycl_lsh::exception
@@ -159,29 +160,24 @@ class hash_tables {
      */
     hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
-    /**
-     * Free the allocated SYCL device memory.
-     */
-    ~hash_tables();
-
   private:
     /**
      * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
      * @param[in] k the number of nearest neighbors to search for
-     * @param[in] data_buffer the data to perform the nearest-neighbors search on
+     * @param[in] data_ptr the data to perform the nearest-neighbors search on
      * @param[in,out] knns the (already partially) calculated nearest-neighbors
      */
-    void calculate_knn_round(index_type k, const real_type *data_buffer, knn_type &knns) const;
+    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, knn_type &knns) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
-     * @param[in,out] hash_values_count_d the number of data points per hash bucket
+     * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
      */
-    void count_hash_values(index_type *hash_values_count_d);
+    void count_hash_values(detail::device_ptr<index_type> &hash_values_count_ptr);
     /**
      * @brief Calculates the offset of each hash bucket in each hash table.
-     * @param[in] hash_values_count_d the number of data points per hash bucket
+     * @param[in] hash_values_count_ptr the number of data points per hash bucket
      */
-    void calculate_offsets(const index_type *hash_values_count_d);
+    void calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr);
     /**
      * @brief Fill each hash table based on the previously calculated offsets.
      */
@@ -205,9 +201,9 @@ class hash_tables {
     const hash_function_type hash_functions_;
 
     /// The SYCL device buffer for the hash functions.
-    mutable index_type *hash_tables_d_{ nullptr };
+    mutable detail::device_ptr<index_type> hash_tables_ptr_;
     /// The SYCL device buffer for the offsets.
-    mutable index_type *offsets_d_{ nullptr };
+    mutable detail::device_ptr<index_type> offsets_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -228,7 +224,7 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 
     knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
 
-    real_type *data_d = sycl::malloc_device<real_type>(data_.get_host_buffer().size(), queue_);
+    detail::device_ptr<real_type> data_ptr{ data_.get_host_buffer().size(), queue_ };
 
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
@@ -240,11 +236,10 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 
         // calculate k-nearest-neighbors on current MPI rank
         if (round == 0) {
-            calculate_knn_round(k, data_.get_device_buffer(), knns);
+            calculate_knn_round(k, data_.get_device_ptr(), knns);
         } else {
-            queue_.memcpy(data_d, data_.get_host_buffer().data(), data_.get_host_buffer().size() * sizeof(real_type));
-            queue_.wait_and_throw();
-            calculate_knn_round(k, data_d, knns);
+            data_ptr.copy_to_device(data_.get_host_buffer());
+            calculate_knn_round(k, data_ptr, knns);
         }
 
         // send calculated k-nearest-neighbors and distances to next rank
@@ -256,15 +251,13 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
         logger_.log("finished in {}.\n", mpi_round_timer.elapsed());
     }
 
-    sycl::free(data_d, queue_);
-
     logger_.log("Calculated {}-nearest-neighbors in {}.\n\n", k, mpi_timer.elapsed());
 
     return knns;
 }
 
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const real_type *data_buffer, knn_type &knns) const {
+void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, knn_type &knns) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -278,24 +271,21 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     // TODO: do not allocate in each round!
     // create SYCL buffers for knn class
-    auto *knn_d = sycl::malloc_device<index_type>(knns.get_knn_host_buffer().size(), queue_);
-    queue_.memcpy(knn_d, knns.get_knn_host_buffer().data(), knns.get_knn_host_buffer().size() * sizeof(index_type));
+    detail::device_ptr<index_type> knn_ptr{ knns.get_knn_host_buffer().size(), queue_ };
+    knn_ptr.copy_to_device(knns.get_knn_host_buffer());
 
-    auto *knn_dist_d = sycl::malloc_device<real_type>(knns.get_distance_host_buffer().size(), queue_);
-    queue_.memcpy(knn_dist_d, knns.get_distance_host_buffer().data(), knns.get_distance_host_buffer().size() * sizeof(real_type));
-
-    // wait until all memory operations are finished
-    queue_.wait_and_throw();
+    detail::device_ptr<real_type> knn_dist_ptr{ knns.get_distance_host_buffer().size(), queue_ };
+    knn_dist_ptr.copy_to_device(knns.get_distance_host_buffer());
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const real_type *data_owned = data_.get_device_buffer();
-        const real_type *data_received = data_buffer;
-        const real_type *hash_functions = hash_functions_.get_device_buffer();
-        const index_type *offsets = offsets_d_;
-        const index_type *hash_tables = hash_tables_d_;
-        index_type *knn = knn_d;
-        real_type *knn_dist = knn_dist_d;
+        const real_type *data_owned = data_.get_device_ptr().get();
+        const real_type *data_received = data_ptr.get();
+        const real_type *hash_functions = hash_functions_.get_device_ptr().get();
+        const index_type *offsets = offsets_ptr_.get();
+        const index_type *hash_tables = hash_tables_ptr_.get();
+        index_type *knn = knn_ptr.get();
+        real_type *knn_dist = knn_dist_ptr.get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -403,11 +393,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
     queue_.wait_and_throw();
 
     // copy data back to the host
-    queue_.memcpy(knns.get_knn_host_buffer().data(), knn_d, knns.get_knn_host_buffer().size() * sizeof(index_type));
-    queue_.memcpy(knns.get_distance_host_buffer().data(), knn_dist_d, knns.get_distance_host_buffer().size() * sizeof(real_type));
-
-    // wait until all memory operations are finished
-    queue_.wait_and_throw();
+    knn_ptr.copy_to_host(knns.get_knn_host_buffer());
+    knn_dist_ptr.copy_to_host(knns.get_distance_host_buffer());
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -421,31 +408,22 @@ hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &da
     attr_{ data.get_attributes() },
     comm_{ comm },
     logger_{ logger },
-    hash_functions_{ opt.device_accessible, data, queue_, comm, logger } {
+    hash_functions_{ opt.device_accessible, data, queue_, comm, logger },
+    hash_tables_ptr_{ opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },
+    offsets_ptr_{ opt.device_accessible.num_hash_tables * (opt.device_accessible.hash_table_size + 1), queue_ } {
     // log used devices
     logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
     const mpi::timer mpi_timer{ comm_ };
 
-    hash_tables_d_ = sycl::malloc_device<index_type>(opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_);
-    queue_.memset(hash_tables_d_, 0, (opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE) * sizeof(index_type));
+    {
+        // create temporary buffer to count the occurrence of each hash value
+        detail::device_ptr<index_type> hash_values_count_ptr{ options_.device_accessible.num_hash_tables * options_.device_accessible.hash_table_size, queue_ };
 
-    offsets_d_ = sycl::malloc_device<index_type>(opt.device_accessible.num_hash_tables * (opt.device_accessible.hash_table_size + 1), queue_);
-    queue_.memset(offsets_d_, 0, opt.device_accessible.num_hash_tables * (opt.device_accessible.hash_table_size + 1) * sizeof(index_type));
-
-    // create temporary buffer to count the occurrence of each hash value
-    auto *hash_values_count_d = sycl::malloc_device<index_type>(options_.device_accessible.num_hash_tables * options_.device_accessible.hash_table_size, queue_);
-    queue_.memset(hash_values_count_d, 0, options_.device_accessible.num_hash_tables * options_.device_accessible.hash_table_size * sizeof(index_type));
-
-    // wait until all memory operations are finished
-    queue_.wait_and_throw();
-
-    // count the occurrence of each hash value per hash table
-    this->count_hash_values(hash_values_count_d);
-    // calculate the offset values
-    this->calculate_offsets(hash_values_count_d);
-
-    // free the temporary buffer again
-    sycl::free(hash_values_count_d, queue_);
+        // count the occurrence of each hash value per hash table
+        this->count_hash_values(hash_values_count_ptr);
+        // calculate the offset values
+        this->calculate_offsets(hash_values_count_ptr);
+    }
 
     // fill the hash tables based on the previously calculated offsets
     this->fill_hash_tables();
@@ -454,14 +432,14 @@ hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &da
 }
 
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::count_hash_values(index_type *hash_values_count_d) {
+void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        index_type *hash_values_count = hash_values_count_d;
-        const real_type *hash_functions = hash_functions_.get_device_buffer();
-        const real_type *data = data_.get_device_buffer();
+        index_type *hash_values_count = hash_values_count_ptr.get();
+        const real_type *hash_functions = hash_functions_.get_device_ptr().get();
+        const real_type *data = data_.get_device_ptr().get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -487,13 +465,13 @@ void hash_tables<layout, HashFunction>::count_hash_values(index_type *hash_value
 }
 
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_offsets(const index_type *hash_values_count_d) {
+void hash_tables<layout, HashFunction>::calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const index_type *hash_values_count = hash_values_count_d;
-        index_type *offsets = offsets_d_;
+        const index_type *hash_values_count = hash_values_count_ptr.get();
+        index_type *offsets = offsets_ptr_.get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -526,10 +504,10 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const real_type *data = data_.get_device_buffer();
-        const real_type *hash_functions = hash_functions_.get_device_buffer();
-        index_type *offsets = offsets_d_;
-        index_type *hash_tables = hash_tables_d_;
+        const real_type *data = data_.get_device_ptr().get();
+        const real_type *hash_functions = hash_functions_.get_device_ptr().get();
+        index_type *offsets = offsets_ptr_.get();
+        index_type *hash_tables = hash_tables_ptr_.get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -576,12 +554,6 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
     queue_.wait_and_throw();
 
     logger_.log("Filled hash tables in {}.\n", mpi_timer.elapsed());
-}
-
-template <memory_layout layout, template <memory_layout> typename HashFunction>
-hash_tables<layout, HashFunction>::~hash_tables() {
-    sycl::free(hash_tables_d_, queue_);
-    sycl::free(offsets_d_, queue_);
 }
 
 }  // namespace sycl_lsh

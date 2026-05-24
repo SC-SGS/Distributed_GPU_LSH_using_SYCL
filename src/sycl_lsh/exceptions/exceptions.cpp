@@ -53,4 +53,7 @@ file_exception::file_exception(const std::string &msg, source_location loc) :
 file_parsing_exception::file_parsing_exception(const std::string &msg, source_location loc) :
     exception{ msg, "file_parsing_exception", loc } { }
 
+device_ptr_exception::device_ptr_exception(const std::string &msg, source_location loc) :
+    exception{ msg, "device_ptr_exception", loc } { }
+
 }  // namespace sycl_lsh

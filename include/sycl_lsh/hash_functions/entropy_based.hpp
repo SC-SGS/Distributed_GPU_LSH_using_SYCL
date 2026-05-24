@@ -12,6 +12,7 @@
 
 #include "sycl_lsh/data.hpp"                           // sycl_lsh::data
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
+#include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
@@ -141,11 +142,6 @@ class entropy_based {
      */
     entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
-    /**
-     * @brief Free the allocated SYCL device memory.
-     */
-    ~entropy_based();
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -156,16 +152,22 @@ class entropy_based {
     [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
-     * @brief Returns the device buffer used in the SYCL kernels.
-     * @return the device buffer (`[[nodiscard]]`)
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
      */
-    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
+    [[nodiscard]] const detail::device_ptr<real_type> &get_device_ptr() const noexcept { return device_ptr_; }
+
+    /**
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
+     */
+    [[nodiscard]] detail::device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    real_type *device_buffer_{ nullptr };
+    detail::device_ptr<real_type> device_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -173,13 +175,14 @@ class entropy_based {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue } {
+    queue_{ queue },
+    device_ptr_{ opt.hash_pool_size * data.get_attributes().dims, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
 
     // create hash pool functions on MPI master rank and distribute to all other ranks
-    std::vector<real_type> hash_functions_pool(opt.hash_pool_size * attr.dims);
+    std::vector<real_type> hash_functions_pool(device_ptr_.size());
 
     const auto get_linear_id_hash_pool = [=](const index_type hash_function, const index_type dim, [[maybe_unused]] const device_accessible_options &option, [[maybe_unused]] const data_attributes &attribute) {
         if constexpr (layout == memory_layout::aos) {
@@ -220,18 +223,16 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     std::vector<real_type> hash_values(attr.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
-        auto *hash_functions_pool_d = sycl::malloc_device<real_type>(hash_functions_pool.size(), queue_);
-        queue_.copy(hash_functions_pool.data(), hash_functions_pool_d, hash_functions_pool.size());
+        detail::device_ptr<real_type> hash_functions_pool_ptr{ hash_functions_pool.size(), queue_ };
+        hash_functions_pool_ptr.copy_to_device(hash_functions_pool);
 
-        auto *hash_values_d = sycl::malloc_device<real_type>(hash_values.size(), queue_);
-        queue_.memset(hash_values_d, 0, hash_values.size() * sizeof(real_type));
-
-        // wait until all memory operations are finished
-        queue_.wait_and_throw();
+        detail::device_ptr<real_type> hash_values_ptr{ hash_values.size(), queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
-            const real_type *data_d = data.get_device_buffer();
+            const real_type *data_d = data.get_device_ptr().get();
+            const real_type *hash_functions_pool_d = hash_functions_pool_ptr.get();
+            real_type *hash_values_d = hash_values_ptr.get();
 
             // get additional information
             const device_accessible_options options = opt;
@@ -258,12 +259,7 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
         queue_.wait_and_throw();
 
         // copy the hash values back to the host
-        queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
-        queue_.wait_and_throw();
-
-        // free the device memory again
-        sycl::free(hash_functions_pool_d, queue_);
-        sycl::free(hash_values_d, queue_);
+        hash_values_ptr.copy_to_host(hash_values);
     }
 
 #pragma omp parallel for
@@ -327,17 +323,10 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     // broadcast hash function to other MPI ranks
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), static_cast<int>(host_buffer.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // allocate memory on the device and copy the data over
-    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
-    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
-    queue_.wait_and_throw();
+    // copy the host data to the device
+    device_ptr_.copy_to_device(host_buffer);
 
     logger.log("Created 'entropy_based' hash functions in {}.\n", mpi_timer.elapsed());
-}
-
-template <memory_layout layout>
-entropy_based<layout>::~entropy_based() {
-    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh

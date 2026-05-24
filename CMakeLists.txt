@@ -25,6 +25,7 @@ endif ()
 ########################################################################################################################
 # set all library source files
 set(SYCL_LSH_LIBRARY_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/shape.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp

@@ -12,6 +12,7 @@
 
 #include "sycl_lsh/data.hpp"                           // sycl_lsh::data
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
+#include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
@@ -201,11 +202,6 @@ class mixed_hash_functions {
      */
     mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
-    /**
-     * @brief Free the allocated SYCL device memory.
-     */
-    ~mixed_hash_functions();
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -216,16 +212,22 @@ class mixed_hash_functions {
     [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
 
     /**
-     * @brief Returns the device buffer used in the SYCL kernels.
-     * @return the device buffer (`[[nodiscard]]`)
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
      */
-    [[nodiscard]] real_type *get_device_buffer() const noexcept { return device_buffer_; }
+    [[nodiscard]] const detail::device_ptr<real_type> &get_device_ptr() const noexcept { return device_ptr_; }
+
+    /**
+     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
+     * @return the device memory (`[[nodiscard]]`)
+     */
+    [[nodiscard]] detail::device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The device buffer.
-    real_type *device_buffer_{ nullptr };
+    detail::device_ptr<real_type> device_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -233,13 +235,15 @@ class mixed_hash_functions {
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
 mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue } {
+    queue_{ queue },
+    device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
+                     opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),   // entropy-based as hash combine
+                 queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
 
-    std::vector<real_type> host_buffer(opt.num_hash_tables * opt.num_hash_functions * (attr.dims + 1) +               // random projections as hash functions
-                                       opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1));  // entropy-based as hash combine
+    std::vector<real_type> host_buffer(device_ptr_.size());
     const detail::get_linear_id<mixed_hash_functions> get_linear_id_functor{};
 
     //
@@ -323,16 +327,16 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
     std::vector<real_type> hash_values(attr.rank_size * opt.num_hash_tables);
     {
         // copy the hash function pool to the device
-        auto *hash_functions_d = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
-        queue_.copy(host_buffer.data(), hash_functions_d, host_buffer.size());
+        detail::device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
+        hash_functions_ptr.copy_to_device(host_buffer);
 
-        auto *hash_values_d = sycl::malloc_device<real_type>(hash_values.size(), queue_);
-        queue_.memset(hash_values_d, 0, hash_values.size() * sizeof(real_type));
-        queue_.wait_and_throw();
+        detail::device_ptr<real_type> hash_values_ptr{ hash_values.size(), queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
-            const real_type *data_d = data.get_device_buffer();
+            const real_type *data_d = data.get_device_ptr().get();
+            const real_type *hash_functions_d = hash_functions_ptr.get();
+            real_type *hash_values_d = hash_values_ptr.get();
 
             // get additional information
             const device_accessible_options options = opt;
@@ -364,12 +368,7 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
         queue_.wait_and_throw();
 
         // copy the hash values back to the host
-        queue_.memcpy(hash_values.data(), hash_values_d, hash_values.size() * sizeof(real_type));
-        queue_.wait_and_throw();
-
-        // free the device memory again
-        sycl::free(hash_functions_d, queue_);
-        sycl::free(hash_values_d, queue_);
+        hash_values_ptr.copy_to_host(hash_values);
     }
 
 #pragma omp parallel for
@@ -406,17 +405,10 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
     // broadcast hash function to other MPI ranks
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
 
-    // allocate memory on the device and copy the data over
-    device_buffer_ = sycl::malloc_device<real_type>(host_buffer.size(), queue_);
-    queue_.memcpy(device_buffer_, host_buffer.data(), host_buffer.size() * sizeof(real_type));
-    queue_.wait_and_throw();
+    // copy the host data to the device
+    device_ptr_.copy_to_device(host_buffer);
 
     logger.log("Created 'mixed_hash_functions' hash functions in {}.\n", mpi_timer.elapsed());
-}
-
-template <memory_layout layout>
-mixed_hash_functions<layout>::~mixed_hash_functions() {
-    sycl::free(device_buffer_, queue_);
 }
 
 }  // namespace sycl_lsh
