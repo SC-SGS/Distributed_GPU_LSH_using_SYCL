@@ -176,13 +176,13 @@ class entropy_based {
 template <memory_layout layout>
 entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ detail::shape{ opt.hash_pool_size, data.get_attributes().dims }, queue_ } {
+    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, data.get_attributes().dims + opt.num_cut_off_points - 1 }, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
 
     // create hash pool functions on MPI master rank and distribute to all other ranks
-    std::vector<real_type> hash_functions_pool(device_ptr_.size());
+    std::vector<real_type> hash_functions_pool(opt.hash_pool_size * attr.dims);
 
     const auto get_linear_id_hash_pool = [=](const index_type hash_function, const index_type dim, [[maybe_unused]] const device_accessible_options &option, [[maybe_unused]] const data_attributes &attribute) {
         if constexpr (layout == memory_layout::aos) {
@@ -223,7 +223,7 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     std::vector<real_type> hash_values(attr.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
-        detail::device_ptr<real_type> hash_functions_pool_ptr{ device_ptr_.shape(), queue_ };
+        detail::device_ptr<real_type> hash_functions_pool_ptr{ detail::shape{ opt.hash_pool_size, attr.dims }, queue_ };
         hash_functions_pool_ptr.copy_to_device(hash_functions_pool);
 
         detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attr.rank_size, opt.hash_pool_size }, queue_ };

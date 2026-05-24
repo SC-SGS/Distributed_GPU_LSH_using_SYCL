@@ -330,7 +330,7 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
         detail::device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
         hash_functions_ptr.copy_to_device(host_buffer);
 
-        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attr.rank_size, opt.hash_pool_size }, queue_ };
+        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attr.rank_size, opt.num_hash_tables }, queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
