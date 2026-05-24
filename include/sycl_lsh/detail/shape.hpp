@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Defines a small wrapper struct around a two-dimensional shape.
+ * @brief Defines a small wrapper struct around a three-dimensional shape.
  */
 
 #ifndef SYCL_LSH_DETAIL_SHAPE_HPP
@@ -20,21 +20,28 @@
 namespace sycl_lsh::detail {
 
 /**
- * @brief A struct representing a two-dimensional shape.
- * @details Used in the size specification of the matrix class and the device pointers.
+ * @brief A struct representing a three-dimensional shape.
  */
 struct [[nodiscard]] shape {
     /**
-     * @brief Default construct a shape of size 0x0.
+     * @brief Default construct a shape of size 0x0x0.
      */
     shape() noexcept = default;
     /**
-     * @brief Construct a shape of size @p x_p x @p y_p.
+     * @brief Construct a shape of size @p x_p x @p y_p x @p 1.
      * @details Explicit to prevent conversions from `{ 2, 2 }` to a `sycl_lsh::detail::shape`.
      * @param[in] x_p the shape in x-dimension
      * @param[in] y_p the shape in y-dimension
      */
     explicit shape(std::size_t x_p, std::size_t y_p) noexcept;
+    /**
+     * @brief Construct a shape of size @p x_p x @p y_p x @p z_p.
+     * @details Explicit to prevent conversions from `{ 2, 2, 2 }` to a `sycl_lsh::detail::shape`.
+     * @param[in] x_p the shape in x-dimension
+     * @param[in] y_p the shape in y-dimension
+     * @param[in] z_p the shape in z-dimension
+     */
+    explicit shape(std::size_t x_p, std::size_t y_p, std::size_t z_p) noexcept;
 
     /**
      * @brief Swap the shape dimensions of `*this` with the ones of @p other.
@@ -46,6 +53,8 @@ struct [[nodiscard]] shape {
     std::size_t x{ 0 };
     /// The shape in the `y` dimension.
     std::size_t y{ 0 };
+    /// The shape in the `z` dimension.
+    std::size_t z{ 0 };
 };
 
 /**
@@ -54,7 +63,7 @@ struct [[nodiscard]] shape {
  * @param[in] s the shape
  * @return the output-stream
  */
-std::ostream &operator<<(std::ostream &out, shape s);
+std::ostream &operator<<(std::ostream &out, const shape &s);
 
 /**
  * @brief Use the input-stream @p in to initialize the shape @p s.
@@ -75,16 +84,16 @@ void swap(shape &lhs, shape &rhs) noexcept;
  * @brief Check whether the shapes @p lhs and @p rhs are equal.
  * @param[in] lhs the first shape
  * @param[in] rhs the second shape
- * @return `true` if `lhs.x == rhs.x` **and** `lhs.y == rhs.y`, otherwise `false` (`[[nodiscard]]`)
+ * @return `true` if all dimensions have the same size, otherwise `false` (`[[nodiscard]]`)
  */
-[[nodiscard]] bool operator==(shape lhs, shape rhs) noexcept;
+[[nodiscard]] bool operator==(const shape& lhs, const shape& rhs) noexcept;
 /**
  * @brief Check whether the shapes @p lhs and @p rhs are unequal.
  * @param[in] lhs the first shape
  * @param[in] rhs the second shape
- * @return `false` if `lhs.x == rhs.x` **and** `lhs.y == rhs.y`, otherwise `true` (`[[nodiscard]]`)
+ * @return `true` if any dimension sizes missmatch, otherwise `false` (`[[nodiscard]]`)
  */
-[[nodiscard]] bool operator!=(shape lhs, shape rhs) noexcept;
+[[nodiscard]] bool operator!=(const shape& lhs, const shape& rhs) noexcept;
 
 }  // namespace sycl_lsh::detail
 
@@ -98,7 +107,7 @@ template <>
 struct hash<sycl_lsh::detail::shape> {
     /**
      * @brief Overload the function call operator for a default_value.
-     * @details Based on Boost's hash_combine for hashing std::pair<T, U>.
+     * @details Based on Boost's hash_combine for hashing std::tuple<T, U, V>.
      * @param[in] s the shape to hash
      * @return the hash value of @p s
      */
@@ -111,6 +120,7 @@ struct hash<sycl_lsh::detail::shape> {
         std::size_t seed = 0;
         hash_combine(seed, s.x);
         hash_combine(seed, s.y);
+        hash_combine(seed, s.z);
         return seed;
     }
 };

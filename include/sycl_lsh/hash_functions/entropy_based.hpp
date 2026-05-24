@@ -176,7 +176,7 @@ class entropy_based {
 template <memory_layout layout>
 entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ opt.hash_pool_size * data.get_attributes().dims, queue_ } {
+    device_ptr_{ detail::shape{ opt.hash_pool_size, data.get_attributes().dims }, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes attr = data.get_attributes();
@@ -223,10 +223,10 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
     std::vector<real_type> hash_values(attr.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
-        detail::device_ptr<real_type> hash_functions_pool_ptr{ hash_functions_pool.size(), queue_ };
+        detail::device_ptr<real_type> hash_functions_pool_ptr{ device_ptr_.shape(), queue_ };
         hash_functions_pool_ptr.copy_to_device(hash_functions_pool);
 
-        detail::device_ptr<real_type> hash_values_ptr{ hash_values.size(), queue_ };
+        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attr.rank_size, opt.hash_pool_size }, queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data

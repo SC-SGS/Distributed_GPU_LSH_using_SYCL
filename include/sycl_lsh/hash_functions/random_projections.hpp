@@ -165,7 +165,7 @@ class random_projections {
 template <memory_layout layout>
 random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1), queue_ } {
+    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (data.get_attributes().dims + 1) }, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     const data_attributes &attr = data.get_attributes();

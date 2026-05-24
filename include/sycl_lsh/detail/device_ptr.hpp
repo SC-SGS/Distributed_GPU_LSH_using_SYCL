@@ -140,7 +140,7 @@ class device_ptr {
      * @return the number of elements (`[[nodiscard]]`)
      */
     [[nodiscard]] size_type size() const noexcept {
-        return shape_.x * shape_.y;
+        return shape_.x * shape_.y * shape_.z;
     }
 
     /**
@@ -157,7 +157,7 @@ class device_ptr {
      * @return `true` if no elements are wrapped, `false` otherwise (`[[nodiscard]]`)
      */
     [[nodiscard]] bool empty() const noexcept {
-        return shape_.x == 0 && shape_.y == 0;
+        return shape_.x == 0 && shape_.y == 0 && shape_.z == 0;
     }
 
     /**
@@ -173,7 +173,7 @@ class device_ptr {
      * @return the number of elements (`[[nodiscard]]`)
      */
     [[nodiscard]] size_type size_padded() const noexcept {
-        return (shape_.x + padding_.x) * (shape_.y + padding_.y);
+        return (shape_.x + padding_.x) * (shape_.y + padding_.y) * (shape_.z +  padding_.z);
     }
 
     /**
@@ -181,7 +181,7 @@ class device_ptr {
      * @return the number of elements in both directions (`[[nodiscard]]`)
      */
     [[nodiscard]] detail::shape shape_padded() const noexcept {
-        return detail::shape{ shape_.x + padding_.x, shape_.y + padding_.y };
+        return detail::shape{ shape_.x + padding_.x, shape_.y + padding_.y, shape_.z + padding_.z };
     }
 
     /**
@@ -189,7 +189,7 @@ class device_ptr {
      * @return `true` if the wrapped device_ptr is padded, `false` otherwise (`[[nodiscard]]`)
      */
     [[nodiscard]] bool is_padded() const noexcept {
-        return padding_.x != 0 || padding_.y != 0;
+        return padding_.x != 0 || padding_.y != 0 || padding_.z != 0;
     }
 
     /**
@@ -264,26 +264,6 @@ class device_ptr {
     void copy_to_device(const_host_pointer_type data_to_copy, size_type pos, size_type count);
 
     /**
-     * @brief Copy a matrix (@p height rows of @p width) from @p data_to_copy to the device.
-     * @note The device_ptr must be constructed with an two-dimensional shape in order to use this function!
-     * @param[in] data_to_copy the data to copy onto the device
-     * @param[in] spitch the stride length
-     * @param[in] width the width of the 2D matrix to copy
-     * @param[in] height the height of the 2D matrix to copy
-     */
-    void copy_to_device_strided(const std::vector<value_type> &data_to_copy, std::size_t spitch, std::size_t width, std::size_t height);
-
-    /**
-     * @brief Copy a matrix (@p height rows of @p width) from @p data_to_copy to the device.
-     * @note The device_ptr must be constructed with an two-dimensional shape in order to use this function!
-     * @param[in] data_to_copy the data to copy onto the device
-     * @param[in] spitch the stride length
-     * @param[in] width the width of the 2D matrix to copy
-     * @param[in] height the height of the 2D matrix to copy
-     */
-    void copy_to_device_strided(const_host_pointer_type data_to_copy, std::size_t spitch, std::size_t width, std::size_t height);
-
-    /**
      * @brief Copy device_ptr::size() many values from the device to the host buffer @p buffer.
      * @param[out] buffer the buffer to copy the data to
      * @throws sycl_lsh::device_ptr_exception if @p buffer is too small to satisfy the copy
@@ -325,11 +305,11 @@ class device_ptr {
 
 template <typename T>
 device_ptr<T>::device_ptr(const size_type size, queue_type &queue) :
-    device_ptr{ detail::shape{ size, 1 }, detail::shape{ 0, 0 }, queue } { }
+    device_ptr{ detail::shape{ size, 1, 1 }, detail::shape{ 0, 0, 0 }, queue } { }
 
 template <typename T>
 device_ptr<T>::device_ptr(const detail::shape shape, queue_type &queue) :
-    device_ptr{ shape, detail::shape{ 0, 0 }, queue } { }
+    device_ptr{ shape, detail::shape{ 0, 0, 0 }, queue } { }
 
 template <typename T>
 device_ptr<T>::device_ptr(const detail::shape shape, const detail::shape padding, queue_type &queue) :
@@ -450,49 +430,6 @@ void device_ptr<T>::copy_to_device(const_host_pointer_type data_to_copy, const s
 
     const size_type rcount = std::min(count, this->size_padded() - pos);
     queue_->copy(data_to_copy, data_ + pos, rcount).wait();
-}
-
-template <typename T>
-void device_ptr<T>::copy_to_device_strided(const std::vector<value_type> &data_to_copy, std::size_t spitch, std::size_t width, std::size_t height) {
-    SYCL_LSH_ASSERT(data_ != device_pointer_type{}, "Invalid data pointer! Maybe *this has been default constructed?");
-
-    if (width > spitch) {
-        throw device_ptr_exception{ fmt::format("Invalid width and spitch combination specified (width: {} <= spitch: {})!", width, spitch) };
-    }
-    if (width * height > data_to_copy.size()) {
-        throw device_ptr_exception{ fmt::format("The sub-matrix ({}x{}) to copy is to big ({})!", width, height, data_to_copy.size()) };
-    }
-
-    this->copy_to_device_strided(data_to_copy.data(), spitch, width, height);
-}
-
-template <typename T>
-void device_ptr<T>::copy_to_device_strided(const_host_pointer_type data_to_copy, const std::size_t spitch, const std::size_t width, const std::size_t height) {
-    SYCL_LSH_ASSERT(data_ != nullptr, "Invalid data pointer! Maybe *this has been default constructed?");
-    SYCL_LSH_ASSERT(data_to_copy != nullptr, "Invalid host pointer for the data to copy!");
-    SYCL_LSH_ASSERT(queue_ != nullptr, "Invalid sycl::queue!");
-
-    if (width > spitch) {
-        throw device_ptr_exception{ fmt::format("Invalid width and spitch combination specified (width: {} <= spitch: {})!", width, spitch) };
-    }
-
-// if available, use the DPC++ ext_oneapi_copy2d extension, otherwise fallback to a temporary
-#if defined(SYCL_LSH_IMPLEMENTATION_ICPX) && defined(SYCL_EXT_ONEAPI_MEMCPY2D)
-    queue_->ext_oneapi_copy2d(data_to_copy, spitch, data_, this->shape_padded().x, width, height).wait();
-#else
-    if (spitch == width) {
-        // can use normal copy since we have no line strides
-        this->copy_to_device(data_to_copy, 0, width * height);
-    } else {
-        std::vector<value_type> temp(this->shape_padded().x * height, value_type{ 0.0 });
-        value_type *pos = temp.data();
-        for (std::size_t row = 0; row < height; ++row) {
-            std::memcpy(pos, data_to_copy + row * spitch, width * sizeof(value_type));
-            pos += this->shape_padded().x;
-        }
-        this->copy_to_device(temp);
-    }
-#endif
 }
 
 template <typename T>

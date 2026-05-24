@@ -198,7 +198,7 @@ data<layout>::data(const mpi::file_parser<real_type> &parser,
     }
 
     // allocate memory on the device and copy the data over
-    device_ptr_ = detail::device_ptr<real_type>{ host_buffer_.size(), queue_ };
+    device_ptr_ = detail::device_ptr<real_type>{ detail::shape{ data_attributes_.rank_size, data_attributes_.dims }, queue_ };
     device_ptr_.copy_to_device(host_buffer_);
 
     logger.log("Created data object in {}.\n", mpi_timer.elapsed());

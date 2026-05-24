@@ -224,7 +224,7 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 
     knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
 
-    detail::device_ptr<real_type> data_ptr{ data_.get_host_buffer().size(), queue_ };
+    detail::device_ptr<real_type> data_ptr{ data_.get_device_ptr().shape(), queue_ };
 
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
@@ -271,10 +271,10 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     // TODO: do not allocate in each round!
     // create SYCL buffers for knn class
-    detail::device_ptr<index_type> knn_ptr{ knns.get_knn_host_buffer().size(), queue_ };
+    detail::device_ptr<index_type> knn_ptr{ detail::shape{ attr_.rank_size, k }, queue_ };
     knn_ptr.copy_to_device(knns.get_knn_host_buffer());
 
-    detail::device_ptr<real_type> knn_dist_ptr{ knns.get_distance_host_buffer().size(), queue_ };
+    detail::device_ptr<real_type> knn_dist_ptr{ detail::shape{ attr_.rank_size, k }, queue_ };
     knn_dist_ptr.copy_to_device(knns.get_distance_host_buffer());
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -409,15 +409,15 @@ hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &da
     comm_{ comm },
     logger_{ logger },
     hash_functions_{ opt.device_accessible, data, queue_, comm, logger },
-    hash_tables_ptr_{ opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },
-    offsets_ptr_{ opt.device_accessible.num_hash_tables * (opt.device_accessible.hash_table_size + 1), queue_ } {
+    hash_tables_ptr_{ opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
+    offsets_ptr_{ detail::shape{ opt.device_accessible.num_hash_tables, opt.device_accessible.hash_table_size + 1 }, queue_ } {
     // log used devices
     logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
     const mpi::timer mpi_timer{ comm_ };
 
     {
         // create temporary buffer to count the occurrence of each hash value
-        detail::device_ptr<index_type> hash_values_count_ptr{ options_.device_accessible.num_hash_tables * options_.device_accessible.hash_table_size, queue_ };
+        detail::device_ptr<index_type> hash_values_count_ptr{ detail::shape{ options_.device_accessible.num_hash_tables, options_.device_accessible.hash_table_size }, queue_ };
 
         // count the occurrence of each hash value per hash table
         this->count_hash_values(hash_values_count_ptr);
