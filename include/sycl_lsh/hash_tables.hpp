@@ -271,11 +271,11 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     // TODO: do not allocate in each round!
     // create SYCL buffers for knn class
-    detail::device_ptr<index_type> knn_ptr{ detail::shape{ attr_.rank_size, k }, queue_ };
-    knn_ptr.copy_to_device(knns.get_knn_host_buffer());
+    detail::device_ptr<index_type> knn_ptr{ knns.get_knn_indices().shape(), queue_ };
+    knn_ptr.copy_to_device(knns.get_knn_indices());
 
-    detail::device_ptr<real_type> knn_dist_ptr{ detail::shape{ attr_.rank_size, k }, queue_ };
-    knn_dist_ptr.copy_to_device(knns.get_distance_host_buffer());
+    detail::device_ptr<real_type> knn_dist_ptr{ knns.get_knn_distances().shape(), queue_ };
+    knn_dist_ptr.copy_to_device(knns.get_knn_distances());
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -393,8 +393,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
     queue_.wait_and_throw();
 
     // copy data back to the host
-    knn_ptr.copy_to_host(knns.get_knn_host_buffer());
-    knn_dist_ptr.copy_to_host(knns.get_distance_host_buffer());
+    knn_ptr.copy_to_host(knns.get_knn_indices());
+    knn_dist_ptr.copy_to_host(knns.get_knn_distances());
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

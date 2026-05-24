@@ -30,6 +30,33 @@
 namespace sycl_lsh::detail {
 
 /**
+ * @brief Type-dependent expression that always evaluates to `false`.
+ */
+template <typename>
+constexpr bool always_false_v = false;
+
+/**
+ * @brief Type-dependent expression that always evaluates to `false`.
+ */
+template <auto>
+constexpr bool always_false_non_type_v = false;
+
+/**
+ * @brief Invokes undefined behavior. Used to mark code paths that may never be reachable.
+ * @details See: C++23 [`std::unreachable`](https://en.cppreference.com/w/cpp/utility/unreachable)
+ */
+[[noreturn]] inline void unreachable() {
+    // Uses compiler specific extensions if possible.
+    // Even if no extension is used, undefined behavior is still raised by
+    // an empty function body and the noreturn attribute.
+    #if defined(__GNUC__)  // GCC, Clang, ICC
+    __builtin_unreachable();
+    #elif defined(_MSC_VER)  // MSVC
+    __assume(false);
+    #endif
+}
+
+/**
  * A shorthand alias for a general sycl::atomic_ref.
  */
 template <typename T>

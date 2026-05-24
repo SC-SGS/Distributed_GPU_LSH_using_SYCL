@@ -54,6 +54,9 @@ file_parsing_exception::file_parsing_exception(const std::string &msg, source_lo
     exception{ msg, "file_parsing_exception", loc } { }
 
 device_ptr_exception::device_ptr_exception(const std::string &msg, source_location loc) :
-    exception{ msg, "device_ptr_exception", loc } { }
+exception{ msg, "device_ptr_exception", loc } { }
+
+matrix_exception::matrix_exception(const std::string &msg, source_location loc) :
+    exception{ msg, "matrix_exception", loc } { }
 
 }  // namespace sycl_lsh

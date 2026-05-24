@@ -11,6 +11,7 @@
 #pragma once
 
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
+#include "sycl_lsh/detail/matrix.hpp"                // sycl_lsh::detail::matrix
 #include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lsh::not_implemented_exception
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser/base_parser.hpp"  // sycl_lsh::mpi::file_parser
@@ -73,7 +74,7 @@ class arff_parser final : public file_parser<T> {
      *
      * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
      */
-    [[nodiscard]] std::vector<parsing_type> parse_content() const override;
+    [[nodiscard]] sycl_lsh::detail::aos_matrix<parsing_type> parse_content() const override;
     /**
      * @brief Write the content in @p buffer to the file.
      * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
@@ -82,7 +83,7 @@ class arff_parser final : public file_parser<T> {
      *
      * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
      */
-    void write_content(index_type total_size, index_type dims, const std::vector<parsing_type> &buffer) const override;
+    void write_content(index_type total_size, index_type dims, const sycl_lsh::detail::aos_matrix<parsing_type> &buffer) const override;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -108,12 +109,12 @@ index_type arff_parser<T>::parse_dims() const {
 }
 
 template <typename T>
-auto arff_parser<T>::parse_content() const -> std::vector<parsing_type> {
+auto arff_parser<T>::parse_content() const -> sycl_lsh::detail::aos_matrix<parsing_type> {
     throw not_implemented_exception{};
 }
 
 template <typename T>
-void arff_parser<T>::write_content(const index_type, const index_type, const std::vector<parsing_type> &) const {
+void arff_parser<T>::write_content(const index_type, const index_type, const sycl_lsh::detail::aos_matrix<parsing_type> &) const {
     throw not_implemented_exception{};
 }
 

@@ -14,6 +14,7 @@
 #include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
 #include "sycl_lsh/detail/device_ptr.hpp"            // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"         // forward declaration
+#include "sycl_lsh/detail/matrix.hpp"                // sycl_lsh::detail::matrix
 #include "sycl_lsh/memory_layout.hpp"                // sycl_lsh::memory_layout
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
@@ -25,10 +26,7 @@
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 #include "mpi.h"          // MPI_Sendrecv_replace
 
-#include <memory>   // std::unique_ptr
 #include <ostream>  // std::ostream
-#include <utility>  // std::move
-#include <vector>   // std::vector
 
 namespace sycl_lsh {
 
@@ -136,7 +134,7 @@ class data {
      * @brief Returns the host buffer used to hide the MPI communication.
      * @return the host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::vector<real_type> &get_host_buffer() noexcept { return host_buffer_; }
+    [[nodiscard]] detail::matrix<real_type, layout> &get_host_buffer() noexcept { return data_; }
 
   private:
     // befriend the factory function
@@ -164,8 +162,8 @@ class data {
 
     /// The SYCL device buffer.
     detail::device_ptr<real_type> device_ptr_{};
-    /// The host buffer,
-    std::vector<real_type> host_buffer_;
+    /// The host buffer represented as a matrix.
+    detail::matrix<real_type, layout> data_{};
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -179,27 +177,12 @@ data<layout>::data(const mpi::file_parser<real_type> &parser,
     queue_{ queue },
     comm_{ comm },
     data_attributes_{ parser.parse_total_size(), parser.parse_rank_size(), parser.parse_dims() },
-    host_buffer_(parser.parse_content()) {
+    data_{ parser.parse_content() } {
     const mpi::timer mpi_timer{ comm_ };
 
-    // change memory layout from aos to soa if requested
-    if constexpr (layout == memory_layout::soa) {
-        std::vector<real_type> soa_host_buffer(data_attributes_.rank_size * data_attributes_.dims);
-
-        const detail::get_linear_id<data<memory_layout::soa>> get_linear_id_soa{};
-
-        for (index_type point = 0; point < data_attributes_.rank_size; ++point) {
-            for (index_type dim = 0; dim < data_attributes_.dims; ++dim) {
-                soa_host_buffer[get_linear_id_soa(point, dim, data_attributes_)] = host_buffer_[point * data_attributes_.dims + dim];
-            }
-        }
-
-        host_buffer_ = std::move(soa_host_buffer);
-    }
-
     // allocate memory on the device and copy the data over
-    device_ptr_ = detail::device_ptr<real_type>{ detail::shape{ data_attributes_.rank_size, data_attributes_.dims }, queue_ };
-    device_ptr_.copy_to_device(host_buffer_);
+    device_ptr_ = detail::device_ptr<real_type>{ data_.shape(), queue_ };
+    device_ptr_.copy_to_device(data_);
 
     logger.log("Created data object in {}.\n", mpi_timer.elapsed());
 }
@@ -212,7 +195,7 @@ void data<layout>::send_receive_host_buffer() {
     const int destination = (comm_.rank() + 1) % comm_.size();
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(host_buffer_.data(), host_buffer_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data_.data(), data_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

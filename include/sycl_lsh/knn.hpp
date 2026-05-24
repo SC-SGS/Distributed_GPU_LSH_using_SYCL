@@ -12,6 +12,8 @@
 
 #include "sycl_lsh/data.hpp"                  // sycl_lsh::data
 #include "sycl_lsh/data_attributes.hpp"       // sycl_lsh::data_attributes
+#include "sycl_lsh/detail/matrix.hpp"         // sycl_lsh::detail::matrix
+#include "sycl_lsh/detail/shape.hpp"          // sycl_lsh::detail::shape
 #include "sycl_lsh/memory_layout.hpp"         // sycl_lsh::memory_layout
 #include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/math.hpp"       // sycl_lsh::mpi::detail::sum
@@ -204,14 +206,14 @@ class knn {
      * @brief Returns the host buffer containing the k-nearest-neighbor IDs used to hide the MPI communication.
      * @return the knn host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::vector<index_type> &get_knn_host_buffer() noexcept { return knn_host_buffer_; }
+    [[nodiscard]] detail::matrix<index_type, layout> &get_knn_indices() noexcept { return knn_indices_; }
 
     /**
      * @brief Returns the host buffer containing the k-nearest-neighbor distances used to hide the MPI communication.
      * @details The distances are calculated without the use of `std::sqrt`!
      * @return the knn distances host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::vector<real_type> &get_distance_host_buffer() noexcept { return dist_host_buffer_; }
+    [[nodiscard]] detail::matrix<real_type, layout> &get_knn_distances() noexcept { return knn_distances_; }
 
   private:
     // befriend the factory function
@@ -242,10 +244,10 @@ class knn {
     /// The number of nearest-neighbors to calculate.
     const index_type k_;
 
-    /// The SYCL host buffer for the nearest-neighbors.
-    std::vector<index_type> knn_host_buffer_;
-    /// The SYCL host buffer for the nearest-neighbor distances.
-    std::vector<real_type> dist_host_buffer_;
+    /// The host data for the nearest-neighbors.
+    detail::matrix<index_type, layout> knn_indices_;
+    /// The host data for the nearest-neighbor distances.
+    detail::matrix<real_type, layout> knn_distances_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -257,8 +259,8 @@ knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::commun
     comm_{ comm },
     logger_{ logger },
     k_{ k },
-    knn_host_buffer_(attr_.rank_size * k),
-    dist_host_buffer_(attr_.rank_size * k, std::numeric_limits<real_type>::max()) {
+    knn_indices_{ detail::shape{ attr_.rank_size, k } },
+    knn_distances_{ detail::shape{ attr_.rank_size, k }, std::numeric_limits<real_type>::max() } {
     const mpi::timer mpi_timer{ comm_ };
 
     SYCL_LSH_ASSERT(0 < k, "Illegal number of k-nearest-neighbors!");
@@ -266,12 +268,10 @@ knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::commun
     // calculate start ID
     const index_type base_id = comm_.rank() * attr_.rank_size;
 
-    const detail::get_linear_id<knn> get_linear_id_functor{};
-
     // fill default values
     for (index_type point = 0; point < attr_.rank_size; ++point) {
         for (index_type nn = 0; nn < k_; ++nn) {
-            knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + point;
+            knn_indices_(point, nn) = base_id + point;
         }
     }
 
@@ -280,7 +280,7 @@ knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::commun
         const index_type correct_rank_size = attr_.total_size - ((comm_.size() - 1) * attr_.rank_size);
         for (index_type point = correct_rank_size; point < attr_.rank_size; ++point) {
             for (index_type nn = 0; nn < k_; ++nn) {
-                knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)] = base_id + correct_rank_size - 1;
+                knn_indices_(point, nn) = base_id + correct_rank_size - 1;
             }
         }
     }
@@ -299,7 +299,7 @@ template <memory_layout layout>
 
     std::vector<index_type> res(k_);
     for (index_type nn = 0; nn < k_; ++nn) {
-        res[nn] = knn_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
+        res[nn] = knn_indices_(point, nn);
     }
     return res;
 }
@@ -312,7 +312,7 @@ template <memory_layout layout>
 
     std::vector<real_type> res(k_);
     for (index_type nn = 0; nn < k_; ++nn) {
-        res[nn] = dist_host_buffer_[get_linear_id_functor(point, nn, attr_, k_)];
+        res[nn] = knn_distances_(point, nn);
     }
     return res;
 }
@@ -329,26 +329,15 @@ void knn<layout>::save_knns(const options &opt) {
         throw exception{ "Required command line argument 'knn_save_file' not provided!" };
     }
 
-    std::vector<index_type> tmp_buffer(knn_host_buffer_.size());
-
-    if constexpr (layout == memory_layout::soa) {
-        // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
-        const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
-        const detail::get_linear_id<knn<memory_layout::soa>> get_linear_id_soa{};
-
-        for (index_type point = 0; point < attr_.rank_size; ++point) {
-            for (index_type nn = 0; nn < k_; ++nn) {
-                tmp_buffer[get_linear_id_aos(point, nn, attr_, k_)] = knn_host_buffer_[get_linear_id_soa(point, nn, attr_, k_)];
-            }
-        }
-    } else {
-        // if the layout is correct, simply copy the values to the temporary buffer
-        std::copy(knn_host_buffer_.begin(), knn_host_buffer_.end(), tmp_buffer.begin());
-    }
-
     // write content to the respective file
     auto file_parser = mpi::make_file_parser<index_type>(opt.knn_save_file.value(), opt.file_parser, mpi::file::mode::write, comm_, logger_);
-    file_parser->write_content(attr_.total_size, k_, tmp_buffer);
+    if constexpr (layout == memory_layout::soa) {
+        // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
+        file_parser->write_content(attr_.total_size, k_, detail::aos_matrix<index_type>{ knn_indices_ });
+    } else {
+        // if the layout is correct, simply write the data
+        file_parser->write_content(attr_.total_size, k_, knn_indices_);
+    }
 
     logger_.log("Saved k-nearest-neighbor IDs in {}.\n", mpi_timer.elapsed());
 }
@@ -362,29 +351,15 @@ void knn<layout>::save_distances(const options &opt) {
         throw exception{ "Required command line argument 'knn_dist_save_file' not provided!" };
     }
 
-    std::vector<real_type> tmp_buffer(dist_host_buffer_.size());
-
-    if constexpr (layout == memory_layout::soa) {
-        // expect the values to be saved in array of structs (aos) layout -> transform if wrong layout
-        const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
-        const detail::get_linear_id<knn<memory_layout::soa>> get_linear_id_soa{};
-
-        for (index_type point = 0; point < attr_.rank_size; ++point) {
-            for (index_type nn = 0; nn < k_; ++nn) {
-                tmp_buffer[get_linear_id_aos(point, nn, attr_, k_)] = dist_host_buffer_[get_linear_id_soa(point, nn, attr_, k_)];
-            }
-        }
-    } else {
-        // if the layout is correct, simply copy the values to the temporary buffer (because of the call to `std::sqrt` later on)
-        std::copy(dist_host_buffer_.begin(), dist_host_buffer_.end(), tmp_buffer.begin());
-    }
+    // automatically handles AoS <-> SoA conversions if necessary
+    detail::aos_matrix<real_type> temp_matrix{ knn_distances_ };
 
     // transform the values using `std::sqrt`
-    std::transform(tmp_buffer.begin(), tmp_buffer.end(), tmp_buffer.begin(), [](const real_type val) { return std::sqrt(val); });
+    std::transform(temp_matrix.data(), temp_matrix.data() + temp_matrix.size(), temp_matrix.data(), [](const real_type val) { return std::sqrt(val); });
 
     // write content to the respective file
     auto file_parser = mpi::make_file_parser<real_type>(opt.knn_dist_save_file.value(), opt.file_parser, mpi::file::mode::write, comm_, logger_);
-    file_parser->write_content(attr_.total_size, k_, tmp_buffer);
+    file_parser->write_content(attr_.total_size, k_, temp_matrix);
 
     logger_.log("Saved k-nearest-neighbor distances in {}.\n", mpi_timer.elapsed());
 }
@@ -408,7 +383,7 @@ template <memory_layout layout>
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    std::vector<index_type> correct_knn = file_parser->parse_content();
+    detail::aos_matrix<index_type> correct_knn_indices = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {
@@ -423,17 +398,14 @@ template <memory_layout layout>
 
     const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
 
-    const detail::get_linear_id<knn> get_linear_id_this{};
-    const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
-
     index_type count = 0;
     for (index_type point = 0; point < correct_rank_size; ++point) {
         for (index_type nn = 0; nn < k_; ++nn) {
             // get calculated k-nearest-neighbor ID
-            const index_type calculated_id = knn_host_buffer_[get_linear_id_this(point, nn, attr_, k_)];
+            const index_type calculated_id = knn_indices_(point, nn);
             // check if calculated ID is contained in the correct IDs
             for (index_type i = 0; i < k_; ++i) {
-                if (calculated_id == correct_knn[get_linear_id_aos(point, i, attr_, k_)]) {
+                if (calculated_id == correct_knn_indices(point, i)) {
                     // correct ID found
                     ++count;
                     break;
@@ -470,7 +442,7 @@ template <memory_layout layout>
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    std::vector<real_type> correct_knn_dist = file_parser->parse_content();
+    detail::aos_matrix<real_type> correct_knn_distances = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {
@@ -485,9 +457,6 @@ template <memory_layout layout>
 
     const index_type correct_rank_size = comm_.rank() == comm_.size() - 1 ? (attr_.total_size - (comm_.size() - 1) * attr_.rank_size) : attr_.rank_size;
 
-    const detail::get_linear_id<knn> get_linear_id_this{};
-    const detail::get_linear_id<knn<memory_layout::aos>> get_linear_id_aos{};
-
     // calculate error ratio
     index_type num_points_not_found = 0;
     index_type num_knn_not_found = 0;
@@ -500,11 +469,11 @@ template <memory_layout layout>
     for (index_type point = 0; point < correct_rank_size; ++point) {
         // fill k-nearest-neighbor distances for current point
         for (index_type nn = 0; nn < k_; ++nn) {
-            calculated_knn_dist_sorted[nn] = dist_host_buffer_[get_linear_id_this(point, nn, attr_, k_)];
-            correct_knn_dist_sorted[nn] = correct_knn_dist[get_linear_id_aos(point, nn, attr_, k_)];
+            calculated_knn_dist_sorted[nn] = knn_distances_(point, nn);
+            correct_knn_dist_sorted[nn] = correct_knn_distances(point, nn);
         }
         // check whether k k-nearest-neighbor could be found
-        auto count_not_found = std::count(calculated_knn_dist_sorted.cbegin(), calculated_knn_dist_sorted.cend(), std::numeric_limits<real_type>::max());
+        const auto count_not_found = std::count(calculated_knn_dist_sorted.cbegin(), calculated_knn_dist_sorted.cend(), std::numeric_limits<real_type>::max());
         if (count_not_found != 0) {
             ++num_points_not_found;
             num_knn_not_found += count_not_found;
@@ -566,10 +535,10 @@ void knn<layout>::send_receive_host_buffer() {
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
     // send/receive k-nearest-neighbor IDs
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_host_buffer_.data(), knn_host_buffer_.size(), mpi::detail::mpi_datatype<index_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_indices_.data(), knn_indices_.size(), mpi::detail::mpi_datatype<index_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 
     // send/receive k-nearest-neighbor distances
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(dist_host_buffer_.data(), dist_host_buffer_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_distances_.data(), knn_distances_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
 }
 
 }  // namespace sycl_lsh
