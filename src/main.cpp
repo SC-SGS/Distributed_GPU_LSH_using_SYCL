@@ -60,7 +60,7 @@ int custom_main(const int argc, char **argv) {
                 }
             }
         },
-                   sycl_lsh::make_hash_tables<sycl_lsh::memory_layout::aos>(opt, data, queue, comm, logger));
+                   sycl_lsh::make_hash_tables(opt, data, queue, comm, logger));
 
         // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
         opt.save_benchmark_options(comm);

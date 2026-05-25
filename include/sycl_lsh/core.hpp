@@ -17,6 +17,7 @@
 #include "sycl_lsh/hash_functions/hash_functions.hpp"
 #include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"
 #include "sycl_lsh/hash_functions/random_projections.hpp"
+#include "sycl_lsh/device_selector.hpp"
 #include "sycl_lsh/hash_tables.hpp"
 #include "sycl_lsh/knn.hpp"
 #include "sycl_lsh/mpi/communicator.hpp"

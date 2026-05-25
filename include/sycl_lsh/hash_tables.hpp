@@ -15,16 +15,14 @@
 #include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/utility.hpp"                 // sycl_lsh::detail::swap
-#include "sycl_lsh/device_selector.hpp"                // sycl_lsh::device_selector
 #include "sycl_lsh/exceptions/exceptions.hpp"          // sycl_lsh::exception
 #include "sycl_lsh/hash_functions/hash_functions.hpp"  // forward declarations for the hash functions
 #include "sycl_lsh/knn.hpp"                            // sycl_lsh::knn
-#include "sycl_lsh/memory_layout.hpp"                  // sycl_lsh::memory_layout
 #include "sycl_lsh/mpi/logger.hpp"                     // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "sycl/sycl.hpp"
+#include "sycl/sycl.hpp"  // sycl::queue
 
 #include "fmt/format.h"  // fmt::format
 
@@ -35,65 +33,27 @@
 
 namespace sycl_lsh {
 
-// forward declare hash_tables class
-template <memory_layout layout, typename HashFunction>
-class hash_tables;
-
-/***
- * @brief A std::variant alias containing all available hash tables for a given layout type.
- */
-template <memory_layout layout>
-using hash_table_types = std::variant<
-    hash_tables<layout, random_projections>,
-    hash_tables<layout, entropy_based>,
-    hash_tables<layout, mixed_hash_functions>>;
-
-/**
- * @brief Factory function for the @ref sycl_lsh::hash_tables class.
- * @tparam layout the used @ref sycl_lsh::memory_layout type
- * @tparam HashFunction the used hash function
- * @param[in] opt the used @ref sycl_lsh::options
- * @param[in] data the used @ref sycl_lsh::data representing the used data set
- * @param[in] queue the SYCL queue to run on
- * @param[in] comm the used @ref sycl_lsh::mpi::communicator
- * @param[in] logger the used @ref sycl_lsh::mpi::logger
- * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
- */
-template <memory_layout layout, typename HashFunction>
-[[nodiscard]] auto make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
-    return hash_tables<layout, HashFunction>(opt, data, queue, comm, logger);
-}
-
-/**
- * @brief Factory function for the @ref sycl_lsh::hash_tables class.
- * @tparam layout the used @ref sycl_lsh::memory_layout type
- * @param[in] opt the used @ref sycl_lsh::options
- * @param[in] data the used @ref sycl_lsh::data representing the used data set
- * @param[in] queue the SYCL queue to run on
- * @param[in] comm the used @ref sycl_lsh::mpi::communicator
- * @param[in] logger the used @ref sycl_lsh::mpi::logger
- * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
- */
-template <memory_layout layout>
-[[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
-    switch (opt.hash_function) {
-        case hash_function_type::random_projections:
-            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, random_projections>>, opt, data, queue, comm, logger };
-        case hash_function_type::entropy_based:
-            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, entropy_based>>, opt, data, queue, comm, logger };
-        case hash_function_type::mixed_hash_functions:
-            return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, mixed_hash_functions>>, opt, data, queue, comm, logger };
-    }
-    // unreachable
-}
-
 /**
  * @brief Class which represents the hash tables used in the LSH algorithm. Performs the actual calculation of the k-nearest-neighbors.
- * @tparam layout the @ref sycl_lsh::memory_layout type
+ * @tparam HashFunction the type of the used hash function: random_projections, entropy_base, or mixed_hash_functions.
  */
-template <memory_layout layout, typename HashFunction>
+template <typename HashFunction>
 class hash_tables {
   public:
+    // ---------------------------------------------------------------------------------------------------------- //
+    //                                                constructor                                                 //
+    // ---------------------------------------------------------------------------------------------------------- //
+    // TODO: shouldn't be public as it is now
+    /**
+     * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
+     * @param[in] opt the used @ref sycl_lsh::options
+     * @param[in] data the used @ref sycl_lsh::data representing the used data set
+     * @param[in] queue the SYCL queue to run on
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] logger the used @ref sycl_lsh::mpi::logger
+     */
+    hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+
     // ---------------------------------------------------------------------------------------------------------- //
     //                                       calculate k-nearest-neighbors                                        //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -118,12 +78,6 @@ class hash_tables {
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Returns the specified @ref sycl_lsh::memory_layout type.
-     * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
-     */
-    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
-
-    /**
      * @brief Returns the @ref sycl_lsh::options object used to control the behavior of the used algorithm.
      * @return the @ref sycl_lsh::options (`[[nodiscard]]`)
      */
@@ -134,20 +88,6 @@ class hash_tables {
      * @return the @ref sycl_lsh::data (`[[nodiscard]]`)
      */
     [[nodiscard]] const data_set &get_data() const noexcept { return data_; }
-
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                constructor                                                 //
-    // ---------------------------------------------------------------------------------------------------------- //
-    // TODO: shouldn't be public as it is now
-    /**
-     * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
-     * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] data the used @ref sycl_lsh::data representing the used data set
-     * @param[in] queue the SYCL queue to run on
-     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
-     */
-    hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
   private:
     /**
@@ -181,31 +121,31 @@ class hash_tables {
     /// The used data.
     data_set &data_;
     /// The attributes associated with the data.
-    const data_attributes attr_;
+    data_attributes attr_;
     /// The associated MPI communicator.
     const mpi::communicator &comm_;
     /// The associated MPI logger.
     const mpi::logger &logger_;
 
     /// The used has functions.
-    const HashFunction hash_functions_;
+    HashFunction hash_functions_;
 
     /// The SYCL device buffer for the hash functions.
-    mutable detail::device_ptr<index_type> hash_tables_ptr_;
+    detail::device_ptr<index_type> hash_tables_ptr_;
     /// The SYCL device buffer for the offsets.
-    mutable detail::device_ptr<index_type> offsets_ptr_;
+    detail::device_ptr<index_type> offsets_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                       calculate k-nearest-neighbors                                        //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename HashFunction>
-[[nodiscard]] knn hash_tables<layout, HashFunction>::k_nearest_neighbors(const options &opt) const {
+template <typename HashFunction>
+[[nodiscard]] knn hash_tables<HashFunction>::k_nearest_neighbors(const options &opt) const {
     return k_nearest_neighbors(opt.k);
 }
 
-template <memory_layout layout, typename HashFunction>
-[[nodiscard]] knn hash_tables<layout, HashFunction>::k_nearest_neighbors(const index_type k) const {
+template <typename HashFunction>
+[[nodiscard]] knn hash_tables<HashFunction>::k_nearest_neighbors(const index_type k) const {
     const mpi::timer mpi_timer{ comm_ };
 
     if (k < 1 || k > attr_.rank_size) {
@@ -257,8 +197,8 @@ template <memory_layout layout, typename HashFunction>
     return knns;
 }
 
-template <memory_layout layout, typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
+template <typename HashFunction>
+void hash_tables<HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -385,8 +325,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, typename HashFunction>
-hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+template <typename HashFunction>
+hash_tables<HashFunction>::hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     options_{ opt },
     data_{ data },
@@ -416,8 +356,8 @@ hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_set &dat
     logger_.log("Created hash tables in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, typename HashFunction>
-void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<index_type> &hash_values_count_ptr) {
+template <typename HashFunction>
+void hash_tables<HashFunction>::count_hash_values(detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -448,8 +388,8 @@ void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<ind
     logger_.log("Counted hash values in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr) {
+template <typename HashFunction>
+void hash_tables<HashFunction>::calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -482,8 +422,8 @@ void hash_tables<layout, HashFunction>::calculate_offsets(const detail::device_p
     logger_.log("Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, typename HashFunction>
-void hash_tables<layout, HashFunction>::fill_hash_tables() {
+template <typename HashFunction>
+void hash_tables<HashFunction>::fill_hash_tables() {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -537,6 +477,50 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
     queue_.wait_and_throw();
 
     logger_.log("Filled hash tables in {}.\n", mpi_timer.elapsed());
+}
+
+/***
+ * @brief A std::variant alias containing all available hash tables for a given layout type.
+ */
+using hash_table_types = std::variant<
+    hash_tables<random_projections>,
+    hash_tables<entropy_based>,
+    hash_tables<mixed_hash_functions>>;
+
+/**
+ * @brief Factory function for the @ref sycl_lsh::hash_tables class.
+ * @tparam HashFunction the used hash function
+ * @param[in] opt the used @ref sycl_lsh::options
+ * @param[in] data the used @ref sycl_lsh::data representing the used data set
+ * @param[in] queue the SYCL queue to run on
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+ * @param[in] logger the used @ref sycl_lsh::mpi::logger
+ * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
+ */
+template <typename HashFunction>
+[[nodiscard]] auto make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
+    return hash_tables<HashFunction>(opt, data, queue, comm, logger);
+}
+
+/**
+ * @brief Factory function for the @ref sycl_lsh::hash_tables class.
+ * @param[in] opt the used @ref sycl_lsh::options
+ * @param[in] data the used @ref sycl_lsh::data representing the used data set
+ * @param[in] queue the SYCL queue to run on
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+ * @param[in] logger the used @ref sycl_lsh::mpi::logger
+ * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
+ */
+[[nodiscard]] inline hash_table_types make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
+    switch (opt.hash_function) {
+        case hash_function_type::random_projections:
+            return hash_table_types{ std::in_place_type<hash_tables<random_projections>>, opt, data, queue, comm, logger };
+        case hash_function_type::entropy_based:
+            return hash_table_types{ std::in_place_type<hash_tables<entropy_based>>, opt, data, queue, comm, logger };
+        case hash_function_type::mixed_hash_functions:
+            return hash_table_types{ std::in_place_type<hash_tables<mixed_hash_functions>>, opt, data, queue, comm, logger };
+    }
+    // unreachable
 }
 
 }  // namespace sycl_lsh

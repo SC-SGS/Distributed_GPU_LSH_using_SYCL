@@ -10,8 +10,6 @@
 #define SYCL_LSH_HASH_FUNCTIONS_HASH_FUNCTIONS_HPP
 #pragma once
 
-#include "sycl_lsh/memory_layout.hpp"  // sycl_lsh::memory_layout
-
 namespace sycl_lsh {
 
 // forward declare hash functions classes
