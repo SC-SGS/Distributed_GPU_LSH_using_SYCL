@@ -36,7 +36,7 @@
 namespace sycl_lsh {
 
 // forward declare hash_tables class
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 class hash_tables;
 
 /***
@@ -59,7 +59,7 @@ using hash_table_types = std::variant<
  * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
  */
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 [[nodiscard]] auto make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     return hash_tables<layout, HashFunction>(opt, data, queue, comm, logger);
 }
@@ -91,7 +91,7 @@ template <memory_layout layout>
  * @brief Class which represents the hash tables used in the LSH algorithm. Performs the actual calculation of the k-nearest-neighbors.
  * @tparam layout the @ref sycl_lsh::memory_layout type
  */
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 class hash_tables {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
@@ -99,8 +99,6 @@ class hash_tables {
     // ---------------------------------------------------------------------------------------------------------- //
     /// The type of the @ref sycl_lsh::knn object as the result of the k-nearest-neighbor search.
     using knn_type = knn<layout>;
-
-    using hash_function_type = HashFunction<layout>;
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                       calculate k-nearest-neighbors                                        //
@@ -165,7 +163,7 @@ class hash_tables {
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
      */
-    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type>& knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
+    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
@@ -196,7 +194,7 @@ class hash_tables {
     const mpi::logger &logger_;
 
     /// The used has functions.
-    const hash_function_type hash_functions_;
+    const HashFunction hash_functions_;
 
     /// The SYCL device buffer for the hash functions.
     mutable detail::device_ptr<index_type> hash_tables_ptr_;
@@ -207,12 +205,12 @@ class hash_tables {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                       calculate k-nearest-neighbors                                        //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 [[nodiscard]] auto hash_tables<layout, HashFunction>::k_nearest_neighbors(const options &opt) const -> knn_type {
     return k_nearest_neighbors(opt.k);
 }
 
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 [[nodiscard]] auto hash_tables<layout, HashFunction>::k_nearest_neighbors(const index_type k) const -> knn_type {
     const mpi::timer mpi_timer{ comm_ };
 
@@ -265,8 +263,8 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
     return knns;
 }
 
-template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type>& knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
+template <memory_layout layout, typename HashFunction>
+void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -297,7 +295,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const detail::get_linear_id<knn_type> get_linear_id_knn{};
 
         // get hasher functor instantiation
-        const detail::lsh_hash<hash_function_type> hasher{};
+        const detail::lsh_hash<HashFunction> hasher{};
 
         // create local memory accessors
         sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ local_size * k }, cgh };
@@ -396,7 +394,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     options_{ opt },
@@ -427,7 +425,7 @@ hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_set &dat
     logger_.log("Created hash tables in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
@@ -442,7 +440,7 @@ void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<ind
         const data_attributes attr = attr_;
 
         // get hasher functor instantiation
-        const detail::lsh_hash<hash_function_type> hasher{};
+        const detail::lsh_hash<HashFunction> hasher{};
 
         cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);
@@ -459,7 +457,7 @@ void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<ind
     logger_.log("Counted hash values in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 void hash_tables<layout, HashFunction>::calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
@@ -493,7 +491,7 @@ void hash_tables<layout, HashFunction>::calculate_offsets(const detail::device_p
     logger_.log("Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
 
-template <memory_layout layout, template <memory_layout> typename HashFunction>
+template <memory_layout layout, typename HashFunction>
 void hash_tables<layout, HashFunction>::fill_hash_tables() {
     const mpi::timer mpi_timer{ comm_ };
 
@@ -512,7 +510,7 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
         const index_type comm_size = comm_.size();
 
         // get hasher functor instantiation
-        const detail::lsh_hash<hash_function_type> hasher{};
+        const detail::lsh_hash<HashFunction> hasher{};
 
         cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);

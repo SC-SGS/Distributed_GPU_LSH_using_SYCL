@@ -1,0 +1,92 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-today
+ */
+
+#include "sycl_lsh/hash_functions/random_projections.hpp"
+
+#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set
+#include "sycl_lsh/detail/assert.hpp"       // SYCL_LSH_ASSERT
+#include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
+#include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
+#include "sycl_lsh/mpi/logger.hpp"          // sycl_lsh::mpi::logger
+#include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
+#include "sycl_lsh/options.hpp"             // sycl_lsh::options
+
+#include "sycl/sycl.hpp"  // sycl::queue
+
+#include "mpi.h"  // MPI_Bcast
+
+#include <cmath>   // std::abs
+#include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
+#include <vector>  // std::vector
+
+namespace sycl_lsh {
+
+random_projections::random_projections(const device_accessible_options &opt, const data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+    queue_{ queue },
+    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (data.get_attributes().dims + 1) }, queue_ } {
+    const mpi::timer mpi_timer{ comm };
+
+    const data_attributes &attr = data.get_attributes();
+
+    std::vector<real_type> host_buffer(device_ptr_.size());
+
+    // create hash pool only on MPI master rank
+    if (comm.is_main_rank()) {
+// create random generators
+#if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
+        // don't seed random engine in debug mode
+        std::mt19937 rnd_normal_pool_gen{};
+        std::mt19937 rnd_uniform_pool_gen{};
+#else
+        // seed random engine outside debug mode
+        std::random_device rnd_pool_device{};
+        std::mt19937 rnd_normal_pool_gen{ rnd_pool_device() };
+        std::mt19937 rnd_uniform_pool_gen{ rnd_pool_device() };
+#endif
+        std::normal_distribution<real_type> rnd_normal_pool_dist{};
+        std::uniform_real_distribution<real_type> rnd_uniform_pool_dist{ 0, opt.w };
+
+        // fill hash pool
+        std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
+        for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
+            for (index_type dim = 0; dim < attr.dims; ++dim) {
+                hash_pool[hash_function * (attr.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
+            }
+            hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
+        }
+
+// select actual hash functions
+#if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
+        // don't seed random engine in debug mode
+        std::mt19937 rnd_uniform_gen{};
+#else
+        // seed random engine outside debug mode
+        std::random_device rnd_device{};
+        std::mt19937 rnd_uniform_gen{ rnd_device() };
+#endif
+        std::uniform_int_distribution<index_type> rnd_uniform_dist{ 0, opt.hash_pool_size - 1 };
+
+        for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
+            for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
+                const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
+                for (index_type dim = 0; dim <= attr.dims; ++dim) {
+                    host_buffer[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim] = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
+                }
+            }
+        }
+    }
+
+    // broadcast hash functions to other MPI ranks
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+
+    // copy the host data to the device
+    device_ptr_.copy_to_device(host_buffer);
+
+    logger.log("Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
+}
+
+}  // namespace sycl_lsh

@@ -11,71 +11,26 @@
 #pragma once
 
 #include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set
-#include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
 #include "sycl_lsh/hash_functions/hash_functions.hpp"  // forward declaration
-#include "sycl_lsh/memory_layout.hpp"                  // sycl_lsh::memory_layout_type
 #include "sycl_lsh/mpi/communicator.hpp"               // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/utility.hpp"             // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/mpi/logger.hpp"                     // sycl_lsh::mpi::logger
-#include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
-#include "sycl/sycl.hpp"
-
-#include "mpi.h"  // MPI_Bcast
-
-#include <cmath>   // std::abs
-#include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
-#include <vector>  // std::vector
+#include "sycl/sycl.hpp"  // sycl::queue
 
 namespace sycl_lsh {
 
 namespace detail {
-/**
- * @brief Specialization of the @ref sycl_lsh::get_linear_id class for the @ref sycl_lsh::random_projections class to convert a
- *        multidimensional index to a one-dimensional one.
- * @tparam layout the @ref sycl_lsh::memory_layout type
- */
-template <memory_layout layout>
-struct get_linear_id<random_projections<layout>> {
-    /**
-     * @brief Convert the multidimensional index to a one-dimensional index.
-     * @param[in] hash_table the requested hash table
-     * @param[in] hash_function the requested hash function
-     * @param[in] dim the requested dimension of @p hash_function
-     * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] attr the attributes of the used data set
-     * @return the one-dimensional index (`[[nodiscard]]`)
-     *
-     * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
-     * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
-     * @pre @p dim must be in the range `[0, number of dimensions per data point + 1)` (currently disabled).
-     */
-    [[nodiscard]] index_type operator()(const index_type hash_table, const index_type hash_function, const index_type dim, const device_accessible_options &opt, const data_attributes &attr) const noexcept {  // TODO options
-        if constexpr (layout == memory_layout::aos) {
-            // Array of Structs
-            return hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim;
-        } else {
-            // Struct of Arrays
-            return hash_table * opt.num_hash_functions * (attr.dims + 1) + dim * opt.num_hash_functions + hash_function;
-        }
-    }
-};
 
 /**
  * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::random_projections class to calculate the
  *        hash value.
- * @tparam layout the @ref sycl_lsh::memory_layout type
  */
-template <memory_layout layout>
-struct lsh_hash<random_projections<layout>> {
-    /// The used hash functions type (random projections for this specialization).
-    using hash_function_type = random_projections<layout>;
-
+template <>
+struct lsh_hash<random_projections> {
     /**
      * @brief Calculates the hash value of the data @p point in hash table @p hash_tables using random projections.
      * @param[in] hash_table the provided hash table
@@ -90,17 +45,13 @@ struct lsh_hash<random_projections<layout>> {
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
     [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
-        // get indexing functions
-        const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        ;
-
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash for current hash function
-            real_type hash = hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
+            real_type hash = hash_functions_d[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + attr.dims];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
                 hash += data_d[point * attr.dims + dim]
-                        * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
+                        * hash_functions_d[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim];
             }
             // combine hashes
             combined_hash = hash_combine(combined_hash, static_cast<hash_value_type>(hash / opt.w));
@@ -113,9 +64,7 @@ struct lsh_hash<random_projections<layout>> {
 
 /**
  * @brief Class which represents the random projections hash functions used in the LSH algorithm.
- * @tparam layout the @ref sycl_lsh::memory_layout type
  */
-template <memory_layout layout>
 class random_projections {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
@@ -135,12 +84,6 @@ class random_projections {
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Returns the specified @ref sycl_lsh::memory_layout type.
-     * @return the @ref sycl_lsh::memory_layout type (`[[nodiscard]]`)
-     */
-    [[nodiscard]] constexpr static memory_layout get_memory_layout() noexcept { return layout; }
-
-    /**
      * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
      * @return the device memory (`[[nodiscard]]`)
      */
@@ -158,76 +101,6 @@ class random_projections {
     /// The device buffer.
     detail::device_ptr<real_type> device_ptr_;
 };
-
-// ---------------------------------------------------------------------------------------------------------- //
-//                                                constructor                                                 //
-// ---------------------------------------------------------------------------------------------------------- //
-template <memory_layout layout>
-random_projections<layout>::random_projections(const device_accessible_options &opt, const data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
-    queue_{ queue },
-    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (data.get_attributes().dims + 1) }, queue_ } {
-    const mpi::timer mpi_timer{ comm };
-
-    const data_attributes &attr = data.get_attributes();
-
-    std::vector<real_type> host_buffer(device_ptr_.size());
-
-    // create hash pool only on MPI master rank
-    if (comm.is_main_rank()) {
-// create random generators
-#if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
-        // don't seed random engine in debug mode
-        std::mt19937 rnd_normal_pool_gen{};
-        std::mt19937 rnd_uniform_pool_gen{};
-#else
-        // seed random engine outside debug mode
-        std::random_device rnd_pool_device{};
-        std::mt19937 rnd_normal_pool_gen{ rnd_pool_device() };
-        std::mt19937 rnd_uniform_pool_gen{ rnd_pool_device() };
-#endif
-        std::normal_distribution<real_type> rnd_normal_pool_dist{};
-        std::uniform_real_distribution<real_type> rnd_uniform_pool_dist{ 0, opt.w };
-
-        // fill hash pool
-        std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
-        for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
-            for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash_pool[hash_function * (attr.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
-            }
-            hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
-        }
-
-// select actual hash functions
-#if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
-        // don't seed random engine in debug mode
-        std::mt19937 rnd_uniform_gen{};
-#else
-        // seed random engine outside debug mode
-        std::random_device rnd_device{};
-        std::mt19937 rnd_uniform_gen{ rnd_device() };
-#endif
-        std::uniform_int_distribution<index_type> rnd_uniform_dist{ 0, opt.hash_pool_size - 1 };
-
-        const detail::get_linear_id<random_projections> get_linear_id_functor{};
-
-        for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
-            for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-                const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
-                for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                    host_buffer[get_linear_id_functor(hash_table, hash_function, dim, opt, attr)] = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
-                }
-            }
-        }
-    }
-
-    // broadcast hash functions to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
-
-    // copy the host data to the device
-    device_ptr_.copy_to_device(host_buffer);
-
-    logger.log("Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
-}
 
 }  // namespace sycl_lsh
 

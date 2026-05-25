@@ -31,7 +31,10 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/source_location.cpp
 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/entropy_based.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/hash_function_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/mixed_hash_functions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/random_projections.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/utility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file.cpp

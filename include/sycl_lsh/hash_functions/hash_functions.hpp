@@ -15,11 +15,8 @@
 namespace sycl_lsh {
 
 // forward declare hash functions classes
-template <memory_layout layout>
 class random_projections;
-template <memory_layout layout>
 class entropy_based;
-template <memory_layout layout>
 class mixed_hash_functions;
 
 }  // namespace sycl_lsh
