@@ -15,8 +15,10 @@
 namespace sycl_lsh {
 
 #if defined(SYCL_LSH_USE_CPU)
+/// Select the default CPU device to run the SYCL kernels on.
 constexpr auto device_selector = sycl::cpu_selector_v;
 #else
+/// Select the default GPU device to run the SYCL kernel on.
 constexpr auto device_selector = sycl::gpu_selector_v;
 #endif
 

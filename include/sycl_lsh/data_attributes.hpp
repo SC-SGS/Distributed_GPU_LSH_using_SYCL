@@ -10,13 +10,11 @@
 #define SYCL_LSH_DATA_ATTRIBUTES_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"      // sycl_lsh::index_type
-#include "sycl_lsh/memory_layout.hpp"  // sycl_lsh::memory_layout
+#include "sycl_lsh/constants.hpp"  // sycl_lsh::index_type
 
-#include "fmt/format.h"   // fmt::format
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 
-#include <ostream>  // std::ostream
+#include <iosfwd>  // std::ostream forward declaration
 
 namespace sycl_lsh {
 
@@ -29,14 +27,11 @@ struct data_attributes {
     // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Construct a new @ref sycl_lsh::data_attributes object representing the sizes of a @ref sycl_lsh::data object.
-     * @param[in] total_size the **total** number of data points
-     * @param[in] rank_size the number of data points on the current MPI rank
-     * @param[in] dims the number of dimensions per data point
+     * @param[in] total_size_p the **total** number of data points
+     * @param[in] rank_size_p the number of data points on the current MPI rank
+     * @param[in] dims_p the number of dimensions per data point
      */
-    data_attributes(const index_type total_size, const index_type rank_size, const index_type dims) :
-        total_size{ total_size },
-        rank_size{ rank_size },
-        dims{ dims } { }
+    data_attributes(index_type total_size_p, index_type rank_size_p, index_type dims_p);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                 attributes                                                 //
@@ -55,15 +50,7 @@ struct data_attributes {
  * @param[in] data_attr the @ref sycl_lsh::data_attributes
  * @return the output stream
  */
-inline std::ostream &operator<<(std::ostream &out, const data_attributes &data_attr) {
-    out << fmt::format("total_size {}\n"
-                       "rank_size {}\n"
-                       "dims {}",
-                       data_attr.total_size,
-                       data_attr.rank_size,
-                       data_attr.dims);
-    return out;
-}
+std::ostream &operator<<(std::ostream &out, const data_attributes &data_attr);
 
 }  // namespace sycl_lsh
 

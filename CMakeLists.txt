@@ -42,6 +42,7 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_attributes.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/memory_layout.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
 )
