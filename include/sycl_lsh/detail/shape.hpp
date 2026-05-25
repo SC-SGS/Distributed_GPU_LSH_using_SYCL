@@ -10,6 +10,8 @@
 #define SYCL_LSH_DETAIL_SHAPE_HPP
 #pragma once
 
+#include "sycl_lsh/detail/hash_combine.hpp"  // sycl_lsh::detail::hash_combine
+
 #include "fmt/base.h"     // fmt::formatter
 #include "fmt/ostream.h"  // fmt::ostream_formatter
 
@@ -86,14 +88,14 @@ void swap(shape &lhs, shape &rhs) noexcept;
  * @param[in] rhs the second shape
  * @return `true` if all dimensions have the same size, otherwise `false` (`[[nodiscard]]`)
  */
-[[nodiscard]] bool operator==(const shape& lhs, const shape& rhs) noexcept;
+[[nodiscard]] bool operator==(const shape &lhs, const shape &rhs) noexcept;
 /**
  * @brief Check whether the shapes @p lhs and @p rhs are unequal.
  * @param[in] lhs the first shape
  * @param[in] rhs the second shape
  * @return `true` if any dimension sizes missmatch, otherwise `false` (`[[nodiscard]]`)
  */
-[[nodiscard]] bool operator!=(const shape& lhs, const shape& rhs) noexcept;
+[[nodiscard]] bool operator!=(const shape &lhs, const shape &rhs) noexcept;
 
 }  // namespace sycl_lsh::detail
 
@@ -112,15 +114,10 @@ struct hash<sycl_lsh::detail::shape> {
      * @return the hash value of @p s
      */
     std::size_t operator()(const sycl_lsh::detail::shape &s) const noexcept {
-        // based on boost::hash<std::pair<T, U>>>
-        const auto hash_combine = [](std::size_t &seed, const std::size_t val) {
-            seed ^= std::hash<std::size_t>{}(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);  // NOLINT: taken from boost::hash_combine
-        };
-
         std::size_t seed = 0;
-        hash_combine(seed, s.x);
-        hash_combine(seed, s.y);
-        hash_combine(seed, s.z);
+        seed = sycl_lsh::detail::hash_combine(seed, s.x);
+        seed = sycl_lsh::detail::hash_combine(seed, s.y);
+        seed = sycl_lsh::detail::hash_combine(seed, s.z);
         return seed;
     }
 };

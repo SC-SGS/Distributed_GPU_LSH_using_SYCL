@@ -10,31 +10,44 @@
 #define SYCL_LSH_DETAIL_HASH_COMBINE_HPP
 #pragma once
 
-#include <cstdint>  // std::uint16_t, std::uint32_t, std::uint64_t
-
-/**
- * @def SYCL_LSH_CREATE_HASH_COMBINE
- * @brief Defines a macro to create all possible `hash_combine()` functions based on the size of the
- *        @ref sycl_lsh::options::hash_value_type size.
- * @param[in] type the hash value type
- * @param[in] const_1 the first constant (magic number)
- * @param[in] const_2 the second constant (left-shift)
- * @param[in] const_3 the third constant (right-shift)
- */
-#define SYCL_LSH_CREATE_HASH_COMBINE(type, const_1, const_2, const_3)                                                                   \
-    [[nodiscard]]                                                                                                                       \
-    inline type hash_combine(const type seed, const type val) noexcept {                                                                \
-        return seed ^ (val + static_cast<type>(const_1) + (seed << static_cast<type>(const_2)) + (seed >> static_cast<type>(const_3))); \
-    }
+#include <cstdint>  // std::uint32_t, std::uint64_t
 
 namespace sycl_lsh::detail {
 
-SYCL_LSH_CREATE_HASH_COMBINE(std::uint16_t, 0x9e37U, 3, 1)
-SYCL_LSH_CREATE_HASH_COMBINE(std::uint32_t, 0x9e3779b9U, 6, 2)
-SYCL_LSH_CREATE_HASH_COMBINE(std::uint64_t, 0x9e3779b97f4a7c15LLU, 12, 4)
+/**
+ * @brief Combine two hash values into a new one. Base on boost::hash_combine.
+ * @param[in] seed the seed
+ * @param[in] val the hash value
+ * @return the combined hash value (`[[nodiscard]]`)
+ */
+[[nodiscard]] inline std::uint32_t hash_combine(const std::uint32_t seed, const std::uint32_t val) noexcept {
+    std::uint32_t x = seed + 0x9e3779b9u + val;
+    // start the mixing
+    x ^= x >> 16u;
+    x *= 0x21f0aaadu;
+    x ^= x >> 15u;
+    x *= 0x735a2d97u;
+    x ^= x >> 15u;
+    return x;
+}
+
+/**
+ * @brief Combine two hash values into a new one. Base on boost::hash_combine.
+ * @param[in] seed the seed
+ * @param[in] val the hash value
+ * @return the combined hash value (`[[nodiscard]]`)
+ */
+[[nodiscard]] inline std::uint64_t hash_combine(const std::uint64_t seed, const std::uint64_t val) noexcept {
+    std::uint64_t x = seed + 0x9e3779b97f4a7c15llu + val;
+    // start the mixing
+    x ^= x >> 32llu;
+    x *= 0xe9846af9b1a615dllu;
+    x ^= x >> 32llu;
+    x *= 0xe9846af9b1a615dllu;
+    x ^= x >> 28llu;
+    return x;
+}
 
 }  // namespace sycl_lsh::detail
-
-#undef SYCL_LSH_CREATE_HASH_COMBINE
 
 #endif  // SYCL_LSH_DETAIL_HASH_COMBINE_HPP
