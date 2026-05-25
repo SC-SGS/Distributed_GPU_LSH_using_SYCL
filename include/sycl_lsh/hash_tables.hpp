@@ -165,9 +165,10 @@ class hash_tables {
      * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
      * @param[in] k the number of nearest neighbors to search for
      * @param[in] data_ptr the data to perform the nearest-neighbors search on
-     * @param[in,out] knns the (already partially) calculated nearest-neighbors
+     * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
+     * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
      */
-    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, knn_type &knns) const;
+    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type>& knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
@@ -226,6 +227,9 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 
     detail::device_ptr<real_type> data_ptr{ data_.get_device_ptr().shape(), queue_ };
 
+    detail::device_ptr<index_type> knn_ptr{ knns.get_knn_indices().shape(), queue_ };
+    detail::device_ptr<real_type> knn_dist_ptr{ knns.get_knn_distances().shape(), queue_ };
+
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
 
@@ -234,13 +238,21 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
         // create thread to asynchronously perform MPI communication
         std::thread mpi_thread{ &data_type::send_receive_host_buffer, &data_ };
 
+        // set the knn data on the device
+        knn_ptr.copy_to_device(knns.get_knn_indices());
+        knn_dist_ptr.copy_to_device(knns.get_knn_distances());
+
         // calculate k-nearest-neighbors on current MPI rank
         if (round == 0) {
-            calculate_knn_round(k, data_.get_device_ptr(), knns);
+            calculate_knn_round(k, data_.get_device_ptr(), knn_ptr, knn_dist_ptr);
         } else {
             data_ptr.copy_to_device(data_.get_host_buffer());
-            calculate_knn_round(k, data_ptr, knns);
+            calculate_knn_round(k, data_ptr, knn_ptr, knn_dist_ptr);
         }
+
+        // copy the knn data back to the host
+        knn_ptr.copy_to_host(knns.get_knn_indices());
+        knn_dist_ptr.copy_to_host(knns.get_knn_distances());
 
         // send calculated k-nearest-neighbors and distances to next rank
         knns.send_receive_host_buffer();
@@ -257,25 +269,17 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
 }
 
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, knn_type &knns) const {
+void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type>& knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
-    const index_type local_mem_size = queue_.get_device().template get_info<sycl::info::device::local_mem_size>();
+    const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
-    const index_type max_work_group_size = queue_.get_device().template get_info<sycl::info::device::max_work_group_size>();
+    const index_type max_work_group_size = queue_.get_device().get_info<sycl::info::device::max_work_group_size>();
     index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
     if (max_local_size == local_size) {
         local_size /= 2;
     }
 
-    const index_type global_size = ((attr_.rank_size + local_size - 1) / local_size) * local_size;
-
-    // TODO: do not allocate in each round!
-    // create SYCL buffers for knn class
-    detail::device_ptr<index_type> knn_ptr{ knns.get_knn_indices().shape(), queue_ };
-    knn_ptr.copy_to_device(knns.get_knn_indices());
-
-    detail::device_ptr<real_type> knn_dist_ptr{ knns.get_knn_distances().shape(), queue_ };
-    knn_dist_ptr.copy_to_device(knns.get_knn_distances());
+    const index_type global_size = static_cast<index_type>(std::ceil(static_cast<double>(attr_.rank_size) / static_cast<double>(local_size))) * local_size;
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -284,8 +288,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const real_type *hash_functions = hash_functions_.get_device_ptr().get();
         const index_type *offsets = offsets_ptr_.get();
         const index_type *hash_tables = hash_tables_ptr_.get();
-        index_type *knn = knn_ptr.get();
-        real_type *knn_dist = knn_dist_ptr.get();
+        index_type *knn = knn_indices_ptr.get();
+        real_type *knn_dist = knn_distances_ptr.get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -391,10 +395,6 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
     // wait until all k-nearest-neighbors were calculated on the current MPI rank
     queue_.wait_and_throw();
-
-    // copy data back to the host
-    knn_ptr.copy_to_host(knns.get_knn_indices());
-    knn_dist_ptr.copy_to_host(knns.get_knn_distances());
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -448,13 +448,12 @@ void hash_tables<layout, HashFunction>::count_hash_values(detail::device_ptr<ind
         // get hasher functor instantiation
         const detail::lsh_hash<hash_function_type> hasher{};
 
-        cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<1> item) {
-            const index_type idx = item.get_linear_id();
+        cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
+            const index_type hash_table = item.get_id(0);
+            const index_type idx = item.get_id(1);
 
-            for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
-                const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
-                detail::atomic_op<index_type>{ hash_values_count[hash_table * options.hash_table_size + hash_value] } += index_type{ 1 };
-            }
+            const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
+            detail::atomic_op<index_type>{ hash_values_count[hash_table * options.hash_table_size + hash_value] } += index_type{ 1 };
         });
     });
 
@@ -519,12 +518,13 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
         // get hasher functor instantiation
         const detail::lsh_hash<hash_function_type> hasher{};
 
-        cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<1> item) {
-            const index_type idx = item.get_linear_id();
+        cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
+            const index_type hash_table = item.get_id(0);
+            const index_type idx = item.get_id(1);
 
             // TODO: understand of this could be mitigated by padding
             index_type val = base_id + idx;
-            if (comm_rank == comm_size - 1) {
+            if (comm_rank == comm_size - 1 && hash_table == 0) {
                 // set correct values IDs for dummy points
                 const index_type correct_rank_size = attr.total_size - ((comm_size - 1) * attr.rank_size);
                 if (idx >= correct_rank_size) {
@@ -532,17 +532,15 @@ void hash_tables<layout, HashFunction>::fill_hash_tables() {
                 }
             }
 
-            for (index_type hash_table = 0; hash_table < options.num_hash_tables; ++hash_table) {
-                // get hash value
-                const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
-                // update offsets
-                const index_type hash_table_idx = detail::atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
-                hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
-            }
+            // get hash value
+            const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
+            // update offsets
+            const index_type hash_table_idx = detail::atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
+            hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
 
             // TODO: understand of this could be mitigated by padding
             // fill additional values needed for blocking
-            if (idx == attr.rank_size - 1) {
+            if (idx == attr.rank_size - 1 && hash_table == 0) {
                 for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
                     hash_tables[options.num_hash_tables * attr.rank_size + block] = val;
                 }
