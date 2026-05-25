@@ -10,8 +10,8 @@
 #define SYCL_LSH_KNN_HPP
 #pragma once
 
-#include "sycl_lsh/data.hpp"                  // sycl_lsh::data
 #include "sycl_lsh/data_attributes.hpp"       // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"              // sycl_lsh::data_set
 #include "sycl_lsh/detail/matrix.hpp"         // sycl_lsh::detail::matrix
 #include "sycl_lsh/detail/shape.hpp"          // sycl_lsh::detail::shape
 #include "sycl_lsh/memory_layout.hpp"         // sycl_lsh::memory_layout
@@ -88,7 +88,7 @@ struct get_linear_id<knn<layout>> {
  * @return the @ref sycl_lsh::knn object representing the result of the nearest-neighbor search (`[[nodiscard]]`)
  */
 template <memory_layout layout>
-[[nodiscard]] auto make_knn(const index_type k, const options &, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] auto make_knn(const index_type k, const options &, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) {
     return knn<layout>(k, data, comm, logger);
 }
 
@@ -103,7 +103,7 @@ template <memory_layout layout>
  * @return the @ref sycl_lsh::knn object representing the result of the nearest-neighbor search (`[[nodiscard]]`)
  */
 template <memory_layout layout>
-[[nodiscard]] auto make_knn(const options &opt, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] auto make_knn(const options &opt, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) {
     return make_knn<layout>(opt.k, opt, data, comm, logger);
 }
 
@@ -217,8 +217,8 @@ class knn {
 
   private:
     // befriend the factory function
-    friend auto make_knn<layout>(index_type, const options &, const data<layout> &, const mpi::communicator &, const mpi::logger &);
-    friend auto make_knn<layout>(const options &, const data<layout> &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_knn<layout>(index_type, const options &, const data_set &, const mpi::communicator &, const mpi::logger &);
+    friend auto make_knn<layout>(const options &, const data_set &, const mpi::communicator &, const mpi::logger &);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -232,7 +232,7 @@ class knn {
      *
      * @pre @p k **must** be greater than `0`.
      */
-    knn(index_type k, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger);
+    knn(index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     /// The data attributes.
     const data_attributes attr_;
@@ -254,7 +254,7 @@ class knn {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-knn<layout>::knn(const index_type k, const data<layout> &data, const mpi::communicator &comm, const mpi::logger &logger) :
+knn<layout>::knn(const index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
     attr_{ data.get_attributes() },
     comm_{ comm },
     logger_{ logger },

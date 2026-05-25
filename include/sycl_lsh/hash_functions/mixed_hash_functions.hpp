@@ -10,7 +10,7 @@
 #define SYCL_LSH_HASH_FUNCTIONS_MIXED_HASH_FUNCTIONS_HPP
 #pragma once
 
-#include "sycl_lsh/data.hpp"                           // sycl_lsh::data
+#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
@@ -139,14 +139,13 @@ struct lsh_hash<mixed_hash_functions<layout>> {
     [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        const get_linear_id<data<layout>> get_linear_id_data{};
 
         real_type value = 0.0;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash value using random projections
             real_type hash = hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr, hash_function_type::buffer_part::hash_functions)];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += data_d[get_linear_id_data(point, dim, attr)]
+                hash += data_d[point * attr.dims + dim]
                         * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr, hash_function_type::buffer_part::hash_functions)];
             }
             // combine hash values using the entropy-based hash functions
@@ -200,7 +199,7 @@ class mixed_hash_functions {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    mixed_hash_functions(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -234,7 +233,7 @@ class mixed_hash_functions {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),   // entropy-based as hash combine
@@ -343,7 +342,6 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
             const data_attributes attributes = attr;
 
             // get get_linear_id functor instantiation
-            const detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
             const detail::get_linear_id<mixed_hash_functions> get_linear_id_hash_functions{};
 
             cgh.parallel_for(sycl::range<2>{ opt.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
@@ -354,7 +352,7 @@ mixed_hash_functions<layout>::mixed_hash_functions(const device_accessible_optio
                 for (index_type hash_function = 0; hash_function < options.num_hash_functions; ++hash_function) {
                     real_type hash = hash_functions_d[get_linear_id_hash_functions(hash_table, hash_function, attributes.dims, options, attributes, buffer_part::hash_functions)];
                     for (index_type dim = 0; dim < attributes.dims; ++dim) {
-                        hash += data_d[get_linear_id_data(idx, dim, attributes)]
+                        hash += data_d[idx * attributes.dims + dim]
                                 * hash_functions_d[get_linear_id_hash_functions(hash_table, hash_function, dim, options, attributes, buffer_part::hash_functions)];
                     }
                     value += static_cast<hash_value_type>(hash / options.w)

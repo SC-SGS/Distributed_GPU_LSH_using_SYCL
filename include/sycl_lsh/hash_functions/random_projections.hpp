@@ -10,7 +10,7 @@
 #define SYCL_LSH_HASH_FUNCTIONS_RANDOM_PROJECTIONS_HPP
 #pragma once
 
-#include "sycl_lsh/data.hpp"                           // sycl_lsh::data
+#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
@@ -92,14 +92,14 @@ struct lsh_hash<random_projections<layout>> {
     [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        const get_linear_id<data<layout>> get_linear_id_data{};
+        ;
 
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash for current hash function
             real_type hash = hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, attr.dims, opt, attr)];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += data_d[get_linear_id_data(point, dim, attr)]
+                hash += data_d[point * attr.dims + dim]
                         * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // combine hashes
@@ -129,7 +129,7 @@ class random_projections {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    random_projections(const device_accessible_options &opt, const data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -163,7 +163,7 @@ class random_projections {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-random_projections<layout>::random_projections(const device_accessible_options &opt, const data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+random_projections<layout>::random_projections(const device_accessible_options &opt, const data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (data.get_attributes().dims + 1) }, queue_ } {
     const mpi::timer mpi_timer{ comm };

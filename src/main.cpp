@@ -29,7 +29,7 @@ int custom_main(const int argc, char **argv) {
         logger.log("MPI_Comm_size: {}\n\n", comm.size());
 
         // parse data and print data attributes
-        auto data = sycl_lsh::make_data<sycl_lsh::memory_layout::aos>(opt, queue, comm, logger);
+        sycl_lsh::data_set data{ opt, queue, comm, logger };
         logger.log("\nUsed data set:\n{}\n", data);
 
         // generate LSH hash tables and calculate the nearest-neighbors

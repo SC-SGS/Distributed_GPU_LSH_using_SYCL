@@ -12,19 +12,17 @@
 #pragma once
 
 // include all necessary library headers
+#include "sycl_lsh/data_set.hpp"
 #include "sycl_lsh/hash_functions/entropy_based.hpp"
 #include "sycl_lsh/hash_functions/hash_functions.hpp"
 #include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"
 #include "sycl_lsh/hash_functions/random_projections.hpp"
-
+#include "sycl_lsh/hash_tables.hpp"
+#include "sycl_lsh/knn.hpp"
 #include "sycl_lsh/mpi/communicator.hpp"
 #include "sycl_lsh/mpi/logger.hpp"
 #include "sycl_lsh/mpi/main.hpp"
 #include "sycl_lsh/mpi/timer.hpp"
-
-#include "sycl_lsh/data.hpp"
-#include "sycl_lsh/hash_tables.hpp"
-#include "sycl_lsh/knn.hpp"
 #include "sycl_lsh/options.hpp"
 
 /// The main namespace. Nearly all functions are located in this namespace.

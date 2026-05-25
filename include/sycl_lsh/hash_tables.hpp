@@ -11,8 +11,8 @@
 #pragma once
 
 #include "sycl_lsh/constants.hpp"                      // sycl_lsh::index_type
-#include "sycl_lsh/data.hpp"                           // sycl_lsh::data
 #include "sycl_lsh/data_attributes.hpp"                // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/utility.hpp"                 // sycl_lsh::detail::swap
 #include "sycl_lsh/device_selector.hpp"                // sycl_lsh::device_selector
@@ -60,7 +60,7 @@ using hash_table_types = std::variant<
  * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
  */
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-[[nodiscard]] auto make_hash_tables(const options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] auto make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     return hash_tables<layout, HashFunction>(opt, data, queue, comm, logger);
 }
 
@@ -75,7 +75,7 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
  * @return the @ref sycl_lsh::hash_tables object representing the hash tables used in the LSH algorithm (`[[nodiscard]]`)
  */
 template <memory_layout layout>
-[[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
+[[nodiscard]] hash_table_types<layout> make_hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) {
     switch (opt.hash_function) {
         case hash_function_type::random_projections:
             return hash_table_types<layout>{ std::in_place_type<hash_tables<layout, random_projections>>, opt, data, queue, comm, logger };
@@ -97,9 +97,6 @@ class hash_tables {
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                type aliases                                                //
     // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::data object.
-    using data_type = data<layout>;
-
     /// The type of the @ref sycl_lsh::knn object as the result of the k-nearest-neighbor search.
     using knn_type = knn<layout>;
 
@@ -144,7 +141,7 @@ class hash_tables {
      * @brief Returns the @ref sycl_lsh::data object representing the used data set.
      * @return the @ref sycl_lsh::data (`[[nodiscard]]`)
      */
-    [[nodiscard]] const data_type &get_data() const noexcept { return data_; }
+    [[nodiscard]] const data_set &get_data() const noexcept { return data_; }
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -158,7 +155,7 @@ class hash_tables {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
   private:
     /**
@@ -190,7 +187,7 @@ class hash_tables {
     /// The used options.
     const options &options_;
     /// The used data.
-    data_type &data_;
+    data_set &data_;
     /// The attributes associated with the data.
     const data_attributes attr_;
     /// The associated MPI communicator.
@@ -236,7 +233,7 @@ template <memory_layout layout, template <memory_layout> typename HashFunction>
         logger_.log("Round {} of {} ... ", round + 1, comm_.size());
 
         // create thread to asynchronously perform MPI communication
-        std::thread mpi_thread{ &data_type::send_receive_host_buffer, &data_ };
+        std::thread mpi_thread{ &data_set::send_receive_host_buffer, &data_ };
 
         // set the knn data on the device
         knn_ptr.copy_to_device(knns.get_knn_indices());
@@ -297,7 +294,6 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const index_type base_id = comm_.rank() * attr_.rank_size;
 
         // get get_linear_id functor instantiation
-        const detail::get_linear_id<data_type> get_linear_id_data{};
         const detail::get_linear_id<knn_type> get_linear_id_knn{};
 
         // get hasher functor instantiation
@@ -348,8 +344,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
                     // calculate distances
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
                         for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            const real_type x = data_received[get_linear_id_data(global_idx, dim, attr)];
-                            const real_type y = data_owned[get_linear_id_data(knn_blocked[block] - base_id, dim, attr)];
+                            const real_type x = data_received[global_idx * attr.dims + dim];
+                            const real_type y = data_owned[(knn_blocked[block] - base_id) * attr.dims + dim];
                             knn_dist_blocked[block] += (x - y) * (x - y);
                         }
                     }
@@ -401,7 +397,7 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout, template <memory_layout> typename HashFunction>
-hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_type &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+hash_tables<layout, HashFunction>::hash_tables(const options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     options_{ opt },
     data_{ data },

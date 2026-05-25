@@ -26,6 +26,11 @@ struct data_attributes {
     //                                                constructors                                                //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
+     * @brief Default construct empty data attributes.
+     */
+    data_attributes() = default;
+
+    /**
      * @brief Construct a new @ref sycl_lsh::data_attributes object representing the sizes of a @ref sycl_lsh::data object.
      * @param[in] total_size_p the **total** number of data points
      * @param[in] rank_size_p the number of data points on the current MPI rank
@@ -37,11 +42,11 @@ struct data_attributes {
     //                                                 attributes                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /// The **total** number of data points of the used data set.
-    const index_type total_size;
+    index_type total_size{ 0 };
     /// The number of data points on **the current** MPI rank.
-    const index_type rank_size;
+    index_type rank_size{ 0 };
     /// The number of dimensions of each data point of the used data set.
-    const index_type dims;
+    index_type dims{ 0 };
 };
 
 /**

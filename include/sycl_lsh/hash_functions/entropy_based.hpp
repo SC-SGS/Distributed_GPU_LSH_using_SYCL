@@ -10,7 +10,7 @@
 #define SYCL_LSH_HASH_FUNCTIONS_ENTROPY_BASED_HPP
 #pragma once
 
-#include "sycl_lsh/data.hpp"                           // sycl_lsh::data
+#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data
 #include "sycl_lsh/detail/assert.hpp"                  // SYCL_LSH_ASSERT
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/get_linear_id.hpp"           // forward declaration
@@ -98,14 +98,13 @@ struct lsh_hash<entropy_based<layout>> {
     [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
         // get indexing functions
         const get_linear_id<hash_function_type> get_linear_id_hash_function{};
-        const get_linear_id<data<layout>> get_linear_id_data{};
 
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate dot product for current hash function
             real_type hash = 0.0;
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += data_d[get_linear_id_data(point, dim, attr)]
+                hash += data_d[point * attr.dims + dim]
                         * hash_functions_d[get_linear_id_hash_function(hash_table, hash_function, dim, opt, attr)];
             }
             // calculate entropy hash for current hash function
@@ -140,7 +139,7 @@ class entropy_based {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    entropy_based(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -174,7 +173,7 @@ class entropy_based {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout>
-entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<layout> &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+entropy_based<layout>::entropy_based(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, data.get_attributes().dims + opt.num_cut_off_points - 1 }, queue_ } {
     const mpi::timer mpi_timer{ comm };
@@ -238,16 +237,13 @@ entropy_based<layout>::entropy_based(const device_accessible_options &opt, data<
             const device_accessible_options options = opt;
             const data_attributes attribute = attr;
 
-            // get get_linear_id functor instantiation
-            detail::get_linear_id<sycl_lsh::data<layout>> get_linear_id_data{};
-
             cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
 
                 for (index_type hash_function = 0; hash_function < options.hash_pool_size; ++hash_function) {
                     real_type value = 0.0;
                     for (index_type dim = 0; dim < attr.dims; ++dim) {
-                        value += data_d[get_linear_id_data(idx, dim, attr)]
+                        value += data_d[idx * attr.dims + dim]
                                  * hash_functions_pool_d[get_linear_id_hash_pool(hash_function, dim, options, attr)];
                     }
                     hash_values_d[hash_function * attribute.rank_size + idx] = value;
