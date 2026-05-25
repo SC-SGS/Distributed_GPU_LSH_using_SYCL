@@ -10,21 +10,23 @@
 #define SYCL_LSH_DETAIL_ARITHMETIC_TYPE_NAME_HPP
 #pragma once
 
+#include <string_view>  // std::string_view
+
 /**
  * @def SYCL_LSH_CREATE_ARITHMETIC_TYPE_NAME
  * @brief Defines a macro to create all possible conversion functions from arithmetic types to their name as string representation.
  * @details Also supports `const` and/or `volatile` qualifiers.
  * @param[in] type the data type to convert to a string
  */
-#define SYCL_LSH_CREATE_ARITHMETIC_TYPE_NAME(type)                                                                      \
-    template <>                                                                                                         \
-    [[nodiscard]] constexpr inline std::string_view arithmetic_type_name<type>() { return #type; }                      \
-    template <>                                                                                                         \
-    [[nodiscard]] constexpr inline std::string_view arithmetic_type_name<const type>() { return "const " #type; }       \
-    template <>                                                                                                         \
-    [[nodiscard]] constexpr inline std::string_view arithmetic_type_name<volatile type>() { return "volatile " #type; } \
-    template <>                                                                                                         \
-    [[nodiscard]] constexpr inline std::string_view arithmetic_type_name<const volatile type>() { return "const volatile " #type; }
+#define SYCL_LSH_CREATE_ARITHMETIC_TYPE_NAME(type)                                                               \
+    template <>                                                                                                  \
+    [[nodiscard]] constexpr std::string_view arithmetic_type_name<type>() { return #type; }                      \
+    template <>                                                                                                  \
+    [[nodiscard]] constexpr std::string_view arithmetic_type_name<const type>() { return "const " #type; }       \
+    template <>                                                                                                  \
+    [[nodiscard]] constexpr std::string_view arithmetic_type_name<volatile type>() { return "volatile " #type; } \
+    template <>                                                                                                  \
+    [[nodiscard]] constexpr std::string_view arithmetic_type_name<const volatile type>() { return "const volatile " #type; }
 
 namespace sycl_lsh::detail {
 
@@ -35,7 +37,7 @@ namespace sycl_lsh::detail {
  * @return the name of `T` (`[[nodiscard]]`)
  */
 template <typename T>
-[[nodiscard]] constexpr inline std::string_view arithmetic_type_name() = delete;
+[[nodiscard]] constexpr std::string_view arithmetic_type_name() = delete;
 
 SYCL_LSH_CREATE_ARITHMETIC_TYPE_NAME(bool)
 
