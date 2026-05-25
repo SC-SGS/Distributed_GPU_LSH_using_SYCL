@@ -95,12 +95,6 @@ template <memory_layout layout, typename HashFunction>
 class hash_tables {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                                type aliases                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /// The type of the @ref sycl_lsh::knn object as the result of the k-nearest-neighbor search.
-    using knn_type = knn<layout>;
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                       calculate k-nearest-neighbors                                        //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
@@ -110,7 +104,7 @@ class hash_tables {
      *
      * @throws sycl_lsh::exception if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
      */
-    [[nodiscard]] knn_type k_nearest_neighbors(const options &opt) const;
+    [[nodiscard]] knn k_nearest_neighbors(const options &opt) const;
     /**
      * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
      * @param[in] k the number of nearest-neighbors to search for
@@ -118,7 +112,7 @@ class hash_tables {
      *
      * @throws sycl_lsh::exception if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
      */
-    [[nodiscard]] knn_type k_nearest_neighbors(index_type k) const;
+    [[nodiscard]] knn k_nearest_neighbors(index_type k) const;
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -206,19 +200,19 @@ class hash_tables {
 //                                       calculate k-nearest-neighbors                                        //
 // ---------------------------------------------------------------------------------------------------------- //
 template <memory_layout layout, typename HashFunction>
-[[nodiscard]] auto hash_tables<layout, HashFunction>::k_nearest_neighbors(const options &opt) const -> knn_type {
+[[nodiscard]] knn hash_tables<layout, HashFunction>::k_nearest_neighbors(const options &opt) const {
     return k_nearest_neighbors(opt.k);
 }
 
 template <memory_layout layout, typename HashFunction>
-[[nodiscard]] auto hash_tables<layout, HashFunction>::k_nearest_neighbors(const index_type k) const -> knn_type {
+[[nodiscard]] knn hash_tables<layout, HashFunction>::k_nearest_neighbors(const index_type k) const {
     const mpi::timer mpi_timer{ comm_ };
 
     if (k < 1 || k > attr_.rank_size) {
         throw exception{ fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", k, attr_.rank_size) };
     }
 
-    knn_type knns = make_knn<layout>(k, options_, data_, comm_, logger_);
+    knn knns{ k, data_, comm_, logger_ };
 
     detail::device_ptr<real_type> data_ptr{ data_.get_device_ptr().shape(), queue_ };
 
@@ -291,9 +285,6 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
         const data_attributes attr = attr_;
         const index_type base_id = comm_.rank() * attr_.rank_size;
 
-        // get get_linear_id functor instantiation
-        const detail::get_linear_id<knn_type> get_linear_id_knn{};
-
         // get hasher functor instantiation
         const detail::lsh_hash<HashFunction> hasher{};
 
@@ -318,8 +309,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
             // initialize local memory arrays
             for (index_type nn = 0; nn < k; ++nn) {
-                knn_local_mem[local_idx * k + nn] = knn[get_linear_id_knn(global_idx, nn, attr, k)];
-                knn_dist_local_mem[local_idx * k + nn] = knn_dist[get_linear_id_knn(global_idx, nn, attr, k)];
+                knn_local_mem[local_idx * k + nn] = knn[global_idx * k + nn];
+                knn_dist_local_mem[local_idx * k + nn] = knn_dist[global_idx * k + nn];
             }
 
             // perform nearest-neighbor search for all hash tables
@@ -381,8 +372,8 @@ void hash_tables<layout, HashFunction>::calculate_knn_round(const index_type k, 
 
             // write back to global buffer
             for (index_type nn = 0; nn < k; ++nn) {
-                knn[get_linear_id_knn(global_idx, nn, attr, k)] = knn_local_mem[local_idx * k + nn];
-                knn_dist[get_linear_id_knn(global_idx, nn, attr, k)] = knn_dist_local_mem[local_idx * k + nn];
+                knn[global_idx * k + nn] = knn_local_mem[local_idx * k + nn];
+                knn_dist[global_idx * k + nn] = knn_dist_local_mem[local_idx * k + nn];
             }
         });
     });
