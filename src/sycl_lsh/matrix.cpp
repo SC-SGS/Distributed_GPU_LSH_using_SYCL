@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/memory_layout.hpp"
+#include "sycl_lsh/matrix.hpp"
 
 #include "sycl_lsh/detail/utility.hpp"  // sycl_lhs::detail::to_lower_case
 

@@ -10,8 +10,7 @@
 #define SYCL_LSH_MPI_COMMUNICATOR_HPP
 #pragma once
 
-#include "sycl_lsh/matrix.hpp"                // sycl_lsh::matrix
-#include "sycl_lsh/memory_layout.hpp"         // sycl_lsh::memory_layout
+#include "sycl_lsh/matrix.hpp"                // sycl_lsh::matrix, sycl_lsh::memory_layout
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 

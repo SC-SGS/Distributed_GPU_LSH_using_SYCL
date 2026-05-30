@@ -14,7 +14,6 @@
 #include "sycl_lsh/detail/shape.hpp"           // sycl_lsh::shape
 #include "sycl_lsh/detail/utility.hpp"         // sycl_lsh::detail::{always_false_v, unreachable}
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::matrix_exception
-#include "sycl_lsh/memory_layout.hpp"          // sycl_lsh::memory_layout
 
 #include "fmt/base.h"     // fmt::formatter
 #include "fmt/color.h"    // fmt::fg, fmt::color::orange
@@ -31,6 +30,39 @@
 #include <vector>       // std::vector
 
 namespace sycl_lsh {
+
+/**
+ * @brief Enum class for all available layout types.
+ */
+enum class memory_layout {
+    /** Array-of-Structs (AoS) */
+    aos,
+    /** Structs-of-Arrays (SoA) */
+    soa
+};
+
+/**
+ * @brief Output the @p layout to the given output-stream @p out.
+ * @param[in, out] out the output-stream to write the layout type to
+ * @param[in] layout the memory layout type
+ * @return the output-stream
+ */
+std::ostream &operator<<(std::ostream &out, memory_layout layout);
+
+/**
+ * @brief Use the input-stream @p in to initialize the @p layout type.
+ * @param[in,out] in input-stream to extract the layout type from
+ * @param[in] layout the memory layout type
+ * @return the input-stream
+ */
+std::istream &operator>>(std::istream &in, memory_layout &layout);
+
+/**
+ * @brief In contrast to operator>> return the full name of the provided @p layout type.
+ * @param[in] layout the layout type
+ * @return the full name of the layout type (`[[nodiscard]]`)
+ */
+[[nodiscard]] std::string_view layout_type_to_full_string(memory_layout layout);
 
 /**
  * @brief A matrix class encapsulating a 1D array automatically handling indexing with AoS and SoA schemes.
@@ -798,6 +830,9 @@ using soa_matrix = matrix<T, memory_layout::soa>;
 }  // namespace sycl_lsh
 
 /// @cond Doxygen_suppress
+
+template <>
+struct fmt::formatter<sycl_lsh::memory_layout> : fmt::ostream_formatter { };
 
 template <typename T, sycl_lsh::memory_layout layout>
 struct fmt::formatter<sycl_lsh::matrix<T, layout>> : fmt::ostream_formatter { };

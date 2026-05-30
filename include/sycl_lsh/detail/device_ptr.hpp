@@ -13,6 +13,7 @@
 #include "sycl_lsh/detail/assert.hpp"          // SYCL_LSH_ASSERT
 #include "sycl_lsh/detail/shape.hpp"           // sycl_lsh::detail::shape
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::device_ptr_exception
+#include "sycl_lsh/matrix.hpp"                 // sycl_lsh::matrix, sycl_lsh::memory_layout
 
 #include "sycl/sycl.hpp"
 
