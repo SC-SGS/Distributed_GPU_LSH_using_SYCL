@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/hash_functions/hash_function_types.hpp"
+#include "sycl_lsh/hash_function_types.hpp"
 
 #include "sycl_lsh/detail/utility.hpp"  // sycl_lsh::detail::to_lower_case
 

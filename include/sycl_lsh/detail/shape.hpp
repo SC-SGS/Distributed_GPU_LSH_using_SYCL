@@ -10,7 +10,7 @@
 #define SYCL_LSH_DETAIL_SHAPE_HPP
 #pragma once
 
-#include "sycl_lsh/detail/hash_combine.hpp"  // sycl_lsh::detail::hash_combine
+#include "sycl_lsh/detail/hashing/hash_combine.hpp"  // sycl_lsh::detail::hashing::hash_combine
 
 #include "fmt/base.h"     // fmt::formatter
 #include "fmt/ostream.h"  // fmt::ostream_formatter
@@ -115,9 +115,9 @@ struct hash<sycl_lsh::detail::shape> {
      */
     std::size_t operator()(const sycl_lsh::detail::shape &s) const noexcept {
         std::size_t seed = 0;
-        seed = sycl_lsh::detail::hash_combine(seed, s.x);
-        seed = sycl_lsh::detail::hash_combine(seed, s.y);
-        seed = sycl_lsh::detail::hash_combine(seed, s.z);
+        seed = sycl_lsh::detail::hashing::hash_combine(seed, s.x);
+        seed = sycl_lsh::detail::hashing::hash_combine(seed, s.y);
+        seed = sycl_lsh::detail::hashing::hash_combine(seed, s.z);
         return seed;
     }
 };

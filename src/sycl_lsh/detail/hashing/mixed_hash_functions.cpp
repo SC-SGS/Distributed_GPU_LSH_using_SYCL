@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"
+#include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"
 
 #include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
@@ -22,9 +22,9 @@
 #include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
 #include <vector>  // std::vector
 
-namespace sycl_lsh {
+namespace sycl_lsh::detail::hashing {
 
-mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
@@ -114,10 +114,10 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     std::vector<real_type> hash_values(attributes.rank_size * opt.num_hash_tables);
     {
         // copy the hash function pool to the device
-        detail::device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
+        device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
         hash_functions_ptr.copy_to_device(host_buffer);
 
-        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attributes.rank_size, opt.num_hash_tables }, queue_ };
+        device_ptr<real_type> hash_values_ptr{ shape{ attributes.rank_size, opt.num_hash_tables }, queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
@@ -194,4 +194,4 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     logger.log("Created 'mixed_hash_functions' hash functions in {}.\n", mpi_timer.elapsed());
 }
 
-}  // namespace sycl_lsh
+}  // namespace sycl_lsh::detail::hashing

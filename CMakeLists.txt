@@ -25,16 +25,15 @@ endif ()
 ########################################################################################################################
 # set all library source files
 set(SYCL_LSH_LIBRARY_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/entropy_based.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/mixed_hash_functions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/random_projections.cpp
+
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/shape.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/source_location.cpp
-
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/entropy_based.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/hash_function_types.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/mixed_hash_functions.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_functions/random_projections.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/utility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file.cpp
@@ -46,9 +45,10 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_set.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_function_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/matrix.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors_report.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/matrix.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
 )
 

@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/hash_functions/entropy_based.hpp"
+#include "sycl_lsh/detail/hashing/entropy_based.hpp"
 
 #include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
@@ -22,11 +22,11 @@
 #include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
 #include <vector>  // std::vector
 
-namespace sycl_lsh {
+namespace sycl_lsh::detail::hashing {
 
-entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue_ } {
+    device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     // create hash pool functions on MPI master rank and distribute to all other ranks
@@ -61,10 +61,10 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
     std::vector<real_type> hash_values(attributes.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
-        detail::device_ptr<real_type> hash_functions_pool_ptr{ detail::shape{ opt.hash_pool_size, attributes.dims }, queue_ };
+        device_ptr<real_type> hash_functions_pool_ptr{ shape{ opt.hash_pool_size, attributes.dims }, queue_ };
         hash_functions_pool_ptr.copy_to_device(hash_functions_pool);
 
-        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attributes.rank_size, opt.hash_pool_size }, queue_ };
+        device_ptr<real_type> hash_values_ptr{ shape{ attributes.rank_size, opt.hash_pool_size }, queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
@@ -162,4 +162,4 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
     logger.log("Created 'entropy_based' hash functions in {}.\n", mpi_timer.elapsed());
 }
 
-}  // namespace sycl_lsh
+}  // namespace sycl_lsh::detail::hashing

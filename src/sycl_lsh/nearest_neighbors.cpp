@@ -6,14 +6,14 @@
 
 #include "sycl_lsh/nearest_neighbors.hpp"
 
-#include "sycl_lsh/data_set.hpp"          // sycl_lsh::data_set
-#include "sycl_lsh/detail/shape.hpp"      // sycl_lsh::detail::shape
-#include "sycl_lsh/hash_tables.hpp"       // sycl_lsh::hash_tables
-#include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
-#include "sycl_lsh/mpi/timer.hpp"         // sycl_lsh::mpi::timer
-#include "sycl_lsh/options.hpp"           // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/data_set.hpp"                    // sycl_lsh::data_set
+#include "sycl_lsh/detail/hashing/hash_tables.hpp"  // sycl_lsh::detail::hashing::hash_tables
+#include "sycl_lsh/detail/shape.hpp"                // sycl_lsh::detail::shape
+#include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/logger.hpp"                  // sycl_lsh::mpi::logger
+#include "sycl_lsh/mpi/timer.hpp"                   // sycl_lsh::mpi::timer
+#include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
 
 #include "fmt/format.h"  // fmt::format
 
@@ -49,6 +49,7 @@ void nearest_neighbors::fit(data_set X) {
     data_ = std::move(X);
 
     // create the hash tables
+    using namespace detail::hashing;
     switch (lsh_options_.hash_function) {
         case hash_function_type::random_projections:
             hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_, logger_);

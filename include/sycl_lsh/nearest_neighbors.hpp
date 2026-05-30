@@ -10,13 +10,13 @@
 #define SYCL_LSH_NEAREST_NEIGHBORS_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"         // sycl_lsh::index_type, sycl_lsh::real_type
-#include "sycl_lsh/data_set.hpp"          // sycl_lsh::data_set
-#include "sycl_lsh/hash_tables.hpp"       // sycl_lsh::hash_tables
-#include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
-#include "sycl_lsh/options.hpp"           // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::has_only_named_args_v
+#include "sycl_lsh/constants.hpp"                   // sycl_lsh::index_type, sycl_lsh::real_type
+#include "sycl_lsh/data_set.hpp"                    // sycl_lsh::data_set
+#include "sycl_lsh/detail/hashing/hash_tables.hpp"  // sycl_lsh::detail::hashing::hash_tables_base
+#include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/logger.hpp"                  // sycl_lsh::mpi::logger
+#include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::has_only_named_args_v
 
 #include "igor/igor.hpp"  // igor::parser
 
@@ -135,7 +135,7 @@ class nearest_neighbors {
     /// The options controlling the locality sensitive hashing behavior.
     locality_sensitive_hashing_options lsh_options_;
     /// The hash tables used in the locality sensitive hashing algorithm.
-    std::unique_ptr<hash_tables_base> hash_tables_{ nullptr };
+    std::unique_ptr<detail::hashing::hash_tables_base> hash_tables_{ nullptr };
 };
 
 }  // namespace sycl_lsh

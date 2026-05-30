@@ -3,21 +3,19 @@
  * @author Marcel Breyer
  * @date 2020-12-10
  *
- * @brief Implements the @ref sycl_lsh::hash_tables class representing the used LSH hash tables.
+ * @brief Implements the @ref sycl_lsh::detail::hash_tables class representing the used LSH hash tables.
  */
 
-#ifndef SYCL_LSH_HASH_TABLES_HPP
-#define SYCL_LSH_HASH_TABLES_HPP
+#ifndef SYCL_LSH_DETAIL_HASHING_HASH_TABLES_HPP
+#define SYCL_LSH_DETAIL_HASHING_HASH_TABLES_HPP
 #pragma once
-
-// TODO: move to detailed namespace; move header to hash_functions (rename also?)
 
 #include "sycl_lsh/constants.hpp"                            // sycl_lsh::index_type, sycl_lsh::real_type
 #include "sycl_lsh/data_set.hpp"                             // sycl_lsh::data_set
-#include "sycl_lsh/detail/device_ptr.hpp"                    // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/hash_functions/entropy_based.hpp"         // sycl_lsh::entropy_based
-#include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"  // sycl_lsh::mixed_hash_functions
-#include "sycl_lsh/hash_functions/random_projections.hpp"    // sycl_lsh::random_projections
+#include "sycl_lsh/detail/device_ptr.hpp"                    // sycl_lsh::device_ptr
+#include "sycl_lsh/detail/hashing/entropy_based.hpp"         // sycl_lsh::detail::hashing::entropy_based
+#include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"  // sycl_lsh::detail::hashing::mixed_hash_functions
+#include "sycl_lsh/detail/hashing/random_projections.hpp"    // sycl_lsh::detail::hashing::random_projections
 #include "sycl_lsh/mpi/logger.hpp"                           // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"                            // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
@@ -30,7 +28,7 @@
 #include <thread>     // std::thread
 #include <utility>    // std::move, std::swap
 
-namespace sycl_lsh {
+namespace sycl_lsh::detail::hashing {
 
 /**
  * @brief Hash tables base class used to be able to use dynamic polymorphism.
@@ -59,7 +57,7 @@ template <typename HashFunction>
 class hash_tables : public hash_tables_base {
   public:
     /**
-     * @brief Constructs a new @ref sycl_lsh::hash_tables object initializing the LSH hash tables.
+     * @brief Constructs a new @ref sycl_lsh::detail::hash_tables object initializing the LSH hash tables.
      * @param[in] lsh_options the used @ref sycl_lsh::options
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
      * @param[in] queue the SYCL queue to run on
@@ -86,18 +84,18 @@ class hash_tables : public hash_tables_base {
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
      */
-    void search_nearest_neighbors_round(index_type k, data_set::attributes attr, const detail::device_ptr<real_type> &received_data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
+    void search_nearest_neighbors_round(index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in] attr the data attributes
      * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
      */
-    void count_hash_values(data_set::attributes attr, detail::device_ptr<index_type> &hash_values_count_ptr);
+    void count_hash_values(data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr);
     /**
      * @brief Calculates the offset of each hash bucket in each hash table.
      * @param[in] hash_values_count_ptr the number of data points per hash bucket
      */
-    void calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr);
+    void calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr);
     /**
      * @brief Fill each hash table based on the previously calculated offsets.
      * @param[in] attr the data attributes
@@ -112,16 +110,16 @@ class hash_tables : public hash_tables_base {
     const mpi::logger &logger_;
 
     /// The SYCL device buffer for the data that is owned by this MPI rank.
-    detail::device_ptr<real_type> owning_data_ptr_;
+    device_ptr<real_type> owning_data_ptr_;
 
     /// The used options.
     locality_sensitive_hashing_options lsh_options_;
     /// The used has functions.
     std::unique_ptr<HashFunction> hash_functions_;
     /// The SYCL device buffer for the hash functions.
-    detail::device_ptr<index_type> hash_tables_ptr_;
+    device_ptr<index_type> hash_tables_ptr_;
     /// The SYCL device buffer for the offsets.
-    detail::device_ptr<index_type> offsets_ptr_;
+    device_ptr<index_type> offsets_ptr_;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -136,7 +134,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
     lsh_options_{ lsh_options },
     hash_functions_{ nullptr },
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
-    offsets_ptr_{ detail::shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
+    offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
     // log used devices
     logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
     const mpi::timer mpi_timer{ comm_ };
@@ -149,7 +147,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
 
     {
         // create temporary buffer to count the occurrence of each hash value
-        detail::device_ptr<index_type> hash_values_count_ptr{ detail::shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size }, queue_ };
+        device_ptr<index_type> hash_values_count_ptr{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size }, queue_ };
 
         // count the occurrence of each hash value per hash table
         this->count_hash_values(data.get_attributes(), hash_values_count_ptr);
@@ -164,7 +162,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
 }
 
 template <typename HashFunction>
-void hash_tables<HashFunction>::count_hash_values(const data_set::attributes attr, detail::device_ptr<index_type> &hash_values_count_ptr) {
+void hash_tables<HashFunction>::count_hash_values(const data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -177,14 +175,14 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
         const locality_sensitive_hashing_options options = lsh_options_;
 
         // get hasher functor instantiation
-        const detail::lsh_hash<HashFunction> hasher{};
+        const lsh_hash<HashFunction> hasher{};
 
         cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);
             const index_type idx = item.get_id(1);
 
             const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
-            detail::atomic_op<index_type>{ hash_values_count[hash_table * options.hash_table_size + hash_value] } += index_type{ 1 };
+            atomic_op<index_type>{ hash_values_count[hash_table * options.hash_table_size + hash_value] } += index_type{ 1 };
         });
     });
 
@@ -195,7 +193,7 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
 }
 
 template <typename HashFunction>
-void hash_tables<HashFunction>::calculate_offsets(const detail::device_ptr<index_type> &hash_values_count_ptr) {
+void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr) {
     const mpi::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
@@ -246,7 +244,7 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
         const index_type comm_size = comm_.size();
 
         // get hasher functor instantiation
-        const detail::lsh_hash<HashFunction> hasher{};
+        const lsh_hash<HashFunction> hasher{};
 
         cgh.parallel_for(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);
@@ -265,7 +263,7 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
             // get hash value
             const hash_value_type hash_value = hasher(hash_table, idx, data, hash_functions, options, attr);
             // update offsets
-            const index_type hash_table_idx = detail::atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
+            const index_type hash_table_idx = atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
             hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
 
             // TODO: understand of this could be mitigated by padding
@@ -289,10 +287,10 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
 void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, data_set &query_data, aos_matrix<index_type> &indices, aos_matrix<real_type> &distances) const {
-    detail::device_ptr<real_type> query_data_ptr{ query_data.data().shape(), queue_ };
+    device_ptr<real_type> query_data_ptr{ query_data.data().shape(), queue_ };
 
-    detail::device_ptr<index_type> knn_ptr{ indices.shape(), queue_ };
-    detail::device_ptr<real_type> knn_dist_ptr{ distances.shape(), queue_ };
+    device_ptr<index_type> knn_ptr{ indices.shape(), queue_ };
+    device_ptr<real_type> knn_dist_ptr{ distances.shape(), queue_ };
 
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
@@ -330,7 +328,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
 }
 
 template <typename HashFunction>
-void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type k, const data_set::attributes attr, const detail::device_ptr<real_type> &received_data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
+void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -357,7 +355,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type 
         const index_type base_id = comm_.rank() * attr.rank_size;
 
         // get hasher functor instantiation
-        const detail::lsh_hash<HashFunction> hasher{};
+        const lsh_hash<HashFunction> hasher{};
 
         // create local memory accessors
         sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ local_size * k }, cgh };
@@ -453,6 +451,6 @@ void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type 
     queue_.wait_and_throw();
 }
 
-}  // namespace sycl_lsh
+}  // namespace sycl_lsh::detail::hashing
 
-#endif  // SYCL_LSH_HASH_TABLES_HPP
+#endif  // SYCL_LSH_DETAIL_HASHING_HASH_TABLES_HPP

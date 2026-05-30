@@ -6,13 +6,13 @@
  * @brief Implements the `hash_combine()` function for different hash value type sizes.
  */
 
-#ifndef SYCL_LSH_DETAIL_HASH_COMBINE_HPP
-#define SYCL_LSH_DETAIL_HASH_COMBINE_HPP
+#ifndef SYCL_LSH_DETAIL_HASHING_HASH_COMBINE_HPP
+#define SYCL_LSH_DETAIL_HASHING_HASH_COMBINE_HPP
 #pragma once
 
 #include <cstdint>  // std::uint32_t, std::uint64_t
 
-namespace sycl_lsh::detail {
+namespace sycl_lsh::detail::hashing {
 
 /**
  * @brief Combine two hash values into a new one. Base on boost::hash_combine.
@@ -48,6 +48,6 @@ namespace sycl_lsh::detail {
     return x;
 }
 
-}  // namespace sycl_lsh::detail
+}  // namespace sycl_lsh::detail::hashing
 
-#endif  // SYCL_LSH_DETAIL_HASH_COMBINE_HPP
+#endif  // SYCL_LSH_DETAIL_HASHING_HASH_COMBINE_HPP

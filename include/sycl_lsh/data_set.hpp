@@ -22,13 +22,21 @@
 
 namespace sycl_lsh {
 
+namespace detail::hashing {
+
+// forward declare hash_tables class
+template <typename>
+class hash_tables;
+
+}  // namespace detail::hashing
+
 /**
  * @brief Class which represents the used data set.
  */
 class data_set {
     // befriend hash_tables class
     template <typename>
-    friend class hash_tables;
+    friend class detail::hashing::hash_tables;
 
   public:
     /**

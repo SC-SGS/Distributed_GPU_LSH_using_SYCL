@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/hash_functions/random_projections.hpp"
+#include "sycl_lsh/detail/hashing/random_projections.hpp"
 
 #include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
@@ -22,11 +22,11 @@
 #include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
 #include <vector>  // std::vector
 
-namespace sycl_lsh {
+namespace sycl_lsh::detail::hashing {
 
-random_projections::random_projections(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+random_projections::random_projections(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue_ } {
+    device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue_ } {
     const mpi::timer mpi_timer{ comm };
 
     std::vector<real_type> host_buffer(device_ptr_.size());
@@ -86,4 +86,4 @@ random_projections::random_projections(const locality_sensitive_hashing_options 
     logger.log("Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
 }
 
-}  // namespace sycl_lsh
+}  // namespace sycl_lsh::detail::hashing

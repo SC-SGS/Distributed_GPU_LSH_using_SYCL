@@ -6,8 +6,8 @@
  * @brief Implements the enumeration containing all support hash function types.
  */
 
-#ifndef SYCL_LSH_HASH_FUNCTIONS_HASH_FUNCTION_TYPES_HPP
-#define SYCL_LSH_HASH_FUNCTIONS_HASH_FUNCTION_TYPES_HPP
+#ifndef SYCL_LSH_HASH_FUNCTION_TYPES_HPP
+#define SYCL_LSH_HASH_FUNCTION_TYPES_HPP
 #pragma once
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
@@ -49,4 +49,4 @@ std::istream &operator>>(std::istream &in, hash_function_type &hash_function);
 template <>
 struct fmt::formatter<sycl_lsh::hash_function_type> : fmt::ostream_formatter { };
 
-#endif  // SYCL_LSH_HASH_FUNCTIONS_HASH_FUNCTION_TYPES_HPP
+#endif  // SYCL_LSH_HASH_FUNCTION_TYPES_HPP
