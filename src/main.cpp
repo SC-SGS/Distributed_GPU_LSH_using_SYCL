@@ -7,8 +7,7 @@
  */
 
 #include "sycl_lsh/core.hpp"
-
-#include <variant>  // std::visit
+#include "sycl_lsh/mpi/file_parser/file_parser.hpp"
 
 int custom_main(const int argc, char **argv) {
     // create a SYCL queue
@@ -32,35 +31,45 @@ int custom_main(const int argc, char **argv) {
         sycl_lsh::data_set data{ opt, comm, logger };
         logger.log("\nUsed data set:\n{}\n", data);
 
-        // generate LSH hash tables and calculate the nearest-neighbors
-        std::visit([&](auto &&lsh_tables) {
-            // calculate k-nearest-neighbors
-            sycl_lsh::nearest_neighbors knns = lsh_tables.k_nearest_neighbors(opt.k);
+        // create a nearest-neighbors object performing the unsupervised learning task
+        sycl_lsh::nearest_neighbors nn{ opt.k, opt.lsh_options, queue, comm, logger };
 
-            // optionally save calculated k-nearest-neighbor IDs
-            if (opt.knn_save_file.has_value()) {
-                knns.save_knns(opt);
-            }
-            // optionally save calculated k-nearest-neighbor distances
-            if (opt.knn_dist_save_file.has_value()) {
-                knns.save_distances(opt);
-            }
+        // fit the data
+        nn.fit(data);
 
-            // optionally calculate the recall of the calculated k-nearest-neighbors
-            if (opt.evaluate_knn_file.has_value()) {
-                logger.log("recall: {}%\n", knns.recall(opt));
+        // calculate the nearest-neighbors
+        const auto [indices, distances] = nn.kneighbors(sycl_lsh::n_neighbors = opt.k, sycl_lsh::return_distance = true);
+
+        // TODO: better hide behind some better API?
+
+        // optionally save calculated k-nearest-neighbor IDs
+        if (opt.knn_save_file.has_value()) {
+            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm, logger);
+            parser->write_content(data.attributes().total_size, opt.k, indices);
+        }
+        // optionally save calculated k-nearest-neighbor distances
+        if (opt.knn_dist_save_file.has_value() && distances.has_value()) {
+            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm, logger);
+            parser->write_content(data.attributes().total_size, opt.k, distances.value());
+        }
+
+        // optionally calculate the recall of the calculated k-nearest-neighbors
+        if (opt.evaluate_knn_file.has_value()) {
+            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::index_type>(opt.evaluate_knn_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::read, comm, logger);
+            const sycl_lsh::aos_matrix<sycl_lsh::index_type> correct_indices = parser->parse_content();
+            logger.log("recall: {}%\n", sycl_lsh::report::recall(indices, correct_indices, comm, logger));
+        }
+        // optionally calculate the error ration of the calculated k-nearest-neighbors
+        if (opt.evaluate_knn_dist_file.has_value() && distances.has_value()) {
+            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::real_type>(opt.evaluate_knn_dist_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::read, comm, logger);
+            const sycl_lsh::aos_matrix<sycl_lsh::real_type> correct_distances = parser->parse_content();
+            const auto [error_ratio, num_points, num_knn_not_found] = sycl_lsh::report::error_ratio(distances.value(), correct_distances, comm, logger);
+            if (num_points == 0) {
+                logger.log("error ratio: {}\n", error_ratio);
+            } else {
+                logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
             }
-            // optionally calculate the error ration of the calculated k-nearest-neighbors
-            if (opt.evaluate_knn_dist_file.has_value()) {
-                const auto [error_ratio, num_points, num_knn_not_found] = knns.error_ratio(opt);
-                if (num_points == 0) {
-                    logger.log("error ratio: {}\n", error_ratio);
-                } else {
-                    logger.log("error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
-                }
-            }
-        },
-                   sycl_lsh::make_hash_tables(opt, data, queue, comm, logger));
+        }
 
         // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
         opt.save_benchmark_options(comm);

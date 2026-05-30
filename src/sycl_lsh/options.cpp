@@ -38,13 +38,13 @@ options::options(const int argc, char **argv, const mpi::logger &logger) {
         // clang-format off
         .add_options()
             ("h,help", "print this helper message", cxxopts::value<bool>())
-            ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value("random-projections"))
             ("file_parser", "the type of the file parser: \n\t0: binary\n\t1: arff", cxxopts::value<mpi::file_parser_type>()->default_value("binary"))
             ("knn_save_file", "the file to which the calculated nearest-neighbors should be saved to", cxxopts::value<std::string>())
             ("knn_dist_save_file", "the file to which the calculated nearest-neighbors distances should be saved to", cxxopts::value<std::string>())
             ("evaluate_knn_file", "the file containing the correct nearest-neighbors for calculating the resulting recall", cxxopts::value<std::string>())
             ("evaluate_knn_dist_file", "the file containing the correct nearest-neighbors distances for calculating the resulting recall", cxxopts::value<std::string>())
-            // device accessible options
+            // locality sensitive hashing specific options
+            ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value("random-projections"))
             ("hash_pool_size", "the number of hash functions in the hash pool", cxxopts::value<index_type>()->default_value("32"))
             ("num_hash_functions", "the number of hash functions per hash table", cxxopts::value<index_type>()->default_value("12"))
             ("num_hash_tables", "the number of used hash tables", cxxopts::value<index_type>()->default_value("8"))
@@ -97,7 +97,6 @@ options::options(const int argc, char **argv, const mpi::logger &logger) {
     }
     data_file = result["file"].as<std::string>();
 
-    hash_function = result["hash_function"].as<hash_function_type>();
     file_parser = result["file_parser"].as<mpi::file_parser_type>();
 
     if (result.contains("knn_save_file")) {
@@ -113,31 +112,32 @@ options::options(const int argc, char **argv, const mpi::logger &logger) {
         evaluate_knn_dist_file = result["evaluate_knn_dist_file"].as<std::string>();
     }
 
-    device_accessible.hash_pool_size = result["hash_pool_size"].as<index_type>();
-    device_accessible.num_hash_functions = result["num_hash_functions"].as<index_type>();
-    device_accessible.num_hash_tables = result["num_hash_tables"].as<index_type>();
-    device_accessible.hash_table_size = result["hash_table_size"].as<index_type>();
-    device_accessible.w = result["w"].as<real_type>();
-    device_accessible.num_cut_off_points = result["num_cut_off_points"].as<index_type>();
+    lsh_options.hash_function = result["hash_function"].as<hash_function_type>();
+    lsh_options.hash_pool_size = result["hash_pool_size"].as<index_type>();
+    lsh_options.num_hash_functions = result["num_hash_functions"].as<index_type>();
+    lsh_options.num_hash_tables = result["num_hash_tables"].as<index_type>();
+    lsh_options.hash_table_size = result["hash_table_size"].as<index_type>();
+    lsh_options.w = result["w"].as<real_type>();
+    lsh_options.num_cut_off_points = result["num_cut_off_points"].as<index_type>();
 
     // perform some sanity checks
-    SYCL_LSH_ASSERT(device_accessible.hash_pool_size > 0, "Invalid hash_pool_size!");
-    SYCL_LSH_ASSERT(device_accessible.num_hash_functions > 0, "Invalid num_hash_functions!");
-    SYCL_LSH_ASSERT(device_accessible.num_hash_tables > 0, "Invalid num_hash_tables!");
-    SYCL_LSH_ASSERT(device_accessible.hash_table_size > 0, "Invalid hash_table_size!");
-    SYCL_LSH_ASSERT(device_accessible.w > 0.0, "Invalid w!");
-    SYCL_LSH_ASSERT(device_accessible.num_cut_off_points > 0, "Invalid num_cut_off_points!");
+    SYCL_LSH_ASSERT(lsh_options.hash_pool_size > 0, "Invalid hash_pool_size!");
+    SYCL_LSH_ASSERT(lsh_options.num_hash_functions > 0, "Invalid num_hash_functions!");
+    SYCL_LSH_ASSERT(lsh_options.num_hash_tables > 0, "Invalid num_hash_tables!");
+    SYCL_LSH_ASSERT(lsh_options.hash_table_size > 0, "Invalid hash_table_size!");
+    SYCL_LSH_ASSERT(lsh_options.w > 0.0, "Invalid w!");
+    SYCL_LSH_ASSERT(lsh_options.num_cut_off_points > 0, "Invalid num_cut_off_points!");
 }
 
 void options::save_benchmark_options([[maybe_unused]] const mpi::communicator &comm) const {
 #if defined(SYCL_LSH_BENCHMARK)
     if (comm.is_main_rank()) {
-        mpi::timer::benchmark_out() << device_accessible.hash_pool_size << ','
-                                    << device_accessible.num_hash_functions << ','
-                                    << device_accessible.num_hash_tables << ','
-                                    << device_accessible.hash_table_size << ','
-                                    << device_accessible.w << ','
-                                    << device_accessible.num_cut_off_points << '\n';
+        mpi::timer::benchmark_out() << lsh_options.hash_pool_size << ','
+                                    << lsh_options.num_hash_functions << ','
+                                    << lsh_options.num_hash_tables << ','
+                                    << lsh_options.hash_table_size << ','
+                                    << lsh_options.w << ','
+                                    << lsh_options.num_cut_off_points << '\n';
     }
 #endif
 }
@@ -148,7 +148,6 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   "index_type: \"{} ({} byte)\"\n"
                                   "hash_value_type: \"{} ({} byte)\"\n"
                                   "blocking_size: {}\n"
-                                  "hash_functions_type: \"{}\"\n"
                                   "k: {}\n"
                                   "file: \"{}\"\n"
                                   "file_parser: \"{}\"\n",
@@ -159,7 +158,6 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
                                   BLOCKING_SIZE,
-                                  opt.hash_function,
                                   opt.k,
                                   opt.data_file,
                                   opt.file_parser);
@@ -177,20 +175,22 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
         str += fmt::format("evaluate_knn_dist_file: \"{}\"\n", opt.evaluate_knn_dist_file.value());
     }
 
-    str += fmt::format("hash_pool_size: {}\n"
+    str += fmt::format("hash_functions_type: \"{}\"\n"
+                       "hash_pool_size: {}\n"
                        "num_hash_functions: {}\n"
                        "num_hash_tables: {}\n"
                        "hash_table_size: {}\n",
-                       opt.device_accessible.hash_pool_size,
-                       opt.device_accessible.num_hash_functions,
-                       opt.device_accessible.num_hash_tables,
-                       opt.device_accessible.hash_table_size);
+                       opt.lsh_options.hash_function,
+                       opt.lsh_options.hash_pool_size,
+                       opt.lsh_options.num_hash_functions,
+                       opt.lsh_options.num_hash_tables,
+                       opt.lsh_options.hash_table_size);
 
-    if (opt.hash_function != hash_function_type::entropy_based) {
-        str += fmt::format("w: {}\n", opt.device_accessible.w);
+    if (opt.lsh_options.hash_function != hash_function_type::entropy_based) {
+        str += fmt::format("w: {}\n", opt.lsh_options.w);
     }
-    if (opt.hash_function != hash_function_type::random_projections) {
-        str += fmt::format("num_cut_off_points: {}\n", opt.device_accessible.num_cut_off_points);
+    if (opt.lsh_options.hash_function != hash_function_type::random_projections) {
+        str += fmt::format("num_cut_off_points: {}\n", opt.lsh_options.num_cut_off_points);
     }
     return out << str;
 }

@@ -13,7 +13,7 @@
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/mpi/logger.hpp"          // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
-#include "sycl_lsh/options.hpp"             // sycl_lsh::options
+#include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::handler, sycl::range, sycl::item
 
@@ -24,7 +24,7 @@
 
 namespace sycl_lsh {
 
-entropy_based::entropy_based(const device_accessible_options &opt, const detail::device_ptr<real_type> &data, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue_ } {
     const mpi::timer mpi_timer{ comm };
@@ -73,7 +73,7 @@ entropy_based::entropy_based(const device_accessible_options &opt, const detail:
             real_type *hash_values_d = hash_values_ptr.get();
 
             // get additional information
-            const device_accessible_options options = opt;
+            const locality_sensitive_hashing_options options = opt;
             const data_attributes attr = attributes;
 
             cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {

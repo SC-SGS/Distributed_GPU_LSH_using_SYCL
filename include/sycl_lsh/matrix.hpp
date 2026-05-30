@@ -775,7 +775,7 @@ std::ostream &operator<<(std::ostream &out, const matrix<T, layout_> &matr) {
     using size_type = typename matrix<T, layout_>::size_type;
     for (size_type row = 0; row < matr.num_rows(); ++row) {
         for (size_type col = 0; col < matr.num_cols(); ++col) {
-            out << fmt::format(fmt::runtime("{:.10e} "), matr(row, col));
+            out << fmt::format(fmt::runtime("{} "), matr(row, col));
         }
         if (row < matr.num_rows() - 1) {
             out << '\n';
@@ -795,81 +795,12 @@ using aos_matrix = matrix<T, memory_layout::aos>;
 template <typename T>
 using soa_matrix = matrix<T, memory_layout::soa>;
 
-}  // namespace sycl_lsh::detail
+}  // namespace sycl_lsh
 
 /// @cond Doxygen_suppress
 
-/**
- * @brief Custom {fmt} formatter for a sycl_lsh::matrix. Doesn't print padding entries per default, but introduces the `p` format specifier which enables printing padding entries.
- * @tparam T the type of the matrix
- * @tparam layout_ the layout type provided at compile time (AoS or SoA)
- */
-template <typename T, sycl_lsh::memory_layout layout_>
-struct fmt::formatter<sycl_lsh::matrix<T, layout_>> {
-    /// Save whether padding entries should be printed or not.
-    bool with_padding_{ false };
-
-    /**
-     * @brief Parse the format specifier. If `p` is provided, padding entries will be formatted.
-     * @tparam ParseContext the {fmt} lib parser context
-     * @param[in,out] ctx the format specifiers
-     * @return the iterator pointing past the end of the parsed format specifier
-     */
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext &ctx) {
-        auto it = ctx.begin();
-        if (it == ctx.end()) {
-            return it;
-        }
-        // check whether the format specifier p has been provided
-        if (*it == 'p') {
-            with_padding_ = true;
-            ++it;
-        }
-        return it;
-    }
-
-    /**
-     * @brief Format a sycl_lsh::matrix with or without padding according to the provided format specifiers.
-     * @tparam FormatContext the {fmt} lib format context
-     * @param[in] matr the sycl_lsh::matrix to format
-     * @param[in,out] ctx the format specifiers
-     * @return the output iterator to write to
-     */
-    template <typename FormatContext>
-    auto format(const sycl_lsh::matrix<T, layout_> &matr, FormatContext &ctx) const {
-        using size_type = typename sycl_lsh::matrix<T, layout_>::size_type;
-
-        auto it = ctx.out();
-        if (with_padding_) {
-            // if requested, output padding entries
-            // don't format padding entries with scientific notation if the value is 0 (to reduce clutter)!
-            for (size_type row = 0; row < matr.num_rows_padded(); ++row) {
-                for (size_type col = 0; col < matr.num_cols_padded(); ++col) {
-                    if ((row >= matr.num_rows() || col >= matr.num_cols()) && matr(row, col) == T{ 0.0 }) {
-                        it = format_to(it, "0 ");
-                    } else {
-                        it = format_to(it, "{:.10e} ", matr(row, col));
-                    }
-                }
-                if (row < matr.num_rows_padded() - 1) {
-                    it = format_to(it, "\n");
-                }
-            }
-        } else {
-            // output matrix without padding
-            for (size_type row = 0; row < matr.num_rows(); ++row) {
-                for (size_type col = 0; col < matr.num_cols(); ++col) {
-                    it = format_to(it, "{:.10e} ", matr(row, col));
-                }
-                if (row < matr.num_rows() - 1) {
-                    it = format_to(it, "\n");
-                }
-            }
-        }
-        return it;
-    }
-};
+template <typename T, sycl_lsh::memory_layout layout>
+struct fmt::formatter<sycl_lsh::matrix<T, layout>> : fmt::ostream_formatter { };
 
 /// @endcond
 

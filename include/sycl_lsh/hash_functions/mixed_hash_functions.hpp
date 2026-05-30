@@ -17,7 +17,7 @@
 #include "sycl_lsh/hash_functions/hash_functions.hpp"  // forward declaration
 #include "sycl_lsh/mpi/communicator.hpp"               // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/logger.hpp"                     // sycl_lsh::mpi::logger
-#include "sycl_lsh/options.hpp"                        // sycl_lsh::options
+#include "sycl_lsh/options.hpp"                        // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue
 
@@ -44,7 +44,7 @@ struct lsh_hash<mixed_hash_functions> {
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const device_accessible_options &opt, const data_attributes &attr) const {
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const locality_sensitive_hashing_options &opt, const data_attributes &attr) const {
         real_type value = 0.0;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash value using random projections
@@ -103,7 +103,7 @@ class mixed_hash_functions {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    mixed_hash_functions(const device_accessible_options &opt, const detail::device_ptr<real_type> &data, data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    mixed_hash_functions(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //

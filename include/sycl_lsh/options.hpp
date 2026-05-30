@@ -17,11 +17,11 @@
 #include "sycl_lsh/mpi/logger.hpp"                          // sycl_lsh::mpi::logger
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
-
 #include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than
-#include <iosfwd>         // std::ostream  forward declarations
-#include <optional>       // std::optional
-#include <string>         // std::string
+
+#include <iosfwd>    // std::ostream  forward declarations
+#include <optional>  // std::optional
+#include <string>    // std::string
 
 namespace sycl_lsh {
 
@@ -44,9 +44,11 @@ constexpr bool has_only_named_args_v = !igor::has_unnamed_arguments<Args...>();
 }  // namespace detail
 
 /**
- * @brief A small wrapper struct encapsulating all options accessible on the respective device(s).
+ * @brief A small wrapper struct encapsulating all options that control the locality sensitive hashing behavior.
  */
-struct device_accessible_options {
+struct locality_sensitive_hashing_options {
+    /// The sued hash function type.
+    hash_function_type hash_function = hash_function_type::random_projections;
     /// The number of hash functions in the hash pool.
     index_type hash_pool_size{};
     /// The number of hash functions per hash table.
@@ -76,8 +78,6 @@ class options {
 
     /// The number of nearest-neighbors to search for.
     index_type k{};
-    /// The sued hash function type.
-    hash_function_type hash_function = hash_function_type::random_projections;
     /// The path to the input data file.
     std::string data_file{};
     /// The type of the file parser.
@@ -93,7 +93,7 @@ class options {
     std::optional<std::string> evaluate_knn_dist_file{};
 
     /// Various options accessible on the respective device.
-    device_accessible_options device_accessible{};
+    locality_sensitive_hashing_options lsh_options{};
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                save options                                                //

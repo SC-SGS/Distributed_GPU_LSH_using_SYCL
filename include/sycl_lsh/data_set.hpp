@@ -36,6 +36,10 @@ class data_set {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
+     * @brief Default construct an empty data set.
+     */
+    data_set() = default;
+    /**
      * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file @p parser.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator

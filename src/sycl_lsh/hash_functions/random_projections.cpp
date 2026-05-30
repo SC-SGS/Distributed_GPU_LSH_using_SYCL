@@ -12,7 +12,7 @@
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/mpi/logger.hpp"          // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
-#include "sycl_lsh/options.hpp"             // sycl_lsh::options
+#include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue
 
@@ -24,7 +24,7 @@
 
 namespace sycl_lsh {
 
-random_projections::random_projections(const device_accessible_options &opt, const detail::device_ptr<real_type> &, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+random_projections::random_projections(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue_ } {
     const mpi::timer mpi_timer{ comm };

@@ -82,10 +82,13 @@ class communicator {
      */
     template <typename T, memory_layout layout>
     void send_receive_round_robin(matrix<T, layout> &data) const {
-        const int destination = (this->rank() + 1) % this->size();
-        const int source = (this->size() + (this->rank() - 1) % this->size()) % this->size();
+        // if we only have a single MPI rank, we have nothing to do
+        if (this->size() > 1) {
+            const int destination = (this->rank() + 1) % this->size();
+            const int source = (this->size() + (this->rank() - 1) % this->size()) % this->size();
 
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data.data(), data.size(), mpi::detail::mpi_datatype<T>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
+            SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data.data(), data.size(), mpi::detail::mpi_datatype<T>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
+        }
     }
 
   private:

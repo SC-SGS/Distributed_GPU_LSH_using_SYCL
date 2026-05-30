@@ -25,10 +25,14 @@
 #include "sycl_lsh/mpi/main.hpp"
 #include "sycl_lsh/mpi/timer.hpp"
 #include "sycl_lsh/nearest_neighbors.hpp"
+#include "sycl_lsh/nearest_neighbors_report.hpp"
 #include "sycl_lsh/options.hpp"
 
 /// The main namespace. Nearly all functions are located in this namespace.
 namespace sycl_lsh { }
+
+/// The main namespace containing evaluation functions.
+namespace sycl_lsh::report { }
 
 /// This namespace is for implementation details only and **should not** be used directly bey users.
 namespace sycl_lsh::detail { }

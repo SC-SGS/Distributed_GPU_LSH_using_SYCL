@@ -84,7 +84,7 @@ IncludeCategories:
     Priority: 1
   - Regex: '^"(sycl)'
     Priority: 2
-  - Regex: '^"(fmt|cxxopts|mpi)'
+  - Regex: '^"(fmt|cxxopts|igor|mpi)'
     Priority: 3
   - Regex: '^.*'
     Priority: 4
