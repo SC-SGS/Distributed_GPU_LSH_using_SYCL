@@ -56,7 +56,7 @@ entropy_based::entropy_based(const device_accessible_options &opt, data_set &dat
     }
 
     // broadcast pool hash functions to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(hash_functions_pool.data(), static_cast<int>(hash_functions_pool.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(hash_functions_pool.data(), static_cast<int>(hash_functions_pool.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     std::vector<real_type> cut_off_points_pool(opt.hash_pool_size * (opt.num_cut_off_points - 1));
 
@@ -123,7 +123,7 @@ entropy_based::entropy_based(const device_accessible_options &opt, data_set &dat
         }
 
         // combine to final cut-off points on all MPI ranks
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), static_cast<int>(cut_off_points.size()), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm.get()));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), static_cast<int>(cut_off_points.size()), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm));
 
         // copy current cut-off points to pool
         std::copy(cut_off_points.begin(), cut_off_points.end(), cut_off_points_pool.begin() + static_cast<std::vector<real_type>::difference_type>(hash_function * cut_off_points.size()));
@@ -157,7 +157,7 @@ entropy_based::entropy_based(const device_accessible_options &opt, data_set &dat
     }
 
     // broadcast hash function to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), static_cast<int>(host_buffer.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), static_cast<int>(host_buffer.size()), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // copy the host data to the device
     device_ptr_.copy_to_device(host_buffer);

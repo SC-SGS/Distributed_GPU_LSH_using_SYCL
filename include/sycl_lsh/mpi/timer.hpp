@@ -93,7 +93,7 @@ class timer {
   private:
 #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER || defined(SYCL_LSH_BENCHMARK)
     /// The communicator used to average the runtimes.
-    const communicator &comm_;
+    communicator comm_;
 #endif
 #if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
     /// The current start time used to calculate the elapsed time.

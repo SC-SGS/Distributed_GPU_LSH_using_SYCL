@@ -92,7 +92,7 @@ class file_parser {
 
   protected:
     /// The used MPI communicator.
-    const communicator &comm_;
+    communicator comm_;
     /// The used MPI-aware logger.
     const logger &logger_;
     /// The file name. Mainly used for better error message.

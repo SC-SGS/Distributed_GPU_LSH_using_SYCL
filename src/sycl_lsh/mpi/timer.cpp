@@ -58,7 +58,7 @@ template <typename unit>
 
     #if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER
     decltype(dur.count()) dur_sum = 0;
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(&dur, &dur_sum, 1, detail::mpi_datatype<decltype(dur_sum)>(), MPI_SUM, comm_.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(&dur, &dur_sum, 1, detail::mpi_datatype<decltype(dur_sum)>(), MPI_SUM, comm_));
     dur = unit{ dur_sum / comm_.size() };
     #endif
 

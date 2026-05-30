@@ -81,7 +81,7 @@ random_projections::random_projections(const device_accessible_options &opt, con
     }
 
     // broadcast hash functions to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // copy the host data to the device
     device_ptr_.copy_to_device(host_buffer);

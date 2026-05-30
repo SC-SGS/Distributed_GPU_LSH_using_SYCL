@@ -111,7 +111,7 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
     }
 
     // broadcast random projections hash functions to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // calculate cut-off points
     std::vector<real_type> hash_values(attr.rank_size * opt.num_hash_tables);
@@ -180,7 +180,7 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
         }
 
         // combine to final cut-off points on all MPI ranks
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm.get()));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(MPI_IN_PLACE, cut_off_points.data(), cut_off_points.size(), mpi::detail::mpi_datatype<real_type>(), MPI_SUM, comm));
 
         // copy current cut-off points to hash functions
         for (index_type cop = 0; cop < cut_off_points.size(); ++cop) {
@@ -189,7 +189,7 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
     }
 
     // broadcast hash function to other MPI ranks
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // copy the host data to the device
     device_ptr_.copy_to_device(host_buffer);

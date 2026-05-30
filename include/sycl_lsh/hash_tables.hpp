@@ -123,7 +123,7 @@ class hash_tables {
     /// The attributes associated with the data.
     data_attributes attr_;
     /// The associated MPI communicator.
-    const mpi::communicator &comm_;
+    mpi::communicator comm_;
     /// The associated MPI logger.
     const mpi::logger &logger_;
 

@@ -83,7 +83,7 @@ class data_set {
     /// The associated SYCL queue representing the device to run on.
     sycl::queue &queue_;
     /// The associated MPI communicator.
-    const mpi::communicator &comm_;
+    mpi::communicator comm_;
 
     /// The associated data attributes.
     data_attributes data_attributes_{};

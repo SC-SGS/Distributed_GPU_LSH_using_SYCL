@@ -301,10 +301,10 @@ void knn::send_receive_host_buffer() {
     const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
 
     // send/receive k-nearest-neighbor IDs
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_indices_.data(), knn_indices_.size(), mpi::detail::mpi_datatype<index_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_indices_.data(), knn_indices_.size(), mpi::detail::mpi_datatype<index_type>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
 
     // send/receive k-nearest-neighbor distances
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_distances_.data(), knn_distances_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_.get(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(knn_distances_.data(), knn_distances_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
 }
 
 }  // namespace sycl_lsh

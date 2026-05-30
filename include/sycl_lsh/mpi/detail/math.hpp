@@ -29,7 +29,7 @@ namespace sycl_lsh::mpi::detail {
 template <typename T>
 [[nodiscard]] T sum(const T value, const communicator &comm) {
     T sum{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(&value, &sum, 1, mpi_datatype<T>(), MPI_SUM, comm.get()));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(&value, &sum, 1, mpi_datatype<T>(), MPI_SUM, comm));
     return sum;
 }
 

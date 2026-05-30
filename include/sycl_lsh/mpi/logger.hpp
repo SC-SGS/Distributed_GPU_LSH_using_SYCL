@@ -13,6 +13,7 @@
 #include "sycl_lsh/detail/assert.hpp"         // SYCL_LSH_ASSERT
 #include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::communicator
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
+#include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_Gather, MPI_Gatherv
@@ -82,7 +83,7 @@ class logger {
 
   private:
     /// The MPI communicator representing the MPI ranks participating in the logging activity.
-    const communicator &comm_;
+    communicator comm_;
     /// The output stream to output the data to.
     std::ostream &out_;
 };
@@ -92,7 +93,7 @@ class logger {
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename... Args>
 void logger::log(const int comm_rank, const std::string_view msg, Args &&...args) const {
-    SYCL_LSH_ASSERT(0 <= comm_rank && comm_rank < comm_.size(),
+    SYCL_LSH_ASSERT(comm_rank < comm_.size(),
                     "Illegal MPI rank! Must be greater or equal than 0 and less than comm.size().");
 
     // print message only on requested MPI rank
@@ -119,7 +120,7 @@ void logger::log_on_all(const std::string_view msg, Args &&...args) const {
     std::vector<int> sizes(comm_.size());
     const std::string msg_substituted = fmt::format(msg, std::forward<Args>(args)...);
     int msg_size = static_cast<int>(msg_substituted.size());
-    MPI_Gather(&msg_size, 1, detail::mpi_datatype<typename decltype(sizes)::value_type>(), sizes.data(), 1, detail::mpi_datatype<decltype(msg_size)>(), 0, comm_.get());
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Gather(&msg_size, 1, detail::mpi_datatype<typename decltype(sizes)::value_type>(), sizes.data(), 1, detail::mpi_datatype<decltype(msg_size)>(), 0, comm_));
 
     // calculate total msg size
     const int total_msg_size = std::accumulate(sizes.cbegin(), sizes.cend(), 0);
@@ -132,7 +133,7 @@ void logger::log_on_all(const std::string_view msg, Args &&...args) const {
 
     // get all messages
     std::string total_msg(total_msg_size, ' ');
-    MPI_Gatherv(msg_substituted.data(), static_cast<int>(msg_substituted.size()), detail::mpi_datatype<char>(), total_msg.data(), sizes.data(), displacements.data(), detail::mpi_datatype<char>(), 0, comm_.get());
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Gatherv(msg_substituted.data(), static_cast<int>(msg_substituted.size()), detail::mpi_datatype<char>(), total_msg.data(), sizes.data(), displacements.data(), detail::mpi_datatype<char>(), 0, comm_));
 
     // print total msg on master rank
     if (comm_.is_main_rank()) {

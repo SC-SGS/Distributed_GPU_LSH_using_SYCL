@@ -30,12 +30,12 @@ file::file(const std::string &file_name, const communicator &comm, const mode op
     }
 
     // open the file
-    const int err = MPI_File_open(comm.get(), file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_);
+    const int err = MPI_File_open(comm, file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_);
 
     // if we are in write mode and the file already exists, delete and reopen it
     if (open_mode == mode::write && err != MPI_SUCCESS) {
         SYCL_LSH_MPI_ERROR_CHECK(MPI_File_delete(file_name.data(), MPI_INFO_NULL));
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_open(comm.get(), file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_open(comm, file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_));
     }
 }
 

@@ -46,18 +46,18 @@ void pairwise_exchange(Iterator begin, Iterator end, const int send_rank, const 
     constexpr int sorted_tag = 2;
 
     if (comm.rank() == send_rank) {
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Send(&(*begin), size, mpi_datatype<real_type>(), recv_rank, merge_tag, comm.get()));
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Recv(&(*begin), size, mpi_datatype<real_type>(), recv_rank, sorted_tag, comm.get(), MPI_STATUS_IGNORE));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Send(&(*begin), size, mpi_datatype<real_type>(), recv_rank, merge_tag, comm));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Recv(&(*begin), size, mpi_datatype<real_type>(), recv_rank, sorted_tag, comm, MPI_STATUS_IGNORE));
     } else {
         std::copy(begin, end, all.begin());
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Recv(all.data() + size, size, mpi_datatype<real_type>(), send_rank, merge_tag, comm.get(), MPI_STATUS_IGNORE));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Recv(all.data() + size, size, mpi_datatype<real_type>(), send_rank, merge_tag, comm, MPI_STATUS_IGNORE));
 
         // perform local sort
         std::sort(all.begin(), all.end());
 
         const std::size_t their_start = send_rank > comm.rank() ? size : 0;
         const std::size_t my_start = send_rank > comm.rank() ? 0 : size;
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_Send(all.data() + their_start, size, mpi_datatype<real_type>(), send_rank, sorted_tag, comm.get()));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Send(all.data() + their_start, size, mpi_datatype<real_type>(), send_rank, sorted_tag, comm));
         std::copy(all.cbegin() + my_start, all.cbegin() + my_start + size, begin);
     }
 }

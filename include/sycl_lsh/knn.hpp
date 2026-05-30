@@ -150,7 +150,7 @@ class knn {
     /// The data attributes.
     data_attributes attr_;
     /// The associated MPI communicator.
-    const mpi::communicator &comm_;
+    mpi::communicator comm_;
     /// The associated MPI logger.
     const mpi::logger &logger_;
 
