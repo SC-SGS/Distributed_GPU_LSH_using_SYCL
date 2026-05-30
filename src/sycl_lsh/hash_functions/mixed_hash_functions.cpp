@@ -6,8 +6,7 @@
 
 #include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"
 
-#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set
-#include "sycl_lsh/detail/assert.hpp"       // SYCL_LSH_ASSERT
+#include "sycl_lsh/data_attributes.hpp"     // sycl_lsh::data_attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
@@ -25,14 +24,12 @@
 
 namespace sycl_lsh {
 
-mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt, const detail::device_ptr<real_type> &data, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (data.get_attributes().dims + 1) +  // random projections as hash functions
-                     opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),   // entropy-based as hash combine
+    device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
+                     opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
                  queue_ } {
     const mpi::timer mpi_timer{ comm };
-
-    const data_attributes attr = data.get_attributes();
 
     std::vector<real_type> host_buffer(device_ptr_.size());
 
@@ -57,12 +54,12 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
         std::uniform_real_distribution<real_type> rnd_uniform_pool_dist{ 0, opt.w };
 
         // fill hash pool
-        std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
+        std::vector<real_type> hash_pool(opt.hash_pool_size * (attributes.dims + 1));
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
-            for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash_pool[hash_function * (attr.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
+            for (index_type dim = 0; dim < attributes.dims; ++dim) {
+                hash_pool[hash_function * (attributes.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
             }
-            hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
+            hash_pool[hash_function * (attributes.dims + 1) + attributes.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
         }
 
 // select actual hash functions
@@ -79,8 +76,8 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
-                for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                    host_buffer[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + dim] = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
+                for (index_type dim = 0; dim <= attributes.dims; ++dim) {
+                    host_buffer[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attributes.dims + 1) + dim] = hash_pool[pool_hash_function * (attributes.dims + 1) + dim];
                 }
             }
         }
@@ -105,7 +102,7 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
         // fill hash functions
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
-                host_buffer[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attr.dims + 1) + hash_function] = rnd_normal_dist(rnd_normal_pool_gen);
+                host_buffer[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attributes.dims + 1) + hash_function] = rnd_normal_dist(rnd_normal_pool_gen);
             }
         }
     }
@@ -114,37 +111,37 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // calculate cut-off points
-    std::vector<real_type> hash_values(attr.rank_size * opt.num_hash_tables);
+    std::vector<real_type> hash_values(attributes.rank_size * opt.num_hash_tables);
     {
         // copy the hash function pool to the device
         detail::device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
         hash_functions_ptr.copy_to_device(host_buffer);
 
-        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attr.rank_size, opt.num_hash_tables }, queue_ };
+        detail::device_ptr<real_type> hash_values_ptr{ detail::shape{ attributes.rank_size, opt.num_hash_tables }, queue_ };
 
         queue_.submit([&](sycl::handler &cgh) {
             // get device data
-            const real_type *data_d = data.get_device_ptr().get();
+            const real_type *data_d = data.get();
             const real_type *hash_functions_d = hash_functions_ptr.get();
             real_type *hash_values_d = hash_values_ptr.get();
 
             // get additional information
             const device_accessible_options options = opt;
-            const data_attributes attributes = attr;
+            const data_attributes attr = attributes;
 
-            cgh.parallel_for(sycl::range<2>{ opt.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
+            cgh.parallel_for(sycl::range<2>{ opt.num_hash_tables, attributes.rank_size }, [=](sycl::item<2> item) {
                 const index_type idx = item.get_id(1);
                 const index_type hash_table = item.get_id(0);
 
                 real_type value = 0.0;
                 for (index_type hash_function = 0; hash_function < options.num_hash_functions; ++hash_function) {
-                    real_type hash = hash_functions_d[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attributes.dims + 1) + attributes.dims];
-                    for (index_type dim = 0; dim < attributes.dims; ++dim) {
-                        hash += data_d[idx * attributes.dims + dim]
-                                * hash_functions_d[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attributes.dims + 1) + dim];
+                    real_type hash = hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + attr.dims];
+                    for (index_type dim = 0; dim < attr.dims; ++dim) {
+                        hash += data_d[idx * attr.dims + dim]
+                                * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + dim];
                     }
                     value += static_cast<hash_value_type>(hash / options.w)
-                             * hash_functions_d[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attributes.dims + 1) + hash_function];
+                             * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attr.dims + 1) + hash_function];
                 }
                 hash_values_d[hash_table * attr.rank_size + idx] = value;
             });
@@ -160,13 +157,13 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
 #pragma omp parallel for
     for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
         // sort hash_values vector in a distributed fashion
-        mpi::detail::sort(hash_values.begin() + hash_table * attr.rank_size, hash_values.begin() + (hash_table + 1) * attr.rank_size, comm);
+        mpi::detail::sort(hash_values.begin() + hash_table * attributes.rank_size, hash_values.begin() + (hash_table + 1) * attributes.rank_size, comm);
 
         std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
 
         // calculate cut-off points indices
         std::vector<index_type> cut_off_points_idx(cut_off_points.size());
-        const index_type jump = (attr.rank_size * comm.size()) / opt.num_cut_off_points;
+        const index_type jump = (attributes.rank_size * comm.size()) / opt.num_cut_off_points;
         for (index_type cop = 0; cop < cut_off_points_idx.size(); ++cop) {
             cut_off_points_idx[cop] = (cop + 1) * jump;
         }
@@ -174,8 +171,8 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
         // fill cut-off points which are located on the current MPI rank
         for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
             // check if index belongs to current MPI rank
-            if (cut_off_points_idx[cop] >= attr.rank_size * comm.rank() && cut_off_points_idx[cop] < attr.rank_size * (comm.rank() + 1)) {
-                cut_off_points[cop] = hash_values[hash_table * attr.rank_size + cut_off_points_idx[cop] % attr.rank_size];
+            if (cut_off_points_idx[cop] >= attributes.rank_size * comm.rank() && cut_off_points_idx[cop] < attributes.rank_size * (comm.rank() + 1)) {
+                cut_off_points[cop] = hash_values[hash_table * attributes.rank_size + cut_off_points_idx[cop] % attributes.rank_size];
             }
         }
 
@@ -184,7 +181,7 @@ mixed_hash_functions::mixed_hash_functions(const device_accessible_options &opt,
 
         // copy current cut-off points to hash functions
         for (index_type cop = 0; cop < cut_off_points.size(); ++cop) {
-            host_buffer[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + cop] = cut_off_points[cop];
+            host_buffer[hash_table * (opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attributes.dims + 1) + opt.num_hash_functions + cop] = cut_off_points[cop];
         }
     }
 

@@ -8,40 +8,28 @@
 
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/utility.hpp"           // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
 #include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
-
-#include "sycl/sycl.hpp"  // sycl::queue
-
-#include "mpi.h"  // MPI_Sendrecv_replace
 
 #include <iostream>  // std::ostream
 
 namespace sycl_lsh {
 
 data_set::data_set(const options &opt,
-                   sycl::queue &queue,
                    const mpi::communicator &comm,
-                   const mpi::logger &logger) :
-    queue_{ queue },
-    comm_{ comm } {
-    const mpi::timer mpi_timer{ comm_ };
+                   const mpi::logger &logger) {
+    const mpi::timer mpi_timer{ comm };
 
     // parse the provided data file
     const auto parser = mpi::make_file_parser<real_type>(opt.data_file, opt.file_parser, mpi::file::mode::read, comm, logger);
     data_attributes_ = data_attributes{ parser->parse_total_size(), parser->parse_rank_size(), parser->parse_dims() };
-    data_ = parser->parse_content();
+    data_ptr_ = std::make_shared<aos_matrix<real_type>>(parser->parse_content());
 
-    // allocate memory on the device and copy the data over
-    device_ptr_ = detail::device_ptr<real_type>{ data_.shape(), queue_ };
-    device_ptr_.copy_to_device(data_);
-
-    logger.log("Created data object in {}.\n", mpi_timer.elapsed());
+    logger.log("Created data set in {}.\n", mpi_timer.elapsed());
 }
 
 std::ostream &operator<<(std::ostream &out, const data_set &data) {
-    return out << data.get_attributes();
+    return out << data.attributes();
 }
 
 }  // namespace sycl_lsh

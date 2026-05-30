@@ -6,8 +6,7 @@
 
 #include "sycl_lsh/hash_functions/random_projections.hpp"
 
-#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set
-#include "sycl_lsh/detail/assert.hpp"       // SYCL_LSH_ASSERT
+#include "sycl_lsh/data_attributes.hpp"     // sycl_lsh::data_attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
@@ -25,12 +24,10 @@
 
 namespace sycl_lsh {
 
-random_projections::random_projections(const device_accessible_options &opt, const data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+random_projections::random_projections(const device_accessible_options &opt, const detail::device_ptr<real_type> &, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
-    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (data.get_attributes().dims + 1) }, queue_ } {
+    device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue_ } {
     const mpi::timer mpi_timer{ comm };
-
-    const data_attributes &attr = data.get_attributes();
 
     std::vector<real_type> host_buffer(device_ptr_.size());
 
@@ -51,12 +48,12 @@ random_projections::random_projections(const device_accessible_options &opt, con
         std::uniform_real_distribution<real_type> rnd_uniform_pool_dist{ 0, opt.w };
 
         // fill hash pool
-        std::vector<real_type> hash_pool(opt.hash_pool_size * (attr.dims + 1));
+        std::vector<real_type> hash_pool(opt.hash_pool_size * (attributes.dims + 1));
         for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
-            for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash_pool[hash_function * (attr.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
+            for (index_type dim = 0; dim < attributes.dims; ++dim) {
+                hash_pool[hash_function * (attributes.dims + 1) + dim] = std::abs(rnd_normal_pool_dist(rnd_normal_pool_gen));
             }
-            hash_pool[hash_function * (attr.dims + 1) + attr.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
+            hash_pool[hash_function * (attributes.dims + 1) + attributes.dims] = rnd_uniform_pool_dist(rnd_uniform_pool_gen);
         }
 
 // select actual hash functions
@@ -73,8 +70,8 @@ random_projections::random_projections(const device_accessible_options &opt, con
         for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
             for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
                 const index_type pool_hash_function = rnd_uniform_dist(rnd_uniform_gen);
-                for (index_type dim = 0; dim <= attr.dims; ++dim) {
-                    host_buffer[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim] = hash_pool[pool_hash_function * (attr.dims + 1) + dim];
+                for (index_type dim = 0; dim <= attributes.dims; ++dim) {
+                    host_buffer[hash_table * opt.num_hash_functions * (attributes.dims + 1) + hash_function * (attributes.dims + 1) + dim] = hash_pool[pool_hash_function * (attributes.dims + 1) + dim];
                 }
             }
         }

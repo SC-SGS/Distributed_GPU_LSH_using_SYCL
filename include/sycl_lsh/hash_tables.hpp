@@ -93,11 +93,11 @@ class hash_tables {
     /**
      * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
      * @param[in] k the number of nearest neighbors to search for
-     * @param[in] data_ptr the data to perform the nearest-neighbors search on
+     * @param[in] received_data_ptr the data to perform the nearest-neighbors search on
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
      */
-    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
+    void calculate_knn_round(index_type k, const detail::device_ptr<real_type> &received_data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
@@ -119,13 +119,16 @@ class hash_tables {
     /// The used options.
     const options &options_;
     /// The used data.
-    data_set &data_;
+    mutable data_set data_;
     /// The attributes associated with the data.
     data_attributes attr_;
     /// The associated MPI communicator.
     mpi::communicator comm_;
     /// The associated MPI logger.
     const mpi::logger &logger_;
+
+    /// The SYCL device buffer for the data that is owned by this MPI rank.
+    detail::device_ptr<real_type> owning_data_ptr_;
 
     /// The used has functions.
     HashFunction hash_functions_;
@@ -154,7 +157,7 @@ template <typename HashFunction>
 
     knn knns{ k, data_, comm_, logger_ };
 
-    detail::device_ptr<real_type> data_ptr{ data_.get_device_ptr().shape(), queue_ };
+    detail::device_ptr<real_type> data_ptr{ owning_data_ptr_.shape(), queue_ };
 
     detail::device_ptr<index_type> knn_ptr{ knns.get_knn_indices().shape(), queue_ };
     detail::device_ptr<real_type> knn_dist_ptr{ knns.get_knn_distances().shape(), queue_ };
@@ -166,7 +169,7 @@ template <typename HashFunction>
 
         // create thread to asynchronously perform MPI communication
         std::thread mpi_thread{ [&]() {
-            comm_.send_receive_round_robin(data_.get_host_buffer());
+            comm_.send_receive_round_robin(data_.mutable_data());
         } };
 
         // set the knn data on the device
@@ -175,9 +178,9 @@ template <typename HashFunction>
 
         // calculate k-nearest-neighbors on current MPI rank
         if (round == 0) {
-            calculate_knn_round(k, data_.get_device_ptr(), knn_ptr, knn_dist_ptr);
+            calculate_knn_round(k, owning_data_ptr_, knn_ptr, knn_dist_ptr);
         } else {
-            data_ptr.copy_to_device(data_.get_host_buffer());
+            data_ptr.copy_to_device(data_.data());
             calculate_knn_round(k, data_ptr, knn_ptr, knn_dist_ptr);
         }
 
@@ -201,7 +204,7 @@ template <typename HashFunction>
 }
 
 template <typename HashFunction>
-void hash_tables<HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
+void hash_tables<HashFunction>::calculate_knn_round(const index_type k, const detail::device_ptr<real_type> &received_data_ptr, detail::device_ptr<index_type> &knn_indices_ptr, detail::device_ptr<real_type> &knn_distances_ptr) const {
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -215,8 +218,8 @@ void hash_tables<HashFunction>::calculate_knn_round(const index_type k, const de
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const real_type *data_owned = data_.get_device_ptr().get();
-        const real_type *data_received = data_ptr.get();
+        const real_type *data_owned = owning_data_ptr_.get();
+        const real_type *data_received = received_data_ptr.get();
         const real_type *hash_functions = hash_functions_.get_device_ptr().get();
         const index_type *offsets = offsets_ptr_.get();
         const index_type *hash_tables = hash_tables_ptr_.get();
@@ -333,15 +336,19 @@ hash_tables<HashFunction>::hash_tables(const options &opt, data_set &data, sycl:
     queue_{ queue },
     options_{ opt },
     data_{ data },
-    attr_{ data.get_attributes() },
+    attr_{ data.attributes() },
     comm_{ comm },
     logger_{ logger },
-    hash_functions_{ opt.device_accessible, data, queue_, comm, logger },
-    hash_tables_ptr_{ opt.device_accessible.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
+    owning_data_ptr_{ data_.data().shape(), queue_ },
+    hash_functions_{ opt.device_accessible, owning_data_ptr_, attr_, queue_, comm, logger },
+    hash_tables_ptr_{ opt.device_accessible.num_hash_tables * data.attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
     offsets_ptr_{ detail::shape{ opt.device_accessible.num_hash_tables, opt.device_accessible.hash_table_size + 1 }, queue_ } {
     // log used devices
     logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
     const mpi::timer mpi_timer{ comm_ };
+
+    // copy the owning data to the device
+    owning_data_ptr_.copy_to_device(data_.data());
 
     {
         // create temporary buffer to count the occurrence of each hash value
@@ -367,7 +374,7 @@ void hash_tables<HashFunction>::count_hash_values(detail::device_ptr<index_type>
         // get device data
         index_type *hash_values_count = hash_values_count_ptr.get();
         const real_type *hash_functions = hash_functions_.get_device_ptr().get();
-        const real_type *data = data_.get_device_ptr().get();
+        const real_type *data = owning_data_ptr_.get();
 
         // get additional information
         const device_accessible_options options = options_.device_accessible;
@@ -431,7 +438,7 @@ void hash_tables<HashFunction>::fill_hash_tables() {
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const real_type *data = data_.get_device_ptr().get();
+        const real_type *data = owning_data_ptr_.get();
         const real_type *hash_functions = hash_functions_.get_device_ptr().get();
         index_type *offsets = offsets_ptr_.get();
         index_type *hash_tables = hash_tables_ptr_.get();

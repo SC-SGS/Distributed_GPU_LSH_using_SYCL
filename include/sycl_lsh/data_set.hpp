@@ -10,19 +10,15 @@
 #define SYCL_LSH_DATA_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type
-#include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
-#include "sycl_lsh/detail/device_ptr.hpp"            // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
-#include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
-#include "sycl_lsh/options.hpp"                      // sycl_lsh::options
-
-#include "sycl/sycl.hpp"
+#include "sycl_lsh/constants.hpp"         // sycl_lsh::real_type
+#include "sycl_lsh/data_attributes.hpp"   // sycl_lsh::data_attributes
+#include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
+#include "sycl_lsh/options.hpp"           // sycl_lsh::options
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 
-#include "matrix.hpp"
 #include <iosfwd>  // std::ostream forward declaration
 
 namespace sycl_lsh {
@@ -31,6 +27,10 @@ namespace sycl_lsh {
  * @brief Class which represents the used data set.
  */
 class data_set {
+    // befriend hash_tables class
+    template <typename>
+    friend class hash_tables;
+
   public:
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -38,52 +38,32 @@ class data_set {
     /**
      * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file @p parser.
      * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    data_set(const options &opt, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
-
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                   getter                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /**
-     * @brief Return the @ref sycl_lsh::data_attributes object representing the attributes of the used data set.
-     * @return the @ref sycl_lsh::data_attributes (`[[nodiscard]]`)
-     */
-    [[nodiscard]] data_attributes get_attributes() const noexcept { return data_attributes_; }
+    data_set(const options &opt, const mpi::communicator &comm, const mpi::logger &logger);
 
     /**
-     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
-     * @return the device memory (`[[nodiscard]]`)
+     * @brief Return the data points in this data set.
+     * @return the data points (`[[nodiscard]]`)
      */
-    [[nodiscard]] const detail::device_ptr<real_type> &get_device_ptr() const noexcept { return device_ptr_; }
+    [[nodiscard]] const aos_matrix<real_type> &data() const { return *data_ptr_; }
 
     /**
-     * @brief Returns the device_ptr wrapping the device memory used in the SYCL kernels.
-     * @return the device memory (`[[nodiscard]]`)
+     * @brief Return the data attributes of this data set.
+     * @return the data set attributes (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
-
-    /**
-     * @brief Returns the host buffer used to hide the MPI communication.
-     * @return the host buffer (`[[nodiscard]]`)
-     */
-    [[nodiscard]] aos_matrix<real_type> &get_host_buffer() noexcept { return data_; }
+    [[nodiscard]] data_attributes attributes() const noexcept { return data_attributes_; }
 
   private:
-    /// The associated SYCL queue representing the device to run on.
-    sycl::queue &queue_;
-    /// The associated MPI communicator.
-    mpi::communicator comm_;
+    // Modifying getter. Only used in the hash_tables class for the send_receive_round_robin implementation.
+    [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
     /// The associated data attributes.
     data_attributes data_attributes_{};
-    /// The host buffer represented as a matrix.
-    aos_matrix<real_type> data_{};
 
-    /// The SYCL device buffer.
-    detail::device_ptr<real_type> device_ptr_{};
+    /// The host buffer represented as a matrix.
+    std::shared_ptr<aos_matrix<real_type>> data_ptr_{ nullptr };
 };
 
 /**

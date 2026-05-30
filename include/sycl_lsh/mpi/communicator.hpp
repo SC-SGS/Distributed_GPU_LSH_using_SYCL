@@ -15,7 +15,7 @@
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 
-#include "mpi.h"  // MPI_Comm, MPI_COMM_WORLD
+#include "mpi.h"  // MPI_Comm, MPI_COMM_WORLD, MPI_Sendrecv_replace
 
 namespace sycl_lsh::mpi {
 

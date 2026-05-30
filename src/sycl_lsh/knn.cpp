@@ -6,16 +6,17 @@
 
 #include "sycl_lsh/knn.hpp"
 
-#include "sycl_lsh/data_attributes.hpp"       // sycl_lsh::data_attributes
-#include "sycl_lsh/data_set.hpp"              // sycl_lsh::data_set
-#include "sycl_lsh/detail/shape.hpp"          // sycl_lsh::detail::shape
-#include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/math.hpp"       // sycl_lsh::mpi::detail::sum
-#include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
-#include "sycl_lsh/mpi/file_parser/file.hpp"  // sycl_lsh::mpi::file::mode
-#include "sycl_lsh/mpi/logger.hpp"            // sycl_lsh::mpi::logger
-#include "sycl_lsh/mpi/timer.hpp"             // sycl_lsh::mpi::timer
-#include "sycl_lsh/options.hpp"               // sycl_lsh::options
+#include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"                     // sycl_lsh::data_set
+#include "sycl_lsh/detail/shape.hpp"                 // sycl_lsh::detail::shape
+#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/math.hpp"              // sycl_lsh::mpi::detail::sum
+#include "sycl_lsh/mpi/detail/type_cast.hpp"         // sycl_lsh::mpi::detail::mpi_datatype
+#include "sycl_lsh/mpi/file_parser/file.hpp"         // sycl_lsh::mpi::file::mode
+#include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
+#include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
+#include "sycl_lsh/mpi/timer.hpp"                    // sycl_lsh::mpi::timer
+#include "sycl_lsh/options.hpp"                      // sycl_lsh::options
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_Sendrecv_replace, MPI_STATUS_IGNORE
@@ -38,7 +39,7 @@ knn::knn(const options &opt, const data_set &data, const mpi::communicator &comm
     knn{ opt.k, data, comm, logger } { }
 
 knn::knn(const index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
-    attr_{ data.get_attributes() },
+    attr_{ data.attributes() },
     comm_{ comm },
     logger_{ logger },
     k_{ k },

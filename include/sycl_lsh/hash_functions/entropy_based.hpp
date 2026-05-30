@@ -10,7 +10,7 @@
 #define SYCL_LSH_HASH_FUNCTIONS_ENTROPY_BASED_HPP
 #pragma once
 
-#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set
+#include "sycl_lsh/data_attributes.hpp"                // sycl_lsh::data_attributes
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
@@ -78,12 +78,13 @@ class entropy_based {
     /**
      * @brief Construct a new @ref sycl_lsh::entropy_based object representing the hash functions used in the LSH algorithm.
      * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] data the used @ref sycl_lsh::data
+     * @param[in] data the used data stored on the device
+     * @param[in] attributes the data's attributes
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    entropy_based(const device_accessible_options &opt, data_set &data, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    entropy_based(const device_accessible_options &opt, const detail::device_ptr<real_type> &data, data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
