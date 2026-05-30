@@ -52,14 +52,6 @@ class knn {
     knn(index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                             update host buffer                                             //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /**
-     * @brief Send the elements of the host buffers to the neighboring buffers replacing its content using a ring like send pattern.
-     */
-    void send_receive_host_buffer();
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                                knn results                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**

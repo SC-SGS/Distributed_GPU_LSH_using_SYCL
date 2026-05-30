@@ -10,6 +10,11 @@
 #define SYCL_LSH_MPI_COMMUNICATOR_HPP
 #pragma once
 
+#include "sycl_lsh/matrix.hpp"                // sycl_lsh::matrix
+#include "sycl_lsh/memory_layout.hpp"         // sycl_lsh::memory_layout
+#include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
+#include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
+
 #include "mpi.h"  // MPI_Comm, MPI_COMM_WORLD
 
 namespace sycl_lsh::mpi {
@@ -68,6 +73,20 @@ class communicator {
      * @return The wrapped MPI communicator (`[[nodiscard]]`)
      */
     [[nodiscard]] operator MPI_Comm() const { return comm_; }  // NOLINT: implicit conversion desired
+
+    /**
+     * @brief Send-receive the @p data in a round-robin scheme, i.e., rank i sends it data to rank i + 1 and receives the data from rank i - 1.
+     * @tparam T the type of the data to exchange
+     * @tparam layout the matrix's memory layout
+     * @param[in,out] data the sycl_lsh::matrix wrapping the data to exchange
+     */
+    template <typename T, memory_layout layout>
+    void send_receive_round_robin(matrix<T, layout> &data) const {
+        const int destination = (this->rank() + 1) % this->size();
+        const int source = (this->size() + (this->rank() - 1) % this->size()) % this->size();
+
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data.data(), data.size(), mpi::detail::mpi_datatype<T>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
+    }
 
   private:
     /// The wrapped MPI communicator.

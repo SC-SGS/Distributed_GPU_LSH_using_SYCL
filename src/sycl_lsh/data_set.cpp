@@ -40,13 +40,6 @@ data_set::data_set(const options &opt,
     logger.log("Created data object in {}.\n", mpi_timer.elapsed());
 }
 
-void data_set::send_receive_host_buffer() {
-    const int destination = (comm_.rank() + 1) % comm_.size();
-    const int source = (comm_.size() + (comm_.rank() - 1) % comm_.size()) % comm_.size();
-
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data_.data(), data_.size(), mpi::detail::mpi_datatype<real_type>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
-}
-
 std::ostream &operator<<(std::ostream &out, const data_set &data) {
     return out << data.get_attributes();
 }

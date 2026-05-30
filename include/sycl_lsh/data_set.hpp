@@ -45,14 +45,6 @@ class data_set {
     data_set(const options &opt, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
-    //                                             update host buffer                                             //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /**
-     * @brief Send the elements of the host buffer to the neighboring host buffer replacing its content using a ring like send pattern.
-     */
-    void send_receive_host_buffer();
-
-    // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
     // ---------------------------------------------------------------------------------------------------------- //
     /**

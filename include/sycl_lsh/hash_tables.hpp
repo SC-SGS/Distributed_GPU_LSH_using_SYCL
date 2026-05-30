@@ -165,7 +165,9 @@ template <typename HashFunction>
         logger_.log("Round {} of {} ... ", round + 1, comm_.size());
 
         // create thread to asynchronously perform MPI communication
-        std::thread mpi_thread{ &data_set::send_receive_host_buffer, &data_ };
+        std::thread mpi_thread{ [&]() {
+            comm_.send_receive_round_robin(data_.get_host_buffer());
+        } };
 
         // set the knn data on the device
         knn_ptr.copy_to_device(knns.get_knn_indices());
@@ -184,7 +186,8 @@ template <typename HashFunction>
         knn_dist_ptr.copy_to_host(knns.get_knn_distances());
 
         // send calculated k-nearest-neighbors and distances to next rank
-        knns.send_receive_host_buffer();
+        comm_.send_receive_round_robin(knns.get_knn_indices());
+        comm_.send_receive_round_robin(knns.get_knn_distances());
         // wait until all MPI communication has been finished
         mpi_thread.join();
         comm_.barrier();
