@@ -12,11 +12,11 @@
 
 #include "sycl_lsh/data_attributes.hpp"   // sycl_lsh::data_attributes
 #include "sycl_lsh/data_set.hpp"          // sycl_lsh::data_set
-#include "sycl_lsh/detail/matrix.hpp"     // sycl_lsh::detail::matrix
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
 #include "sycl_lsh/options.hpp"           // sycl_lsh::options
 
+#include "matrix.hpp"
 #include <tuple>   // std::tuple, std::make_tuple
 #include <vector>  // std::vector
 
@@ -137,14 +137,14 @@ class knn {
      * @brief Returns the host buffer containing the k-nearest-neighbor IDs used to hide the MPI communication.
      * @return the knn host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::aos_matrix<index_type> &get_knn_indices() noexcept { return knn_indices_; }
+    [[nodiscard]] aos_matrix<index_type> &get_knn_indices() noexcept { return knn_indices_; }
 
     /**
      * @brief Returns the host buffer containing the k-nearest-neighbor distances used to hide the MPI communication.
      * @details The distances are calculated without the use of `std::sqrt`!
      * @return the knn distances host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::aos_matrix<real_type> &get_knn_distances() noexcept { return knn_distances_; }
+    [[nodiscard]] aos_matrix<real_type> &get_knn_distances() noexcept { return knn_distances_; }
 
   private:
     /// The data attributes.
@@ -158,9 +158,9 @@ class knn {
     index_type k_;
 
     /// The host data for the nearest-neighbors.
-    detail::aos_matrix<index_type> knn_indices_;
+    aos_matrix<index_type> knn_indices_;
     /// The host data for the nearest-neighbor distances.
-    detail::aos_matrix<real_type> knn_distances_;
+    aos_matrix<real_type> knn_distances_;
 };
 
 }  // namespace sycl_lsh

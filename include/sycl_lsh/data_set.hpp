@@ -13,7 +13,6 @@
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type
 #include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
 #include "sycl_lsh/detail/device_ptr.hpp"            // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/detail/matrix.hpp"                // sycl_lsh::detail::matrix
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
 #include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
@@ -23,6 +22,7 @@
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 
+#include "matrix.hpp"
 #include <iosfwd>  // std::ostream forward declaration
 
 namespace sycl_lsh {
@@ -77,7 +77,7 @@ class data_set {
      * @brief Returns the host buffer used to hide the MPI communication.
      * @return the host buffer (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::aos_matrix<real_type> &get_host_buffer() noexcept { return data_; }
+    [[nodiscard]] aos_matrix<real_type> &get_host_buffer() noexcept { return data_; }
 
   private:
     /// The associated SYCL queue representing the device to run on.
@@ -88,7 +88,7 @@ class data_set {
     /// The associated data attributes.
     data_attributes data_attributes_{};
     /// The host buffer represented as a matrix.
-    detail::aos_matrix<real_type> data_{};
+    aos_matrix<real_type> data_{};
 
     /// The SYCL device buffer.
     detail::device_ptr<real_type> device_ptr_{};

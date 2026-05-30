@@ -30,7 +30,7 @@
 #include <utility>      // std::swap
 #include <vector>       // std::vector
 
-namespace sycl_lsh::detail {
+namespace sycl_lsh {
 
 /**
  * @brief A matrix class encapsulating a 1D array automatically handling indexing with AoS and SoA schemes.
@@ -800,12 +800,12 @@ using soa_matrix = matrix<T, memory_layout::soa>;
 /// @cond Doxygen_suppress
 
 /**
- * @brief Custom {fmt} formatter for a sycl_lsh::detail::matrix. Doesn't print padding entries per default, but introduces the `p` format specifier which enables printing padding entries.
+ * @brief Custom {fmt} formatter for a sycl_lsh::matrix. Doesn't print padding entries per default, but introduces the `p` format specifier which enables printing padding entries.
  * @tparam T the type of the matrix
  * @tparam layout_ the layout type provided at compile time (AoS or SoA)
  */
 template <typename T, sycl_lsh::memory_layout layout_>
-struct fmt::formatter<sycl_lsh::detail::matrix<T, layout_>> {
+struct fmt::formatter<sycl_lsh::matrix<T, layout_>> {
     /// Save whether padding entries should be printed or not.
     bool with_padding_{ false };
 
@@ -830,15 +830,15 @@ struct fmt::formatter<sycl_lsh::detail::matrix<T, layout_>> {
     }
 
     /**
-     * @brief Format a sycl_lsh::detail::matrix with or without padding according to the provided format specifiers.
+     * @brief Format a sycl_lsh::matrix with or without padding according to the provided format specifiers.
      * @tparam FormatContext the {fmt} lib format context
-     * @param[in] matr the sycl_lsh::detail::matrix to format
+     * @param[in] matr the sycl_lsh::matrix to format
      * @param[in,out] ctx the format specifiers
      * @return the output iterator to write to
      */
     template <typename FormatContext>
-    auto format(const sycl_lsh::detail::matrix<T, layout_> &matr, FormatContext &ctx) const {
-        using size_type = typename sycl_lsh::detail::matrix<T, layout_>::size_type;
+    auto format(const sycl_lsh::matrix<T, layout_> &matr, FormatContext &ctx) const {
+        using size_type = typename sycl_lsh::matrix<T, layout_>::size_type;
 
         auto it = ctx.out();
         if (with_padding_) {

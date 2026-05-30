@@ -11,7 +11,6 @@
 #pragma once
 
 #include "sycl_lsh/detail/assert.hpp"          // SYCL_LSH_ASSERT
-#include "sycl_lsh/detail/matrix.hpp"          // sycl_lsh::detail::matrix
 #include "sycl_lsh/detail/shape.hpp"           // sycl_lsh::detail::shape
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::device_ptr_exception
 
@@ -19,6 +18,7 @@
 
 #include "fmt/format.h"  // fmt::format
 
+#include "../matrix.hpp"
 #include <algorithm>  // std::min
 #include <cstddef>    // std::size_t
 #include <utility>    // std::swap, std::exchange
@@ -242,7 +242,7 @@ class device_ptr {
      * @throws sycl_lsh::device_ptr_exception if @p data_to_copy is too small to satisfy the copy
      */
     template <memory_layout layout>
-    void copy_to_device(const detail::matrix<value_type, layout> &data_to_copy);
+    void copy_to_device(const matrix<value_type, layout> &data_to_copy);
     /**
      * @brief Copy device_ptr::size() many values from @p data_to_copy to the device.
      * @param[in] data_to_copy the data to copy onto the device
@@ -279,7 +279,7 @@ class device_ptr {
      * @throws sycl_lsh::device_ptr_exception if @p buffer is too small to satisfy the copy
      */
     template <memory_layout layout>
-    void copy_to_host(detail::matrix<value_type, layout> &buffer) const;
+    void copy_to_host(matrix<value_type, layout> &buffer) const;
     /**
      * @brief Copy device_ptr::size() many values from the device to the host buffer @p buffer.
      * @param[out] buffer the buffer to copy the data to
@@ -415,7 +415,7 @@ void device_ptr<T>::fill(const value_type value, const size_type pos, const size
 
 template <typename T>
 template <memory_layout layout>
-void device_ptr<T>::copy_to_device(const detail::matrix<value_type, layout> &data_to_copy) {
+void device_ptr<T>::copy_to_device(const matrix<value_type, layout> &data_to_copy) {
     SYCL_LSH_ASSERT(data_ != device_pointer_type{}, "Invalid data pointer! Maybe *this has been default constructed?");
 
     if (data_to_copy.size_padded() < this->size_padded()) {
@@ -462,7 +462,7 @@ void device_ptr<T>::copy_to_device(const_host_pointer_type data_to_copy, const s
 
 template <typename T>
 template <memory_layout layout>
-void device_ptr<T>::copy_to_host(detail::matrix<value_type, layout> &buffer) const {
+void device_ptr<T>::copy_to_host(matrix<value_type, layout> &buffer) const {
     SYCL_LSH_ASSERT(data_ != device_pointer_type{}, "Invalid data pointer! Maybe *this has been default constructed?");
 
     if (buffer.size_padded() < this->size_padded()) {

@@ -8,7 +8,6 @@
 
 #include "sycl_lsh/data_attributes.hpp"       // sycl_lsh::data_attributes
 #include "sycl_lsh/data_set.hpp"              // sycl_lsh::data_set
-#include "sycl_lsh/detail/matrix.hpp"         // sycl_lsh::detail::matrix
 #include "sycl_lsh/detail/shape.hpp"          // sycl_lsh::detail::shape
 #include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/math.hpp"       // sycl_lsh::mpi::detail::sum
@@ -21,6 +20,7 @@
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_Sendrecv_replace, MPI_STATUS_IGNORE
 
+#include "../../include/sycl_lsh/matrix.hpp"
 #include <algorithm>  // std::copy, std::transform, std::count, std::sort
 #include <cmath>      // std::sqrt
 #include <limits>     // std::numeric_limits::max
@@ -121,7 +121,7 @@ void knn::save_distances(const options &opt) {
     }
 
     // create a temporary matrix in order to be able to apply the sqrt function
-    detail::aos_matrix<real_type> temp_matrix{ knn_distances_ };
+    aos_matrix<real_type> temp_matrix{ knn_distances_ };
 
     // transform the values using `std::sqrt`
     std::transform(temp_matrix.data(), temp_matrix.data() + temp_matrix.size(), temp_matrix.data(), [](const real_type val) { return std::sqrt(val); });
@@ -151,7 +151,7 @@ void knn::save_distances(const options &opt) {
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    detail::aos_matrix<index_type> correct_knn_indices = file_parser->parse_content();
+    aos_matrix<index_type> correct_knn_indices = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {
@@ -209,7 +209,7 @@ void knn::save_distances(const options &opt) {
     const index_type parsed_total_size = file_parser->parse_total_size();
     const index_type parsed_rank_size = file_parser->parse_rank_size();
     const index_type parsed_dims = file_parser->parse_dims();
-    detail::aos_matrix<real_type> correct_knn_distances = file_parser->parse_content();
+    aos_matrix<real_type> correct_knn_distances = file_parser->parse_content();
 
     // perform sanity checks
     if (parsed_total_size != attr_.total_size) {

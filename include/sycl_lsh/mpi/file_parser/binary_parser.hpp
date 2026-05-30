@@ -12,7 +12,6 @@
 
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
 #include "sycl_lsh/detail/assert.hpp"                // SYCL_LSH_ASSERT
-#include "sycl_lsh/detail/matrix.hpp"                // sycl_lsh::detail::matrix
 #include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lsh::file_parsing_exception
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/type_cast.hpp"         // sycl_lsh::mpi::detail::mpi_datatype
@@ -25,6 +24,7 @@
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_File related functions
 
+#include "../../matrix.hpp"
 #include <string>  // std::string
 
 namespace sycl_lsh::mpi {
@@ -97,7 +97,7 @@ class binary_parser final : public file_parser<T> {
      * @note Throws a `sycl_lsh::file_parsing_exception` if the header information and type doesn't match with the file size.
      * @note Throws a `sycl_lsh::file_parsing_exception` if the buffer isn't big enough.
      */
-    [[nodiscard]] sycl_lsh::detail::aos_matrix<parsing_type> parse_content() const override;
+    [[nodiscard]] sycl_lsh::aos_matrix<parsing_type> parse_content() const override;
     /**
      * @brief Write the content in @p buffer to the file.
      * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
@@ -106,7 +106,7 @@ class binary_parser final : public file_parser<T> {
      *
      * @note Throws a `sycl_lsh::file_parsing_exception` if the file has been opened in read mode.
      */
-    void write_content(index_type total_size, index_type dims, const sycl_lsh::detail::aos_matrix<parsing_type> &buffer) const override;
+    void write_content(index_type total_size, index_type dims, const sycl_lsh::aos_matrix<parsing_type> &buffer) const override;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -137,7 +137,7 @@ index_type binary_parser<T>::parse_dims() const {
 }
 
 template <typename T>
-auto binary_parser<T>::parse_content() const -> sycl_lsh::detail::aos_matrix<parsing_type> {
+auto binary_parser<T>::parse_content() const -> sycl_lsh::aos_matrix<parsing_type> {
     const timer mpi_timer{ comm_ };
 
     // throw if file has been opened in the wrong mode
@@ -155,7 +155,7 @@ auto binary_parser<T>::parse_content() const -> sycl_lsh::detail::aos_matrix<par
     SYCL_LSH_ASSERT(0 < rank_size, "Illegal rank size!");
     SYCL_LSH_ASSERT(0 < dims, "Illegal number of dimensions!");
 
-    sycl_lsh::detail::aos_matrix<parsing_type> buffer{ sycl_lsh::detail::shape{ rank_size, dims } };
+    sycl_lsh::aos_matrix<parsing_type> buffer{ sycl_lsh::detail::shape{ rank_size, dims } };
 
     // check for correct type
     MPI_Offset file_size{};
@@ -203,7 +203,7 @@ auto binary_parser<T>::parse_content() const -> sycl_lsh::detail::aos_matrix<par
 }
 
 template <typename T>
-void binary_parser<T>::write_content(const index_type total_size, const index_type dims, const sycl_lsh::detail::aos_matrix<parsing_type> &buffer) const {
+void binary_parser<T>::write_content(const index_type total_size, const index_type dims, const sycl_lsh::aos_matrix<parsing_type> &buffer) const {
     const timer mpi_timer{ comm_ };
 
     // throw if file has been opened in the wrong mode
