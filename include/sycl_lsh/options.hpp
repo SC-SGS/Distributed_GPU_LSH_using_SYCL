@@ -13,8 +13,8 @@
 #include "sycl_lsh/constants.hpp"                          // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
 #include "sycl_lsh/hash_function_types.hpp"                // sycl_lsh::hash_function_type
 #include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"                 // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/logger.hpp"                         // sycl_lsh::mpi::logger
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 #include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than
@@ -73,9 +73,9 @@ class options {
      * @brief Construct a @ref sycl_lsh::options class from the provided command line arguments.
      * @param[in] argc the number of command line arguments
      * @param[in] argv the provided command line arguments
-     * @param[in] logger the @ref sycl_lsh::mpi::logger
+     * @param[in] comm the used MPI communicator
      */
-    options(int argc, char **argv, const mpi::logger &logger);
+    options(int argc, char **argv, const mpi::communicator &comm);
 
     /// The number of nearest-neighbors to search for.
     index_type k{};

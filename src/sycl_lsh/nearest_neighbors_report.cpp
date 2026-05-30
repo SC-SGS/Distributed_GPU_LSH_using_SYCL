@@ -6,13 +6,13 @@
 
 #include "sycl_lsh/nearest_neighbors_report.hpp"
 
-#include "sycl_lsh/constants.hpp"         // sycl_lsh::index_type, sycl_lsh::real_type
-#include "sycl_lsh/detail/shape.hpp"      // sycl_lsh::detail::shape
-#include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/math.hpp"   // sycl_lsh::mpi::detail::sum
-#include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
-#include "sycl_lsh/mpi/timer.hpp"         // sycl_lsh::mpi::timer
+#include "sycl_lsh/constants.hpp"           // sycl_lsh::index_type, sycl_lsh::real_type
+#include "sycl_lsh/detail/shape.hpp"        // sycl_lsh::detail::shape
+#include "sycl_lsh/matrix.hpp"              // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/math.hpp"     // sycl_lsh::mpi::detail::sum
+#include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
 
 #include "fmt/format.h"  // fmt::format
 
@@ -25,7 +25,7 @@
 
 namespace sycl_lsh::report {
 
-real_type recall(const aos_matrix<index_type> &calculated_indices, const aos_matrix<index_type> &correct_indices, const mpi::communicator &comm, const mpi::logger &logger) {
+real_type recall(const aos_matrix<index_type> &calculated_indices, const aos_matrix<index_type> &correct_indices, const mpi::communicator &comm) {
     const mpi::timer mpi_timer{ comm };
 
     // perform sanity checks
@@ -53,11 +53,11 @@ real_type recall(const aos_matrix<index_type> &calculated_indices, const aos_mat
     const std::size_t total_size = mpi::detail::sum(calculated_indices.num_rows(), comm);
     const real_type res = (static_cast<real_type>(mpi::detail::sum(count, comm)) / (total_size * calculated_indices.num_cols())) * real_type{ 100.0 };
 
-    logger.log("\nCalculated recall in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm, "\nCalculated recall in {}.\n", mpi_timer.elapsed());
     return res;
 }
 
-std::tuple<real_type, index_type, index_type> error_ratio(const aos_matrix<real_type> &calculated_distances, const aos_matrix<real_type> &correct_distances, const mpi::communicator &comm, const mpi::logger &logger) {
+std::tuple<real_type, index_type, index_type> error_ratio(const aos_matrix<real_type> &calculated_distances, const aos_matrix<real_type> &correct_distances, const mpi::communicator &comm) {
     const mpi::timer mpi_timer{ comm };
 
     // perform sanity checks
@@ -121,7 +121,7 @@ std::tuple<real_type, index_type, index_type> error_ratio(const aos_matrix<real_
     const index_type total_num_points_not_found = mpi::detail::sum(num_points_not_found, comm);
     const index_type total_num_knn_not_found = mpi::detail::sum(num_knn_not_found, comm);
 
-    logger.log("\nCalculated error ration in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm, "\nCalculated error ration in {}.\n", mpi_timer.elapsed());
     return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
 }
 

@@ -40,7 +40,6 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file_parser_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/environment.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/logger.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
 

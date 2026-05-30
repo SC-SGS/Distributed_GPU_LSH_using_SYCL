@@ -16,7 +16,6 @@
 #include "sycl_lsh/mpi/file_parser/binary_parser.hpp"      // sycl_lsh::mpi::arff_parser
 #include "sycl_lsh/mpi/file_parser/file.hpp"               // sycl_lsh::mpi::file::mode
 #include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser_type
-#include "sycl_lsh/mpi/logger.hpp"                         // sycl_lsh::mpi::logger
 
 #include <memory>  // std::unique_ptr, std::make_unique
 
@@ -29,16 +28,15 @@ namespace sycl_lsh::mpi {
  * @param[in] file_parser the type of the file parser to use
  * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
- * @param[in] logger the used @ref sycl_lsh::mpi::logger
  * @return a file parser with the requested type (`[[nodiscard]]`)
  */
 template <typename parsing_type>
-[[nodiscard]] std::unique_ptr<file_parser<parsing_type>> make_file_parser(const std::string &filename, const file_parser_type file_parser, const file::mode mode, const communicator &comm, const logger &logger) {
+[[nodiscard]] std::unique_ptr<file_parser<parsing_type>> make_file_parser(const std::string &filename, const file_parser_type file_parser, const file::mode mode, const communicator &comm) {
     switch (file_parser) {
         case file_parser_type::arff:
-            return std::make_unique<arff_parser<parsing_type>>(filename, mode, comm, logger);
+            return std::make_unique<arff_parser<parsing_type>>(filename, mode, comm);
         case file_parser_type::binary:
-            return std::make_unique<binary_parser<parsing_type>>(filename, mode, comm, logger);
+            return std::make_unique<binary_parser<parsing_type>>(filename, mode, comm);
     }
     // unreachable
     return nullptr;

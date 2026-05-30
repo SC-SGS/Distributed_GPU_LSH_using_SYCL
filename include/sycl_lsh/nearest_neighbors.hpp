@@ -15,7 +15,6 @@
 #include "sycl_lsh/detail/hashing/hash_tables.hpp"  // sycl_lsh::detail::hashing::hash_tables_base
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"                  // sycl_lsh::mpi::logger
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::has_only_named_args_v
 
 #include "igor/igor.hpp"  // igor::parser
@@ -47,11 +46,10 @@ class nearest_neighbors {
      * @param[in] lsh_options the provided options controlling the locality sensitive hashing behavior
      * @param[in] queue the SYCL queue containing the device used to perform the nearest-neighbors search
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
      *
      * @throws sycl_lsh::exception if @p k is smaller than `1`
      */
-    nearest_neighbors(index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm, const mpi::logger &logger);
+    nearest_neighbors(index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm);
 
     /**
      * @brief Fit the nearest neighbors estimator from the training dataset.
@@ -123,8 +121,6 @@ class nearest_neighbors {
     sycl::queue queue_;
     /// The associated MPI communicator.
     mpi::communicator comm_;
-    /// The associated MPI logger.
-    const mpi::logger &logger_;  // TODO: remove const ref
 
     /// The number of nearest-neighbors to calculate.
     index_type n_neighbors_;

@@ -16,7 +16,6 @@
 #include "sycl_lsh/hash_function_types.hpp"
 #include "sycl_lsh/matrix.hpp"
 #include "sycl_lsh/mpi/communicator.hpp"
-#include "sycl_lsh/mpi/logger.hpp"
 #include "sycl_lsh/mpi/main.hpp"
 #include "sycl_lsh/mpi/timer.hpp"
 #include "sycl_lsh/nearest_neighbors.hpp"

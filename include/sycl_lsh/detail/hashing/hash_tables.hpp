@@ -16,7 +16,7 @@
 #include "sycl_lsh/detail/hashing/entropy_based.hpp"         // sycl_lsh::detail::hashing::entropy_based
 #include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"  // sycl_lsh::detail::hashing::mixed_hash_functions
 #include "sycl_lsh/detail/hashing/random_projections.hpp"    // sycl_lsh::detail::hashing::random_projections
-#include "sycl_lsh/mpi/logger.hpp"                           // sycl_lsh::mpi::logger
+#include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
 #include "sycl_lsh/mpi/timer.hpp"                            // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
 
@@ -62,9 +62,8 @@ class hash_tables : public hash_tables_base {
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, mpi::communicator comm, const mpi::logger &logger);
+    hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, mpi::communicator comm);
 
     /**
      * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
@@ -106,8 +105,6 @@ class hash_tables : public hash_tables_base {
     mutable sycl::queue queue_;
     /// The associated MPI communicator.
     mpi::communicator comm_;
-    /// The associated MPI logger.
-    const mpi::logger &logger_;
 
     /// The SYCL device buffer for the data that is owned by this MPI rank.
     device_ptr<real_type> owning_data_ptr_;
@@ -126,24 +123,23 @@ class hash_tables : public hash_tables_base {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
-hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, const mpi::communicator comm, const mpi::logger &logger) :
+hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, const mpi::communicator comm) :
     queue_{ std::move(queue) },
     comm_{ comm },
-    logger_{ logger },
     owning_data_ptr_{ data.data().shape(), queue_ },
     lsh_options_{ lsh_options },
     hash_functions_{ nullptr },
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
     offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
     // log used devices
-    logger_.log_on_all("[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
+    mpi::detail::log_from_all(comm_, "[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
     const mpi::timer mpi_timer{ comm_ };
 
     // copy the owning data to the device
     owning_data_ptr_.copy_to_device(data.data());
 
     // create the hash functions (cannot be done earlier since we first need the data on the device)
-    hash_functions_ = std::make_unique<HashFunction>(lsh_options_, owning_data_ptr_, data.get_attributes(), queue_, comm, logger);
+    hash_functions_ = std::make_unique<HashFunction>(lsh_options_, owning_data_ptr_, data.get_attributes(), queue_, comm);
 
     {
         // create temporary buffer to count the occurrence of each hash value
@@ -158,7 +154,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
     // fill the hash tables based on the previously calculated offsets
     this->fill_hash_tables(data.get_attributes());
 
-    logger_.log("Created hash tables in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Created hash tables in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
@@ -189,7 +185,7 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
     // wait until the kernel finished
     queue_.wait_and_throw();
 
-    logger_.log("Counted hash values in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Counted hash values in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
@@ -223,7 +219,7 @@ void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &
     // wait until the kernel finished
     queue_.wait_and_throw();
 
-    logger_.log("Calculated offsets in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
@@ -279,7 +275,7 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
     // wait until the kernel finished
     queue_.wait_and_throw();
 
-    logger_.log("Filled hash tables in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Filled hash tables in {}.\n", mpi_timer.elapsed());
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -295,7 +291,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::timer mpi_round_timer{ comm_ };
 
-        logger_.log("Round {} of {} ... ", round + 1, comm_.size());
+        mpi::detail::log(comm_, "Round {} of {} ... ", round + 1, comm_.size());
 
         // copy the current data to the device
         query_data_ptr.copy_to_device(query_data.data());
@@ -323,7 +319,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         mpi_thread.join();
         comm_.barrier();
 
-        logger_.log("finished in {}.\n", mpi_round_timer.elapsed());
+        mpi::detail::log(comm_, "finished in {}.\n", mpi_round_timer.elapsed());
     }
 }
 

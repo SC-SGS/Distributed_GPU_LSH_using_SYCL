@@ -12,15 +12,13 @@
 #pragma once
 
 #include "sycl_lsh/constants.hpp"             // sycl_lsh::index_type
+#include "sycl_lsh/matrix.hpp"                // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser/file.hpp"  // sycl_lsh::mpi::file
-#include "sycl_lsh/mpi/logger.hpp"            // sycl_lsh::mpi::logger
 
-#include "../../matrix.hpp"
 #include <cmath>        // std::ceil
 #include <string>       // std::string
 #include <type_traits>  // std::is_arithmetic_v
-#include <vector>       // std::vector
 
 namespace sycl_lsh::mpi {
 
@@ -44,9 +42,8 @@ class file_parser {
      * @param[in] file_name the file to parse
      * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    file_parser(const std::string &file_name, file::mode mode, const communicator &comm, const logger &logger);
+    file_parser(const std::string &file_name, file::mode mode, const communicator &comm);
     /**
      * @brief Virtual destructor to enable proper inheritance.
      */
@@ -81,20 +78,18 @@ class file_parser {
      * @brief Parse the content of the file.
      * @return the parsed data (`[[nodiscard]]`)
      */
-    [[nodiscard]] virtual sycl_lsh::aos_matrix<parsing_type> parse_content() const = 0;
+    [[nodiscard]] virtual aos_matrix<parsing_type> parse_content() const = 0;
     /**
      * @brief Write the content in @p buffer to the file.
      * @param[in] total_size the total number of values to write (sum of all values from **all** MPI ranks)
      * @param[in] dims the number of dimensions of each value
      * @param[in] buffer the data to write to the file
      */
-    virtual void write_content(index_type total_size, index_type dims, const sycl_lsh::aos_matrix<parsing_type> &buffer) const = 0;
+    virtual void write_content(index_type total_size, index_type dims, const aos_matrix<parsing_type> &buffer) const = 0;
 
   protected:
     /// The used MPI communicator.
     communicator comm_;
-    /// The used MPI-aware logger.
-    const logger &logger_;
     /// The file name. Mainly used for better error message.
     std::string file_name_;
     /// The used MPI file wrapper.
@@ -107,9 +102,8 @@ class file_parser {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename T>
-file_parser<T>::file_parser(const std::string &file_name, const file::mode mode, const communicator &comm, const logger &logger) :
+file_parser<T>::file_parser(const std::string &file_name, const file::mode mode, const communicator &comm) :
     comm_{ comm },
-    logger_{ logger },
     file_name_{ file_name },
     file_{ file_name, comm, mode },
     mode_{ mode } { }

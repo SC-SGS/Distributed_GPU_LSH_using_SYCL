@@ -17,11 +17,13 @@ namespace sycl_lsh::mpi {
  * @return `true` if the environment was successfully initialized, otherwise `false` (`[[nodiscard]]`)
  */
 [[nodiscard]] bool is_initialized();
+
 /**
  * @brief Check if the MPI environment has been successfully finalized.
  * @return `true` if the environment was successfully finalized, otherwise `false` (`[[nodiscard]]`)
  */
 [[nodiscard]] bool is_finalized();
+
 /**
  * @brief Check if the MPI environment is currently active, i.e., `init` has already been called, but not `finalize`.
  * @return `true` if the environment is currently active, otherwise `false` (`[[nodiscard]]`)

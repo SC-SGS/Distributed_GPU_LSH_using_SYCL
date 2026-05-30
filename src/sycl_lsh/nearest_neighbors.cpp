@@ -11,7 +11,7 @@
 #include "sycl_lsh/detail/shape.hpp"                // sycl_lsh::detail::shape
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"                  // sycl_lsh::mpi::logger
+#include "sycl_lsh/mpi/detail/logging.hpp"          // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/timer.hpp"                   // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
 
@@ -26,10 +26,9 @@ namespace sycl_lsh {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 
-nearest_neighbors::nearest_neighbors(const index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm, const mpi::logger &logger) :
+nearest_neighbors::nearest_neighbors(const index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm) :
     queue_{ std::move(queue) },
     comm_{ comm },
-    logger_{ logger },
     n_neighbors_{ k },
     lsh_options_{ lsh_options } {
     if (k < 1) {
@@ -52,17 +51,17 @@ void nearest_neighbors::fit(data_set X) {
     using namespace detail::hashing;
     switch (lsh_options_.hash_function) {
         case hash_function_type::random_projections:
-            hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_, logger_);
+            hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_);
             break;
         case hash_function_type::entropy_based:
-            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(lsh_options_, data_, queue_, comm_, logger_);
+            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(lsh_options_, data_, queue_, comm_);
             break;
         case hash_function_type::mixed_hash_functions:
-            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(lsh_options_, data_, queue_, comm_, logger_);
+            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(lsh_options_, data_, queue_, comm_);
             break;
     }
 
-    logger_.log("Fit the nearest-neighbors estimator in {}.\n\n", mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Fit the nearest-neighbors estimator in {}.\n\n", mpi_timer.elapsed());
 }
 
 auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const -> results {
@@ -112,7 +111,7 @@ auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neig
     // perform the k-nearest-neighbors calculation using locality sensitive hashing
     hash_tables_->search_nearest_neighbors(used_n_neighbors, X, indices, distances);
 
-    logger_.log("Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, mpi_timer.elapsed());
+    mpi::detail::log(comm_, "Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, mpi_timer.elapsed());
 
     // TODO: currently, returns results per rank -> return results across all ranks doing a gather operation?
 

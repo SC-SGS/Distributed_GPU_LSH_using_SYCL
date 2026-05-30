@@ -13,7 +13,6 @@
 #include "sycl_lsh/constants.hpp"         // sycl_lsh::real_type
 #include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
 #include "sycl_lsh/options.hpp"           // sycl_lsh::options
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
@@ -59,9 +58,8 @@ class data_set {
      * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file @p parser.
      * @param[in] opt the used @ref sycl_lsh::options
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    data_set(const options &opt, const mpi::communicator &comm, const mpi::logger &logger);
+    data_set(const options &opt, const mpi::communicator &comm);
 
     /**
      * @brief Return the data points in this data set.

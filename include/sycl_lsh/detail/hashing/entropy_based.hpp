@@ -15,7 +15,6 @@
 #include "sycl_lsh/detail/hashing/hash_combine.hpp"  // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/hashing/lsh_hash.hpp"      // sycl_lsh::detail::hashing::lsh_hash forward declaration
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/logger.hpp"                   // sycl_lsh::mpi::logger
 #include "sycl_lsh/options.hpp"                      // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue
@@ -37,9 +36,8 @@ class entropy_based {
      * @param[in] attributes the data's attributes
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
-     * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    entropy_based(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    entropy_based(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //

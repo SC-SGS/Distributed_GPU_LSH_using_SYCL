@@ -12,8 +12,8 @@
 #include "sycl_lsh/exceptions/exceptions.hpp"              // sycl_lhs::cmd_parser_exit
 #include "sycl_lsh/hash_function_types.hpp"                // sycl_lsh::hash_function_type
 #include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"                 // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/logger.hpp"                         // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"                          // sycl_lsh::timer
 
 #include "cxxopts.hpp"   // cxxopts::Options, cxxopts::ParseResult
@@ -27,7 +27,7 @@
 
 namespace sycl_lsh {
 
-options::options(const int argc, char **argv, const mpi::logger &logger) {
+options::options(const int argc, char **argv, const mpi::communicator &comm) {
     // create command line options parser
     cxxopts::Options options(argv[0], "k-nearest-neighbors using Locality Sensitive Hashing and SYCL");
     options
@@ -63,21 +63,21 @@ options::options(const int argc, char **argv, const mpi::logger &logger) {
         result = options.parse(argc, argv);
     } catch (const std::exception &e) {
         // output help message only on master MPI rank
-        logger.log("{}\n{}\n", e.what(), options.help());
+        mpi::detail::log(comm, "{}\n{}\n", e.what(), options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
 
     // print help message and exit
     if (result.contains("help")) {
         // output help message only on master MPI rank
-        logger.log("{}\n", options.help());
+        mpi::detail::log(comm, "{}\n", options.help());
         throw cmd_parser_exit{ EXIT_SUCCESS };
     }
 
     // check if the number of positional arguments is not too large
     if (!result.unmatched().empty()) {
         // output error message only on master MPI rank
-        logger.log("ERROR: only one positional options may be given, but {} (\"{}\") additional option(s) where provided!\n{}\n", result.unmatched().size(), fmt::join(result.unmatched(), " "), options.help());
+        mpi::detail::log(comm, "ERROR: only one positional options may be given, but {} (\"{}\") additional option(s) where provided!\n{}\n", result.unmatched().size(), fmt::join(result.unmatched(), " "), options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
 
@@ -85,14 +85,14 @@ options::options(const int argc, char **argv, const mpi::logger &logger) {
 
     if (!result.contains("knn")) {
         // output error message only on master MPI rank
-        logger.log("ERROR: missing nearest-neighbors number!\n\n{}\n", options.help());
+        mpi::detail::log(comm, "ERROR: missing nearest-neighbors number!\n\n{}\n", options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
     k = result["knn"].as<index_type>();
 
     if (!result.contains("file")) {
         // output error message only on master MPI rank
-        logger.log("ERROR: missing input file!\n\n{}\n", options.help());
+        mpi::detail::log(comm, "ERROR: missing input file!\n\n{}\n", options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
     data_file = result["file"].as<std::string>();

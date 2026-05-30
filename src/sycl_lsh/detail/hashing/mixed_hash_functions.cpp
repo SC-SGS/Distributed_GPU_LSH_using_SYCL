@@ -9,9 +9,9 @@
 #include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/mpi/logger.hpp"          // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
@@ -24,7 +24,7 @@
 
 namespace sycl_lsh::detail::hashing {
 
-mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
     queue_{ queue },
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
@@ -191,7 +191,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     // copy the host data to the device
     device_ptr_.copy_to_device(host_buffer);
 
-    logger.log("Created 'mixed_hash_functions' hash functions in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm, "Created 'mixed_hash_functions' hash functions in {}.\n", mpi_timer.elapsed());
 }
 
 }  // namespace sycl_lsh::detail::hashing
