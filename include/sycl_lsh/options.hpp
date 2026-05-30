@@ -18,11 +18,30 @@
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 
-#include <iosfwd>    // std::ostream  forward declarations
-#include <optional>  // std::optional
-#include <string>    // std::string
+#include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than
+#include <iosfwd>         // std::ostream  forward declarations
+#include <optional>       // std::optional
+#include <string>         // std::string
 
 namespace sycl_lsh {
+
+/// @cond Doxygen_suppress
+
+// create named arguments
+IGOR_MAKE_NAMED_ARGUMENT(n_neighbors);
+IGOR_MAKE_NAMED_ARGUMENT(return_distance);
+
+/// @endcond
+
+namespace detail {
+
+/**
+ * @brief Trait to check whether @p Args only contains named-parameter.
+ */
+template <typename... Args>
+constexpr bool has_only_named_args_v = !igor::has_unnamed_arguments<Args...>();
+
+}  // namespace detail
 
 /**
  * @brief A small wrapper struct encapsulating all options accessible on the respective device(s).

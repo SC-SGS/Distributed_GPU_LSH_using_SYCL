@@ -247,6 +247,30 @@ else ()
     target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${cxxopts_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 endif ()
 
+# try finding igor
+set(SYCL_LSH_igor_VERSION fef608b458ab2fca736ac8e415e4d4160a48745d) # can't use a newer commit since igor switch to mandatory C++20
+find_package(igor QUIET)
+if (igor_FOUND)
+    message(STATUS "Found package igor.")
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC ${igor_INCLUDE_DIR})
+else ()
+    message(STATUS "Couldn't find package igor. Building version ${SYCL_LSH_igor_VERSION} from source.")
+    # set options for igor
+    set(IGOR_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
+    # disable additional compiler flags check (only warning flags) since for some reasons it takes ages with stdpar compilers
+    set(_YACMACompilerLinkerSettingsIncluded ON CACHE INTERNAL "" FORCE)
+    # fetch named argument library igor
+    FetchContent_Declare(
+            igor
+            GIT_REPOSITORY https://github.com/bluescarni/igor
+            GIT_TAG ${SYCL_LSH_igor_VERSION}
+            QUIET
+    )
+    FetchContent_MakeAvailable(igor)
+    add_dependencies(${SYCL_LSH_LIBRARY_NAME} igor)
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${igor_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+endif ()
+
 # try finding fmt
 set(SYCL_LSH_fmt_VERSION 11.0.2)
 find_package(fmt 11.0.2 QUIET)
