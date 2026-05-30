@@ -35,7 +35,7 @@ int custom_main(const int argc, char **argv) {
         // generate LSH hash tables and calculate the nearest-neighbors
         std::visit([&](auto &&lsh_tables) {
             // calculate k-nearest-neighbors
-            auto knns = lsh_tables.k_nearest_neighbors(opt.k);
+            sycl_lsh::nearest_neighbors knns = lsh_tables.k_nearest_neighbors(opt.k);
 
             // optionally save calculated k-nearest-neighbor IDs
             if (opt.knn_save_file.has_value()) {

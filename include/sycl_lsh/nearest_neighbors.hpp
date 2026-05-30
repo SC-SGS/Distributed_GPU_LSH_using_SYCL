@@ -16,7 +16,7 @@
 #include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
 #include "sycl_lsh/options.hpp"           // sycl_lsh::options
 
-#include "matrix.hpp"
+#include "sycl_lsh/matrix.hpp"  // sycl_lsh::aos_matrix
 #include <tuple>   // std::tuple, std::make_tuple
 #include <vector>  // std::vector
 
@@ -25,7 +25,7 @@ namespace sycl_lsh {
 /**
  * @brief Class representing the result of the k-nearest-neighbor search.
  */
-class knn {
+class nearest_neighbors {
   public:
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
@@ -39,7 +39,7 @@ class knn {
      *
      * @pre @p opt.k **must** be greater than `0`.
      */
-    knn(const options &opt, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
+    nearest_neighbors(const options &opt, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
     /**
      * @brief Construct a new @ref sycl_lsh::knn object given @p k, the number of nearest-neighbors to search for.
      * @param[in] k the number of nearest-neighbors to search for
@@ -49,7 +49,7 @@ class knn {
      *
      * @pre @p k **must** be greater than `0`.
      */
-    knn(index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
+    nearest_neighbors(index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                knn results                                                 //

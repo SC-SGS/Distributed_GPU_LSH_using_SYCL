@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/knn.hpp"
+#include "sycl_lsh/nearest_neighbors.hpp"
 
 #include "sycl_lsh/data_attributes.hpp"              // sycl_lsh::data_attributes
 #include "sycl_lsh/data_set.hpp"                     // sycl_lsh::data_set
@@ -35,10 +35,10 @@ namespace sycl_lsh {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 
-knn::knn(const options &opt, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
-    knn{ opt.k, data, comm, logger } { }
+nearest_neighbors::nearest_neighbors(const options &opt, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
+    nearest_neighbors{ opt.k, data, comm, logger } { }
 
-knn::knn(const index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
+nearest_neighbors::nearest_neighbors(const index_type k, const data_set &data, const mpi::communicator &comm, const mpi::logger &logger) :
     attr_{ data.attributes() },
     comm_{ comm },
     logger_{ logger },
@@ -75,7 +75,7 @@ knn::knn(const index_type k, const data_set &data, const mpi::communicator &comm
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                knn results                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
-[[nodiscard]] std::vector<index_type> knn::get_knn_ids(const index_type point) const {
+[[nodiscard]] std::vector<index_type> nearest_neighbors::get_knn_ids(const index_type point) const {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!");
 
     std::vector<index_type> res(k_);
@@ -85,7 +85,7 @@ knn::knn(const index_type k, const data_set &data, const mpi::communicator &comm
     return res;
 }
 
-[[nodiscard]] std::vector<real_type> knn::get_knn_dists(const index_type point) const {
+[[nodiscard]] std::vector<real_type> nearest_neighbors::get_knn_dists(const index_type point) const {
     SYCL_LSH_ASSERT(0 <= point && point < attr_.rank_size, "Out-of-bounce access for data point!\n");
 
     std::vector<real_type> res(k_);
@@ -98,7 +98,7 @@ knn::knn(const index_type k, const data_set &data, const mpi::communicator &comm
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                  save knn                                                  //
 // ---------------------------------------------------------------------------------------------------------- //
-void knn::save_knns(const options &opt) {
+void nearest_neighbors::save_knns(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // check if the required command line argument is present
@@ -113,7 +113,7 @@ void knn::save_knns(const options &opt) {
     logger_.log("Saved k-nearest-neighbor IDs in {}.\n", mpi_timer.elapsed());
 }
 
-void knn::save_distances(const options &opt) {
+void nearest_neighbors::save_distances(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // check if the required command line argument is present
@@ -137,7 +137,7 @@ void knn::save_distances(const options &opt) {
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                evaluate knn                                                //
 // ---------------------------------------------------------------------------------------------------------- //
-[[nodiscard]] real_type knn::recall(const options &opt) {
+[[nodiscard]] real_type nearest_neighbors::recall(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // load correct k-nearest-neighbor IDs
@@ -195,7 +195,7 @@ void knn::save_distances(const options &opt) {
     return res;
 }
 
-[[nodiscard]] std::tuple<real_type, index_type, index_type> knn::error_ratio(const options &opt) {
+[[nodiscard]] std::tuple<real_type, index_type, index_type> nearest_neighbors::error_ratio(const options &opt) {
     const mpi::timer mpi_timer{ comm_ };
 
     // load correct k-nearest-neighbor distances

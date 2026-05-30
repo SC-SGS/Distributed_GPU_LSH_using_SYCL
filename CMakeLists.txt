@@ -47,7 +47,7 @@ set(SYCL_LSH_LIBRARY_SOURCES
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_attributes.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_set.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/knn.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/memory_layout.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
 )

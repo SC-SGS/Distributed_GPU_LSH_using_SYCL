@@ -17,9 +17,9 @@
 #include "sycl_lsh/detail/utility.hpp"                 // sycl_lsh::detail::swap
 #include "sycl_lsh/exceptions/exceptions.hpp"          // sycl_lsh::exception
 #include "sycl_lsh/hash_functions/hash_functions.hpp"  // forward declarations for the hash functions
-#include "sycl_lsh/knn.hpp"                            // sycl_lsh::knn
 #include "sycl_lsh/mpi/logger.hpp"                     // sycl_lsh::mpi::logger
 #include "sycl_lsh/mpi/timer.hpp"                      // sycl_lsh::mpi::timer
+#include "sycl_lsh/nearest_neighbors.hpp"              // sycl_lsh::nearest_neighbors
 #include "sycl_lsh/options.hpp"                        // sycl_lsh::options
 
 #include "sycl/sycl.hpp"  // sycl::queue
@@ -64,7 +64,7 @@ class hash_tables {
      *
      * @throws sycl_lsh::exception if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
      */
-    [[nodiscard]] knn k_nearest_neighbors(const options &opt) const;
+    [[nodiscard]] nearest_neighbors k_nearest_neighbors(const options &opt) const;
     /**
      * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
      * @param[in] k the number of nearest-neighbors to search for
@@ -72,7 +72,7 @@ class hash_tables {
      *
      * @throws sycl_lsh::exception if the number of nearest-neighbors @p k is less or equal than `0` or greater and equal than `rank_size`.
      */
-    [[nodiscard]] knn k_nearest_neighbors(index_type k) const;
+    [[nodiscard]] nearest_neighbors k_nearest_neighbors(index_type k) const;
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //
@@ -143,19 +143,19 @@ class hash_tables {
 //                                       calculate k-nearest-neighbors                                        //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
-[[nodiscard]] knn hash_tables<HashFunction>::k_nearest_neighbors(const options &opt) const {
+[[nodiscard]] nearest_neighbors hash_tables<HashFunction>::k_nearest_neighbors(const options &opt) const {
     return k_nearest_neighbors(opt.k);
 }
 
 template <typename HashFunction>
-[[nodiscard]] knn hash_tables<HashFunction>::k_nearest_neighbors(const index_type k) const {
+[[nodiscard]] nearest_neighbors hash_tables<HashFunction>::k_nearest_neighbors(const index_type k) const {
     const mpi::timer mpi_timer{ comm_ };
 
     if (k < 1 || k > attr_.rank_size) {
         throw exception{ fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", k, attr_.rank_size) };
     }
 
-    knn knns{ k, data_, comm_, logger_ };
+    nearest_neighbors knns{ k, data_, comm_, logger_ };
 
     detail::device_ptr<real_type> data_ptr{ owning_data_ptr_.shape(), queue_ };
 
