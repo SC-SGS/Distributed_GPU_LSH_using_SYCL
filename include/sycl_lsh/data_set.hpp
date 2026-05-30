@@ -18,6 +18,7 @@
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 
 #include <iosfwd>  // std::ostream forward declaration
+#include <string>  // std::string
 
 namespace sycl_lsh {
 
@@ -55,11 +56,12 @@ class data_set {
      */
     data_set() = default;
     /**
-     * @brief Construct a new @ref sycl_lsh::data object representing the used data set parsed by the file @p parser.
-     * @param[in] opt the used @ref sycl_lsh::options
+     * @brief Construct a new data_set from @p filename using the @p file_parser type.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] filename the file to parse
+     * @param[in] file_parser the file parser type
      */
-    data_set(const options &opt, const mpi::communicator &comm);
+    data_set(const mpi::communicator &comm, const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary);
 
     /**
      * @brief Return the data points in this data set.

@@ -22,20 +22,6 @@
 
 namespace sycl_lsh {
 
-// ---------------------------------------------------------------------------------------------------------- //
-//                                                constructor                                                 //
-// ---------------------------------------------------------------------------------------------------------- //
-
-nearest_neighbors::nearest_neighbors(const index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm) :
-    queue_{ std::move(queue) },
-    comm_{ comm },
-    n_neighbors_{ k },
-    lsh_options_{ lsh_options } {
-    if (k < 1) {
-        throw exception{ fmt::format("k ({}) must be larger than 0!", k) };
-    }
-}
-
 void nearest_neighbors::fit(data_set X) {
     const mpi::detail::timer mpi_timer{ comm_ };
 

@@ -28,7 +28,7 @@ namespace sycl_lsh {
 /// @cond Doxygen_suppress
 
 // create named arguments
-IGOR_MAKE_NAMED_ARGUMENT(params);
+IGOR_MAKE_NAMED_ARGUMENT(lsh_options);
 IGOR_MAKE_NAMED_ARGUMENT(n_neighbors);
 IGOR_MAKE_NAMED_ARGUMENT(return_distance);
 
@@ -71,14 +71,14 @@ class options {
   public:
     /**
      * @brief Construct a @ref sycl_lsh::options class from the provided command line arguments.
+     * @param[in] comm the used MPI communicator
      * @param[in] argc the number of command line arguments
      * @param[in] argv the provided command line arguments
-     * @param[in] comm the used MPI communicator
      */
-    options(int argc, char **argv, const mpi::communicator &comm);
+    options(const mpi::communicator &comm, int argc, char **argv);
 
     /// The number of nearest-neighbors to search for.
-    index_type k{};
+    index_type n_neighbors{};
     /// The path to the input data file.
     std::string data_file{};
     /// The type of the file parser.

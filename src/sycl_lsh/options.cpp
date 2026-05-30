@@ -26,7 +26,7 @@
 
 namespace sycl_lsh {
 
-options::options(const int argc, char **argv, const mpi::communicator &comm) {
+options::options(const mpi::communicator &comm, const int argc, char **argv) {
     // create command line options parser
     cxxopts::Options options(argv[0], "k-nearest-neighbors using Locality Sensitive Hashing and SYCL");
     options
@@ -87,7 +87,7 @@ options::options(const int argc, char **argv, const mpi::communicator &comm) {
         mpi::detail::log(comm, "ERROR: missing nearest-neighbors number!\n\n{}\n", options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
-    k = result["knn"].as<index_type>();
+    n_neighbors = result["knn"].as<index_type>();
 
     if (!result.contains("file")) {
         // output error message only on master MPI rank
@@ -120,6 +120,7 @@ options::options(const int argc, char **argv, const mpi::communicator &comm) {
     lsh_options.num_cut_off_points = result["num_cut_off_points"].as<index_type>();
 
     // perform some sanity checks
+    // TODO: exceptions!
     SYCL_LSH_ASSERT(lsh_options.hash_pool_size > 0, "Invalid hash_pool_size!");
     SYCL_LSH_ASSERT(lsh_options.num_hash_functions > 0, "Invalid num_hash_functions!");
     SYCL_LSH_ASSERT(lsh_options.num_hash_tables > 0, "Invalid num_hash_tables!");
@@ -144,7 +145,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
                                   BLOCKING_SIZE,
-                                  opt.k,
+                                  opt.n_neighbors,
                                   opt.data_file,
                                   opt.file_parser);
 

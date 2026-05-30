@@ -42,14 +42,37 @@ class nearest_neighbors {
 
     /**
      * @brief Construct a new nearest_neighbor estimator.
-     * @param[in] k the default number of nearest-neighbors to calculate
-     * @param[in] lsh_options the provided options controlling the locality sensitive hashing behavior
-     * @param[in] queue the SYCL queue containing the device used to perform the nearest-neighbors search
+     * @tparam NamedArgs the type of optional named arguments
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] queue the SYCL queue containing the device used to perform the nearest-neighbors search
+     * @param[in] named_args the optional named arguments
      *
-     * @throws sycl_lsh::exception if @p k is smaller than `1`
+     * @throws sycl_lsh::exception if the number of nearest-neighbors smaller than 1
      */
-    nearest_neighbors(index_type k, const locality_sensitive_hashing_options &lsh_options, sycl::queue queue, const mpi::communicator &comm);
+    template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
+    nearest_neighbors(const mpi::communicator comm, sycl::queue queue, NamedArgs &&...named_args) :
+        comm_{ comm },
+        queue_{ std::move(queue) } {
+        // check igor parameter
+        const igor::parser parser{ std::forward<NamedArgs>(named_args)... };
+
+        // check whether a different number of nearest-neighbors has been requested
+        if constexpr (parser.has(sycl_lsh::n_neighbors)) {
+            // update the number of nearest-neighbors
+            n_neighbors_ = static_cast<decltype(n_neighbors_)>(parser(sycl_lsh::n_neighbors));
+        }
+
+        // check whether a different locality sensitive hashing options has been requested
+        if constexpr (parser.has(sycl_lsh::lsh_options)) {
+            // update the options
+            lsh_options_ = static_cast<decltype(lsh_options_)>(parser(sycl_lsh::lsh_options));
+        }
+
+        // perform some sanity checks
+        if (n_neighbors_ < index_type{ 1 }) {
+            throw exception{ fmt::format("the number of nearest-neighbors ({}) must be larger than 0!", n_neighbors_) };
+        }
+    }
 
     /**
      * @brief Fit the nearest neighbors estimator from the training dataset.
@@ -95,7 +118,7 @@ class nearest_neighbors {
 
         // the default number of nearest-neighbors to calculated is the one provided in the constructor
         index_type used_n_neighbors = n_neighbors_;
-        // check whether a different number of nearest-neighbors as been requested
+        // check whether a different number of nearest-neighbors has been requested
         if constexpr (parser.has(sycl_lsh::n_neighbors)) {
             // update the number of nearest-neighbors
             used_n_neighbors = static_cast<decltype(used_n_neighbors)>(parser(sycl_lsh::n_neighbors));
@@ -103,7 +126,7 @@ class nearest_neighbors {
 
         // per default, also return the distances
         bool used_return_distances = true;
-        // check whether a different number of nearest-neighbors as been requested
+        // check whether a different number of nearest-neighbors has been requested
         if constexpr (parser.has(sycl_lsh::return_distance)) {
             // update whether distances should be returned or not
             used_return_distances = static_cast<decltype(used_return_distances)>(parser(sycl_lsh::return_distance));
@@ -117,19 +140,19 @@ class nearest_neighbors {
     // Implementing of the k-nearest-neighbors search.
     [[nodiscard]] results kneighbors_impl(data_set X, index_type used_n_neighbors, bool return_distances) const;
 
-    /// The SYCL queue including the associated device used to perform the nearest-neighbors search.
-    sycl::queue queue_;
     /// The associated MPI communicator.
     mpi::communicator comm_;
+    /// The SYCL queue including the associated device used to perform the nearest-neighbors search.
+    sycl::queue queue_;
 
     /// The number of nearest-neighbors to calculate.
-    index_type n_neighbors_;
+    index_type n_neighbors_{ 5 };
 
     /// The data used in the call to fit.
     data_set data_{};
 
     /// The options controlling the locality sensitive hashing behavior.
-    locality_sensitive_hashing_options lsh_options_;
+    locality_sensitive_hashing_options lsh_options_{};
     /// The hash tables used in the locality sensitive hashing algorithm.
     std::unique_ptr<detail::hashing::hash_tables_base> hash_tables_{ nullptr };
 };

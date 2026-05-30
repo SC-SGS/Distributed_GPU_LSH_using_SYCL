@@ -25,36 +25,36 @@ int custom_main(const int argc, char **argv) {
 
     try {
         // parse options and print
-        const sycl_lsh::options opt(argc, argv, comm);
+        const sycl_lsh::options opt(comm, argc, argv);
         sycl_lsh::mpi::detail::log(comm, "Used options: \n{}\n", opt);
 
         // log current number of MPI ranks
         sycl_lsh::mpi::detail::log(comm, "MPI_Comm_size: {}\n\n", comm.size());
 
         // parse data and print data attributes
-        sycl_lsh::data_set data{ opt, comm };
+        sycl_lsh::data_set data{ comm, opt.data_file };
         sycl_lsh::mpi::detail::log(comm, "\nUsed data set:\n{}\n", data);
 
         // create a nearest-neighbors object performing the unsupervised learning task
-        sycl_lsh::nearest_neighbors nn{ opt.k, opt.lsh_options, queue, comm };
+        sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options };
 
         // fit the data
         nn.fit(data);
 
         // calculate the nearest-neighbors
-        const auto [indices, distances] = nn.kneighbors(sycl_lsh::n_neighbors = opt.k, sycl_lsh::return_distance = true);
+        const auto [indices, distances] = nn.kneighbors(sycl_lsh::return_distance = true);
 
         // TODO: better hide behind some better API?
 
         // optionally save calculated k-nearest-neighbor IDs
         if (opt.knn_save_file.has_value()) {
             const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
-            parser->write_content(data.get_attributes().total_size, opt.k, indices);
+            parser->write_content(data.get_attributes().total_size, opt.n_neighbors, indices);
         }
         // optionally save calculated k-nearest-neighbor distances
         if (opt.knn_dist_save_file.has_value() && distances.has_value()) {
             const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
-            parser->write_content(data.get_attributes().total_size, opt.k, distances.value());
+            parser->write_content(data.get_attributes().total_size, opt.n_neighbors, distances.value());
         }
 
         // optionally calculate the recall of the calculated k-nearest-neighbors

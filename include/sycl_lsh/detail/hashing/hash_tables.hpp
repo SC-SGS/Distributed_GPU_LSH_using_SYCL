@@ -58,12 +58,12 @@ class hash_tables : public hash_tables_base {
   public:
     /**
      * @brief Constructs a new @ref sycl_lsh::detail::hash_tables object initializing the LSH hash tables.
-     * @param[in] lsh_options the used @ref sycl_lsh::options
+     * @param[in] options the used LSH options
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
-    hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, mpi::communicator comm);
+    hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm);
 
     /**
      * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
@@ -123,11 +123,11 @@ class hash_tables : public hash_tables_base {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
-hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &lsh_options, const data_set &data, sycl::queue queue, const mpi::communicator comm) :
+hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm) :
     queue_{ std::move(queue) },
     comm_{ comm },
     owning_data_ptr_{ data.data().shape(), queue_ },
-    lsh_options_{ lsh_options },
+    lsh_options_{ options },
     hash_functions_{ nullptr },
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
     offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
