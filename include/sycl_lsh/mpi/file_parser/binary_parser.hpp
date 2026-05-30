@@ -16,11 +16,11 @@
 #include "sycl_lsh/matrix.hpp"                       // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/timer.hpp"             // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/type_cast.hpp"         // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"           // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/mpi/file_parser/base_parser.hpp"  // sycl_lsh::mpi::file_parser
 #include "sycl_lsh/mpi/file_parser/file.hpp"         // sycl_lsh::mpi::{file, file::mode}
-#include "sycl_lsh/mpi/timer.hpp"                    // sycl_lsh::mpi::timer
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_File related functions
@@ -136,7 +136,7 @@ index_type binary_parser<T>::parse_dims() const {
 
 template <typename T>
 auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
-    const timer mpi_timer{ comm_ };
+    const detail::timer mpi_timer{ comm_ };
 
     // throw if file has been opened in the wrong mode
     if (mode_ == file::mode::write) {
@@ -202,7 +202,7 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
 
 template <typename T>
 void binary_parser<T>::write_content(const index_type total_size, const index_type dims, const aos_matrix<parsing_type> &buffer) const {
-    const timer mpi_timer{ comm_ };
+    const detail::timer mpi_timer{ comm_ };
 
     // throw if file has been opened in the wrong mode
     if (mode_ == file::mode::read) {

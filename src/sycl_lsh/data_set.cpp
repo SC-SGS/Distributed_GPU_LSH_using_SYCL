@@ -9,6 +9,7 @@
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/timer.hpp"             // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
 
 #include <iostream>  // std::ostream
@@ -17,7 +18,7 @@ namespace sycl_lsh {
 
 data_set::data_set(const options &opt,
                    const mpi::communicator &comm) {
-    const mpi::timer mpi_timer{ comm };
+    const mpi::detail::timer mpi_timer{ comm };
 
     // parse the provided data file
     const auto parser = mpi::make_file_parser<real_type>(opt.data_file, opt.file_parser, mpi::file::mode::read, comm);

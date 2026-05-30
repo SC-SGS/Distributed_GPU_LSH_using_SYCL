@@ -74,9 +74,6 @@ int custom_main(const int argc, char **argv) {
                 sycl_lsh::mpi::detail::log(comm, "error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
             }
         }
-
-        // if benchmarking is enabled, also output the used options to the benchmark file (as last entry)
-        opt.save_benchmark_options(comm);
     } catch (const sycl_lsh::cmd_parser_exit &e) {
         return e.exit_code();
     } catch (const sycl_lsh::exception &e) {

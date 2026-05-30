@@ -11,8 +11,8 @@
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
+#include "sycl_lsh/mpi/detail/timer.hpp"    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::handler, sycl::range, sycl::item
@@ -28,7 +28,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
                  queue } {
-    const mpi::timer mpi_timer{ comm };
+    const mpi::detail::timer mpi_timer{ comm };
 
     std::vector<real_type> host_buffer(device_ptr_.size());
 

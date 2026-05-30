@@ -35,13 +35,13 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/source_location.cpp
 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/timer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/utility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser/file_parser_types.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/environment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_set.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_function_types.cpp
@@ -308,7 +308,7 @@ list(POP_BACK CMAKE_MESSAGE_INDENT)
 #                                         set additional configuration options                                         #
 ########################################################################################################################
 # set timer behavior
-set(SYCL_LSH_TIMERS NONE NON_BLOCKING BLOCKING) # NONE = 0, NON_BLOCKING = 1, BLOCKING = 2
+set(SYCL_LSH_TIMERS NON_BLOCKING BLOCKING) # NON_BLOCKING = 0, BLOCKING = 1
 set(SYCL_LSH_TIMER BLOCKING CACHE STRING "The used timer implementation.")
 set_property(CACHE SYCL_LSH_TIMER PROPERTY STRINGS ${SYCL_LSH_TIMERS})
 if (NOT SYCL_LSH_TIMER IN_LIST SYCL_LSH_TIMERS)
@@ -338,10 +338,6 @@ endif ()
 # enable benchmarking using an output file # TODO: combine with hardware sampling?
 set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
 if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
-    # in order to benchmark the code, a timer must be enabled
-    if (SYCL_LSH_TIMER MATCHES "NONE")
-        message(FATAL_ERROR "In order to enable benchmarking, a valid timer (NON_BLOCKING or BLOCKING) must be enabled!")
-    endif ()
     message(STATUS "Enabled benchmarking using the file: \"${SYCL_LSH_BENCHMARK}\"")
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
 endif ()

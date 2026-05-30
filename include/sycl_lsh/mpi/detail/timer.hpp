@@ -6,21 +6,19 @@
  * @brief Implements a simple timer class that can be configured via [CMake](https://cmake.org/).
  */
 
-#ifndef SYCL_LSH_MPI_TIMER_HPP
-#define SYCL_LSH_MPI_TIMER_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_TIMER_HPP
+#define SYCL_LSH_MPI_DETAIL_TIMER_HPP
 #pragma once
 
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 
-#include <chrono>
-#include <fstream>
+#include <chrono>  // std::chrono::{steady_clock, time_point, milliseconds}
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 // defines values to test against the SYCL_LSH_TIMER
-#define SYCL_LSH_NO_TIMER           0
-#define SYCL_LSH_NON_BLOCKING_TIMER 1
-#define SYCL_LSH_BLOCKING_TIMER     2
+#define SYCL_LSH_NON_BLOCKING_TIMER 0
+#define SYCL_LSH_BLOCKING_TIMER 1
 
 /**
  * @brief Simple timer class that can be configured via [CMake](https://cmake.org/).
@@ -42,9 +40,6 @@ class timer {
     using time_point = std::chrono::time_point<clock>;
 
   public:
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                constructor                                                 //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Construct a new timer.
      * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
@@ -55,9 +50,6 @@ class timer {
      */
     explicit timer(const communicator &comm);
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                   timing                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Reset and restart the timing.
      * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
@@ -66,6 +58,7 @@ class timer {
      *          - *BLOCKING*: calls MPI_Barrier(), afterward starts timing
      */
     void restart();
+
     /**
      * @brief Returns the elapsed time since the construction of this timer or the last call to @ref sycl_lsh::mpi::timer::restart().
      * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
@@ -81,30 +74,13 @@ class timer {
     template <typename unit = std::chrono::milliseconds>
     [[nodiscard]] unit elapsed() const;
 
-#if defined(SYCL_LSH_BENCHMARK)
-    /**
-     * @brief If benchmarking is enabled (via the [CMake](https://cmake.org/) parameter *SYCL_LSH_BENCHMARK*) returns the used
-     *        [`std::ofstream`](https://en.cppreference.com/w/cpp/io/basic_ofstream) to log the timings.
-     * @return the output stream ([[nodiscard]])
-     */
-    [[nodiscard]] static std::ofstream &benchmark_out() noexcept { return benchmark_out_; }
-#endif
-
   private:
-#if SYCL_LSH_TIMER == SYCL_LSH_BLOCKING_TIMER || defined(SYCL_LSH_BENCHMARK)
-    /// The communicator used to average the runtimes.
+    /// The communicator used to average the runtimes if the SYCL_LSH_BLOCKING_TIMER is used.
     communicator comm_;
-#endif
-#if SYCL_LSH_TIMER != SYCL_LSH_NO_TIMER
     /// The current start time used to calculate the elapsed time.
     time_point start_;
-#endif
-#if defined(SYCL_LSH_BENCHMARK)
-    /// The standard output stream to output the benchmark runtimes to.
-    static std::ofstream benchmark_out_;
-#endif
 };
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
-#endif  // SYCL_LSH_MPI_TIMER_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_TIMER_HPP

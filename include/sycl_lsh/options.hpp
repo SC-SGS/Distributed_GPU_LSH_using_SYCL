@@ -95,16 +95,6 @@ class options {
 
     /// Various options accessible on the respective device.
     locality_sensitive_hashing_options lsh_options{};
-
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                save options                                                //
-    // ---------------------------------------------------------------------------------------------------------- //
-    /**
-     * @brief Saves the currently set runtime options only on the MPI master rank to the benchmark file **iff** benchmarking has been
-     *        enabled.
-     * @param[in] comm the @ref sycl_lsh::mpi::communicator
-     */
-    void save_benchmark_options([[maybe_unused]] const mpi::communicator &comm) const;  // TODO: BETTER?
 };
 
 /**

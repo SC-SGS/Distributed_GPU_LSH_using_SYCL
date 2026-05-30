@@ -12,7 +12,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/math.hpp"     // sycl_lsh::mpi::detail::sum
-#include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
+#include "sycl_lsh/mpi/detail/timer.hpp"    // sycl_lsh::mpi::detail::timer
 
 #include "fmt/format.h"  // fmt::format
 
@@ -26,7 +26,7 @@
 namespace sycl_lsh::report {
 
 real_type recall(const aos_matrix<index_type> &calculated_indices, const aos_matrix<index_type> &correct_indices, const mpi::communicator &comm) {
-    const mpi::timer mpi_timer{ comm };
+    const mpi::detail::timer mpi_timer{ comm };
 
     // perform sanity checks
     if (calculated_indices.shape() != correct_indices.shape()) {
@@ -58,7 +58,7 @@ real_type recall(const aos_matrix<index_type> &calculated_indices, const aos_mat
 }
 
 std::tuple<real_type, index_type, index_type> error_ratio(const aos_matrix<real_type> &calculated_distances, const aos_matrix<real_type> &correct_distances, const mpi::communicator &comm) {
-    const mpi::timer mpi_timer{ comm };
+    const mpi::detail::timer mpi_timer{ comm };
 
     // perform sanity checks
     if (calculated_distances.shape() != correct_distances.shape()) {

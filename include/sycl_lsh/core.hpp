@@ -17,7 +17,6 @@
 #include "sycl_lsh/matrix.hpp"
 #include "sycl_lsh/mpi/communicator.hpp"
 #include "sycl_lsh/mpi/main.hpp"
-#include "sycl_lsh/mpi/timer.hpp"
 #include "sycl_lsh/nearest_neighbors.hpp"
 #include "sycl_lsh/nearest_neighbors_report.hpp"
 #include "sycl_lsh/options.hpp"

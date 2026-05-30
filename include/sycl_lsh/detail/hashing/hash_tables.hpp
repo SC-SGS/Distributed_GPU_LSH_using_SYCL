@@ -17,7 +17,7 @@
 #include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"  // sycl_lsh::detail::hashing::mixed_hash_functions
 #include "sycl_lsh/detail/hashing/random_projections.hpp"    // sycl_lsh::detail::hashing::random_projections
 #include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
-#include "sycl_lsh/mpi/timer.hpp"                            // sycl_lsh::mpi::timer
+#include "sycl_lsh/mpi/detail/timer.hpp"                     // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue
@@ -133,7 +133,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
     offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
     // log used devices
     mpi::detail::log_from_all(comm_, "[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     // copy the owning data to the device
     owning_data_ptr_.copy_to_device(data.data());
@@ -159,7 +159,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::count_hash_values(const data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr) {
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -190,7 +190,7 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr) {
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -224,7 +224,7 @@ void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr) {
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -289,7 +289,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
     device_ptr<real_type> knn_dist_ptr{ distances.shape(), queue_ };
 
     for (int round = 0; round < comm_.size(); ++round) {
-        const mpi::timer mpi_round_timer{ comm_ };
+        const mpi::detail::timer mpi_round_timer{ comm_ };
 
         mpi::detail::log(comm_, "Round {} of {} ... ", round + 1, comm_.size());
 

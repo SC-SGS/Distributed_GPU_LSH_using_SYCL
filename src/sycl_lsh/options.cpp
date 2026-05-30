@@ -14,7 +14,6 @@
 #include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"                 // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/timer.hpp"                          // sycl_lsh::timer
 
 #include "cxxopts.hpp"   // cxxopts::Options, cxxopts::ParseResult
 #include "fmt/format.h"  // fmt::format
@@ -127,19 +126,6 @@ options::options(const int argc, char **argv, const mpi::communicator &comm) {
     SYCL_LSH_ASSERT(lsh_options.hash_table_size > 0, "Invalid hash_table_size!");
     SYCL_LSH_ASSERT(lsh_options.w > 0.0, "Invalid w!");
     SYCL_LSH_ASSERT(lsh_options.num_cut_off_points > 0, "Invalid num_cut_off_points!");
-}
-
-void options::save_benchmark_options([[maybe_unused]] const mpi::communicator &comm) const {
-#if defined(SYCL_LSH_BENCHMARK)
-    if (comm.is_main_rank()) {
-        mpi::timer::benchmark_out() << lsh_options.hash_pool_size << ','
-                                    << lsh_options.num_hash_functions << ','
-                                    << lsh_options.num_hash_tables << ','
-                                    << lsh_options.hash_table_size << ','
-                                    << lsh_options.w << ','
-                                    << lsh_options.num_cut_off_points << '\n';
-    }
-#endif
 }
 
 std::ostream &operator<<(std::ostream &out, const options &opt) {

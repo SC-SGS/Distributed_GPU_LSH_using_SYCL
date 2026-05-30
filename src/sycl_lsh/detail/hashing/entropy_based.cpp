@@ -11,8 +11,8 @@
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
+#include "sycl_lsh/mpi/detail/timer.hpp"    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/mpi/timer.hpp"           // sycl_lsh::mpi::timer
 #include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::handler, sycl::range, sycl::item
@@ -26,7 +26,7 @@ namespace sycl_lsh::detail::hashing {
 
 entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
     device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue } {
-    const mpi::timer mpi_timer{ comm };
+    const mpi::detail::timer mpi_timer{ comm };
 
     // create hash pool functions on MPI master rank and distribute to all other ranks
     std::vector<real_type> hash_functions_pool(opt.hash_pool_size * attributes.dims);

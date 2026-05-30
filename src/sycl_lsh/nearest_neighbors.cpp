@@ -12,7 +12,7 @@
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"          // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/timer.hpp"                   // sycl_lsh::mpi::timer
+#include "sycl_lsh/mpi/detail/timer.hpp"            // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
 
 #include "fmt/format.h"  // fmt::format
@@ -37,7 +37,7 @@ nearest_neighbors::nearest_neighbors(const index_type k, const locality_sensitiv
 }
 
 void nearest_neighbors::fit(data_set X) {
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     // perform some sanity checks
     if (X.get_attributes().rank_size == 0) {
@@ -65,7 +65,7 @@ void nearest_neighbors::fit(data_set X) {
 }
 
 auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const -> results {
-    const mpi::timer mpi_timer{ comm_ };
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     const data_set::attributes input_attr = X.get_attributes();
 

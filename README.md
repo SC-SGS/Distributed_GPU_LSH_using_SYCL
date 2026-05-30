@@ -86,7 +86,7 @@ Provided configuration options are:
 | `SYCL_LSH_TARGET_ARCH`                |               | Specify the SYCL target to compile for. Must follow the notation in aboves examples.                                         | 
 | `SYCL_LSH_IMPLEMENTATION`             |    `icpx`     | The used SYCL implementation. Must be one of: `acpp`, or `icpx`.                                                             | 
 | `SYCL_LSH_ENABLE_LTO`                 |     `OFF`     | Enable link time optimizations.                                                                                              | 
-| `SYCL_LSH_TIMER`                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NONE`, `NON_BLOCKING`, or `BLOCKING`.                     |
+| `SYCL_LSH_TIMER`                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NON_BLOCKING`, or `BLOCKING`.                             |
 | `SYCL_LSH_HARDWARE_SAMPLING_INTERVAL` |     `100`     | Specify the hardware sampling interval in ms.                                                                                |
 | `SYCL_LSH_BENCHMARK`                  |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name. |
 | `SYCL_LSH_ENABLE_ASSERTS`             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                  |
