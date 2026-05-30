@@ -55,8 +55,6 @@ class entropy_based {
     [[nodiscard]] device_ptr<real_type> &get_device_ptr() noexcept { return device_ptr_; }
 
   private:
-    /// The associated SYCL queue representing the device to run on.
-    sycl::queue &queue_;
     /// The device buffer.
     device_ptr<real_type> device_ptr_;
 };

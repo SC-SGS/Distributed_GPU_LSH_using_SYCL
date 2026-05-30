@@ -25,8 +25,7 @@
 namespace sycl_lsh::detail::hashing {
 
 random_projections::random_projections(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
-    queue_{ queue },
-    device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue_ } {
+    device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue } {
     const mpi::timer mpi_timer{ comm };
 
     std::vector<real_type> host_buffer(device_ptr_.size());

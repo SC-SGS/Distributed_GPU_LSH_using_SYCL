@@ -25,10 +25,9 @@
 namespace sycl_lsh::detail::hashing {
 
 mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
-    queue_{ queue },
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
-                 queue_ } {
+                 queue } {
     const mpi::timer mpi_timer{ comm };
 
     std::vector<real_type> host_buffer(device_ptr_.size());
@@ -114,12 +113,12 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     std::vector<real_type> hash_values(attributes.rank_size * opt.num_hash_tables);
     {
         // copy the hash function pool to the device
-        device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue_ };
+        device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue };
         hash_functions_ptr.copy_to_device(host_buffer);
 
-        device_ptr<real_type> hash_values_ptr{ shape{ attributes.rank_size, opt.num_hash_tables }, queue_ };
+        device_ptr<real_type> hash_values_ptr{ shape{ attributes.rank_size, opt.num_hash_tables }, queue };
 
-        queue_.submit([&](sycl::handler &cgh) {
+        queue.submit([&](sycl::handler &cgh) {
             // get device data
             const real_type *data_d = data.get();
             const real_type *hash_functions_d = hash_functions_ptr.get();
@@ -148,7 +147,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
         });
 
         // wait until the kernel has finished
-        queue_.wait_and_throw();
+        queue.wait_and_throw();
 
         // copy the hash values back to the host
         hash_values_ptr.copy_to_host(hash_values);
