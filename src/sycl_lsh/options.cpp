@@ -6,14 +6,14 @@
 
 #include "sycl_lsh/options.hpp"
 
-#include "sycl_lsh/constants.hpp"                          // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
-#include "sycl_lsh/detail/arithmetic_type_name.hpp"        // sycl_lsh::detail::arithmetic_type_name
-#include "sycl_lsh/detail/assert.hpp"                      // SYCL_LSH_ASSERT
-#include "sycl_lsh/exceptions/exceptions.hpp"              // sycl_lhs::cmd_parser_exit
-#include "sycl_lsh/hash_function_types.hpp"                // sycl_lsh::hash_function_type
-#include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/logging.hpp"                 // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
+#include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
+#include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
+#include "sycl_lsh/detail/assert.hpp"                // SYCL_LSH_ASSERT
+#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lhs::cmd_parser_exit
+#include "sycl_lsh/hash_function_types.hpp"          // sycl_lsh::hash_function_type
+#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/file_parser_types.hpp"        // sycl_lsh::mpi::file_parser
 
 #include "cxxopts.hpp"   // cxxopts::Options, cxxopts::ParseResult
 #include "fmt/format.h"  // fmt::format

@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/mpi/file_parser/file.hpp"
+#include "sycl_lsh/mpi/detail/file_parser/file.hpp"
 
 #include "sycl_lsh/detail/utility.hpp"         // sycl_lsh::detail::to_lower_case
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::file_exception
@@ -18,7 +18,7 @@
 #include <type_traits>  // std::underlying_type_t
 #include <utility>      // std::exchange
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                        constructors and destructor                                         //
@@ -87,4 +87,4 @@ std::istream &operator>>(std::istream &in, file::mode &mode) {
     return in;
 }
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail

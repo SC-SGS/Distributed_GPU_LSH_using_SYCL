@@ -7,20 +7,20 @@
  * @details Pure virtual.
  */
 
-#ifndef SYCL_LSH_FILE_PARSER_BASE_PARSER_HPP
-#define SYCL_LSH_FILE_PARSER_BASE_PARSER_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_BASE_PARSER_HPP
+#define SYCL_LSH_MPI_DETAIL_FILE_PARSER_BASE_PARSER_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"             // sycl_lsh::index_type
-#include "sycl_lsh/matrix.hpp"                // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"      // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/file_parser/file.hpp"  // sycl_lsh::mpi::file
+#include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
+#include "sycl_lsh/matrix.hpp"                       // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/file_parser/file.hpp"  // sycl_lsh::mpi::detail::file
 
 #include <cmath>        // std::ceil
 #include <string>       // std::string
 #include <type_traits>  // std::is_arithmetic_v
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief Pure virtual base class for all different file parsers.
@@ -118,6 +118,6 @@ index_type file_parser<T>::parse_rank_size() const {
     return static_cast<index_type>(std::ceil(total_size / static_cast<float>(comm_.size())));
 }
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
-#endif  // SYCL_LSH_FILE_PARSER_BASE_PARSER_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_BASE_PARSER_HPP

@@ -6,28 +6,28 @@
  * @brief File parser for parsing plain binary data files.
  */
 
-#ifndef SYCL_LSH_MPI_FILE_PARSER_BINARY_PARSER_HPP
-#define SYCL_LSH_MPI_FILE_PARSER_BINARY_PARSER_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_BINARY_PARSER_HPP
+#define SYCL_LSH_MPI_DETAIL_FILE_PARSER_BINARY_PARSER_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
-#include "sycl_lsh/detail/assert.hpp"                // SYCL_LSH_ASSERT
-#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lsh::file_parsing_exception
-#include "sycl_lsh/matrix.hpp"                       // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/detail/timer.hpp"             // sycl_lsh::mpi::detail::timer
-#include "sycl_lsh/mpi/detail/type_cast.hpp"         // sycl_lsh::mpi::detail::mpi_datatype
-#include "sycl_lsh/mpi/detail/utility.hpp"           // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/mpi/file_parser/base_parser.hpp"  // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/file_parser/file.hpp"         // sycl_lsh::mpi::{file, file::mode}
+#include "sycl_lsh/constants.hpp"                           // sycl_lsh::index_type
+#include "sycl_lsh/detail/assert.hpp"                       // SYCL_LSH_ASSERT
+#include "sycl_lsh/exceptions/exceptions.hpp"               // sycl_lsh::file_parsing_exception
+#include "sycl_lsh/matrix.hpp"                              // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
+#include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::{file, file::mode}
+#include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
+#include "sycl_lsh/mpi/detail/type_cast.hpp"                // sycl_lsh::mpi::detail::mpi_datatype
+#include "sycl_lsh/mpi/detail/utility.hpp"                  // SYCL_LSH_MPI_ERROR_CHECK
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_File related functions
 
 #include <string>  // std::string
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief File parser class for a custom **binary** data format.
@@ -227,6 +227,6 @@ void binary_parser<T>::write_content(const index_type total_size, const index_ty
     detail::log(comm_, "Wrote content to file '{}' in {}.\n", file_name_, mpi_timer.elapsed());
 }
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
-#endif  // SYCL_LSH_MPI_FILE_PARSER_BINARY_PARSER_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_BINARY_PARSER_HPP

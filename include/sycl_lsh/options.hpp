@@ -10,11 +10,11 @@
 #define SYCL_LSH_OPTIONS_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"                          // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
-#include "sycl_lsh/hash_function_types.hpp"                // sycl_lsh::hash_function_type
-#include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/logging.hpp"                 // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
+#include "sycl_lsh/constants.hpp"              // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
+#include "sycl_lsh/hash_function_types.hpp"    // sycl_lsh::hash_function_type
+#include "sycl_lsh/mpi/communicator.hpp"       // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/logging.hpp"     // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 #include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than

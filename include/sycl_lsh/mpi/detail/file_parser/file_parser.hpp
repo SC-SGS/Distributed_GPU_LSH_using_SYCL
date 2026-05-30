@@ -6,20 +6,20 @@
  * @brief Factory function to create a specific file parser based on the provided command line argument.
  */
 
-#ifndef SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_HPP
-#define SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_PARSER_HPP
+#define SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_PARSER_HPP
 #pragma once
 
-#include "sycl_lsh/mpi/communicator.hpp"                   // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/file_parser/arff_parser.hpp"        // sycl_lsh::mpi::arff_parser
-#include "sycl_lsh/mpi/file_parser/base_parser.hpp"        // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/file_parser/binary_parser.hpp"      // sycl_lsh::mpi::arff_parser
-#include "sycl_lsh/mpi/file_parser/file.hpp"               // sycl_lsh::mpi::file::mode
-#include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser_type
+#include "sycl_lsh/mpi/communicator.hpp"                      // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/file_parser/arff_parser.hpp"    // sycl_lsh::mpi::detail::arff_parser
+#include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"    // sycl_lsh::mpi::detail::file_parser
+#include "sycl_lsh/mpi/detail/file_parser/binary_parser.hpp"  // sycl_lsh::mpi::detail::arff_parser
+#include "sycl_lsh/mpi/detail/file_parser/file.hpp"           // sycl_lsh::mpi::detail::file::mode
+#include "sycl_lsh/mpi/file_parser_types.hpp"                 // sycl_lsh::mpi::file_parser_type
 
 #include <memory>  // std::unique_ptr, std::make_unique
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief Creates a new file parser based on the file parser type defined during the command line invocation.
@@ -42,6 +42,6 @@ template <typename parsing_type>
     return nullptr;
 }
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
-#endif  // SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_PARSER_HPP

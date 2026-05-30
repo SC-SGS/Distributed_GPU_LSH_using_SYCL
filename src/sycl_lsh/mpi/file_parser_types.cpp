@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/mpi/file_parser/file_parser_types.hpp"
+#include "sycl_lsh/mpi/file_parser_types.hpp"
 
 #include "sycl_lsh/detail/utility.hpp"  // sycl_lsh::detail::to_lower_case
 

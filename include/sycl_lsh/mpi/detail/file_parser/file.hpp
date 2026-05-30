@@ -6,19 +6,19 @@
  * @brief Minimalistic wrapper class around an MPI file.
  */
 
-#ifndef SYCL_LSH_MPI_FILE_PARSER_FILE_HPP
-#define SYCL_LSH_MPI_FILE_PARSER_FILE_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_HPP
+#define SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_HPP
 #pragma once
 
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
-#include "mpi.h"      // MPI file related functionality
+#include "mpi.h"          // MPI file related functionality
 
 #include <iosfwd>  // std::ostream and std::istream forward declarations
 #include <string>  // std::string
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief Minimalistic wrapper around a MPI file.
@@ -84,6 +84,7 @@ class file {
      * @return the MPI file wrapped in this @ref sycl_lsh::mpi::file object (`[[nodiscard]]`)
      */
     [[nodiscard]] const MPI_File &get() const noexcept { return file_; }
+
     /**
      * @brief Get the underlying MPI file.
      * @return the MPI file wrapped in this @ref sycl_lsh::mpi::file object (`[[nodiscard]]`)
@@ -111,9 +112,9 @@ std::ostream &operator<<(std::ostream &out, file::mode mode);
  */
 std::istream &operator>>(std::istream &in, file::mode &mode);
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
 template <>
-struct fmt::formatter<sycl_lsh::mpi::file::mode> : fmt::ostream_formatter {};
+struct fmt::formatter<sycl_lsh::mpi::detail::file::mode> : fmt::ostream_formatter { };
 
-#endif  // SYCL_LSH_MPI_FILE_PARSER_FILE_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_HPP

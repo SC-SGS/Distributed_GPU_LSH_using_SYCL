@@ -7,8 +7,8 @@
  */
 
 #include "sycl_lsh/core.hpp"
-#include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/file_parser/file_parser.hpp"  // sycl_lsh::mpi::make_file_parser
+#include "sycl_lsh/mpi/detail/file_parser/file_parser.hpp"  // sycl_lsh::mpi::detail::make_file_parser
+#include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
 
 int custom_main(const int argc, char **argv) {
 // create a SYCL queue
@@ -48,24 +48,24 @@ int custom_main(const int argc, char **argv) {
 
         // optionally save calculated k-nearest-neighbor IDs
         if (opt.knn_save_file.has_value()) {
-            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm);
+            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
             parser->write_content(data.get_attributes().total_size, opt.k, indices);
         }
         // optionally save calculated k-nearest-neighbor distances
         if (opt.knn_dist_save_file.has_value() && distances.has_value()) {
-            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm);
+            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
             parser->write_content(data.get_attributes().total_size, opt.k, distances.value());
         }
 
         // optionally calculate the recall of the calculated k-nearest-neighbors
         if (opt.evaluate_knn_file.has_value()) {
-            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::index_type>(opt.evaluate_knn_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::read, comm);
+            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::index_type>(opt.evaluate_knn_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::read, comm);
             const sycl_lsh::aos_matrix<sycl_lsh::index_type> correct_indices = parser->parse_content();
             sycl_lsh::mpi::detail::log(comm, "recall: {}%\n", sycl_lsh::report::recall(indices, correct_indices, comm));
         }
         // optionally calculate the error ration of the calculated k-nearest-neighbors
         if (opt.evaluate_knn_dist_file.has_value() && distances.has_value()) {
-            const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::real_type>(opt.evaluate_knn_dist_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::read, comm);
+            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::real_type>(opt.evaluate_knn_dist_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::read, comm);
             const sycl_lsh::aos_matrix<sycl_lsh::real_type> correct_distances = parser->parse_content();
             const auto [error_ratio, num_points, num_knn_not_found] = sycl_lsh::report::error_ratio(distances.value(), correct_distances, comm);
             if (num_points == 0) {

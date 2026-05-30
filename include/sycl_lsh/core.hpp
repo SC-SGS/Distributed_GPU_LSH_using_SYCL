@@ -12,10 +12,13 @@
 #pragma once
 
 // include all necessary library headers
+#include "sycl_lsh/constants.hpp"
 #include "sycl_lsh/data_set.hpp"
 #include "sycl_lsh/hash_function_types.hpp"
 #include "sycl_lsh/matrix.hpp"
 #include "sycl_lsh/mpi/communicator.hpp"
+#include "sycl_lsh/mpi/environment.hpp"
+#include "sycl_lsh/mpi/file_parser_types.hpp"
 #include "sycl_lsh/mpi/main.hpp"
 #include "sycl_lsh/nearest_neighbors.hpp"
 #include "sycl_lsh/nearest_neighbors_report.hpp"

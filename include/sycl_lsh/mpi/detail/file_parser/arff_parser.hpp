@@ -6,20 +6,20 @@
  * @brief File parser for parsing `.arff` data files.
  */
 
-#ifndef SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
-#define SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
+#ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_ARFF_PARSER_HPP
+#define SYCL_LSH_MPI_DETAIL_FILE_PARSER_ARFF_PARSER_HPP
 #pragma once
 
-#include "sycl_lsh/constants.hpp"                    // sycl_lsh::index_type
-#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lsh::not_implemented_exception
-#include "sycl_lsh/matrix.hpp"                       // sycl_lsh::aos_matrix
-#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/file_parser/base_parser.hpp"  // sycl_lsh::mpi::file_parser
-#include "sycl_lsh/mpi/file_parser/file.hpp"         // sycl_lsh::mpi::file::mode
+#include "sycl_lsh/constants.hpp"                           // sycl_lsh::index_type
+#include "sycl_lsh/exceptions/exceptions.hpp"               // sycl_lsh::not_implemented_exception
+#include "sycl_lsh/matrix.hpp"                              // sycl_lsh::aos_matrix
+#include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
+#include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::file::mode
 
 #include <string>  // std::string
 
-namespace sycl_lsh::mpi {
+namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief File parser class for the **arff** data format.
@@ -115,6 +115,6 @@ void arff_parser<T>::write_content(const index_type, const index_type, const aos
     throw not_implemented_exception{};
 }
 
-}  // namespace sycl_lsh::mpi
+}  // namespace sycl_lsh::mpi::detail
 
-#endif  // SYCL_LSH_MPI_FILE_PARSER_ARFF_PARSER_HPP
+#endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_ARFF_PARSER_HPP

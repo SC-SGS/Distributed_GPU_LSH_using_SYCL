@@ -6,8 +6,8 @@
  * @brief Implements an enum class for the different file parser types.
  */
 
-#ifndef SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_TYPES_HPP
-#define SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_TYPES_HPP
+#ifndef SYCL_LSH_MPI_FILE_PARSER_TYPES_HPP
+#define SYCL_LSH_MPI_FILE_PARSER_TYPES_HPP
 #pragma once
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
@@ -45,6 +45,6 @@ std::istream &operator>>(std::istream &in, file_parser_type &parser);
 }  // namespace sycl_lsh::mpi
 
 template <>
-struct fmt::formatter<sycl_lsh::mpi::file_parser_type> : fmt::ostream_formatter {};
+struct fmt::formatter<sycl_lsh::mpi::file_parser_type> : fmt::ostream_formatter { };
 
-#endif  // SYCL_LSH_MPI_FILE_PARSER_FILE_PARSER_TYPES_HPP
+#endif  // SYCL_LSH_MPI_FILE_PARSER_TYPES_HPP
