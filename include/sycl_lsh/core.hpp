@@ -13,7 +13,6 @@
 
 // include all necessary library headers
 #include "sycl_lsh/data_set.hpp"
-#include "sycl_lsh/device_selector.hpp"
 #include "sycl_lsh/hash_functions/entropy_based.hpp"
 #include "sycl_lsh/hash_functions/hash_functions.hpp"
 #include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"

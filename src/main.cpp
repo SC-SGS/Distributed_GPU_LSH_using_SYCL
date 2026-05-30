@@ -10,8 +10,14 @@
 #include "sycl_lsh/mpi/file_parser/file_parser.hpp"
 
 int custom_main(const int argc, char **argv) {
-    // create a SYCL queue
-    sycl::queue queue{ sycl_lsh::device_selector };
+// create a SYCL queue
+#if defined(SYCL_LSH_USE_CPU)
+    // Select the default CPU device to run the SYCL kernels on.
+    sycl::queue queue{ sycl::cpu_selector_v };
+#else
+    // Select the default GPU device to run the SYCL kernel on.
+    sycl::queue queue{ sycl::gpu_selector_v };
+#endif
 
     // create MPI communicator
     const sycl_lsh::mpi::communicator comm{};
