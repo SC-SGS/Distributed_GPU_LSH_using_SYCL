@@ -10,7 +10,7 @@
 #define SYCL_LSH_HASH_FUNCTIONS_RANDOM_PROJECTIONS_HPP
 #pragma once
 
-#include "sycl_lsh/data_attributes.hpp"                // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"                       // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"              // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/detail/hash_combine.hpp"            // sycl_lsh::detail::hash_combine
 #include "sycl_lsh/detail/lsh_hash.hpp"                // forward declaration
@@ -38,13 +38,13 @@ struct lsh_hash<random_projections> {
      * @param[in] data_d the data set
      * @param[in] hash_functions_d the hash functions
      * @param[in] opt the used @ref sycl_lsh::options
-     * @param[in] attr the used @ref sycl_lsh::data_attributes
+     * @param[in] attr the used @ref sycl_lsh::data_set::attributes
      * @return the calculated hash value using random projections (`[[nodiscard]]`)
      *
      * @pre @p hash_table must be in the range `[0, number of hash tables)` (currently disabled).
      * @pre @p hash_function must be in the range `[0, number of hash functions)` (currently disabled).
      */
-    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const locality_sensitive_hashing_options &opt, const data_attributes &attr) const {
+    [[nodiscard]] hash_value_type operator()(const index_type hash_table, const index_type point, const real_type *data_d, const real_type *hash_functions_d, const locality_sensitive_hashing_options &opt, const data_set::attributes &attr) const {
         hash_value_type combined_hash = opt.num_hash_functions;
         for (index_type hash_function = 0; hash_function < opt.num_hash_functions; ++hash_function) {
             // calculate hash for current hash function
@@ -79,7 +79,7 @@ class random_projections {
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] logger the used @ref sycl_lsh::mpi::logger
      */
-    random_projections(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
+    random_projections(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger);
 
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                   getter                                                   //

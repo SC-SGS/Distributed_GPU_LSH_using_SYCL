@@ -45,12 +45,12 @@ int custom_main(const int argc, char **argv) {
         // optionally save calculated k-nearest-neighbor IDs
         if (opt.knn_save_file.has_value()) {
             const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm, logger);
-            parser->write_content(data.attributes().total_size, opt.k, indices);
+            parser->write_content(data.get_attributes().total_size, opt.k, indices);
         }
         // optionally save calculated k-nearest-neighbor distances
         if (opt.knn_dist_save_file.has_value() && distances.has_value()) {
             const auto parser = sycl_lsh::mpi::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::file::mode::write, comm, logger);
-            parser->write_content(data.attributes().total_size, opt.k, distances.value());
+            parser->write_content(data.get_attributes().total_size, opt.k, distances.value());
         }
 
         // optionally calculate the recall of the calculated k-nearest-neighbors

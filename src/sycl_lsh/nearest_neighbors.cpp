@@ -6,7 +6,6 @@
 
 #include "sycl_lsh/nearest_neighbors.hpp"
 
-#include "sycl_lsh/data_attributes.hpp"   // sycl_lsh::data_attributes
 #include "sycl_lsh/data_set.hpp"          // sycl_lsh::data_set
 #include "sycl_lsh/detail/shape.hpp"      // sycl_lsh::detail::shape
 #include "sycl_lsh/hash_tables.hpp"       // sycl_lsh::hash_tables
@@ -42,7 +41,7 @@ void nearest_neighbors::fit(data_set X) {
     const mpi::timer mpi_timer{ comm_ };
 
     // perform some sanity checks
-    if (X.attributes().rank_size == 0) {
+    if (X.get_attributes().rank_size == 0) {
         throw exception{ "The provided training data set is empty!" };
     }
 
@@ -68,7 +67,7 @@ void nearest_neighbors::fit(data_set X) {
 auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const -> results {
     const mpi::timer mpi_timer{ comm_ };
 
-    const data_attributes input_attr = X.attributes();
+    const data_set::attributes input_attr = X.get_attributes();
 
     // perform some sanity checks
     if (hash_tables_ == nullptr) {
@@ -77,8 +76,8 @@ auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neig
     if (input_attr.rank_size == 0) {
         throw exception{ "The provided training data set is empty!" };
     }
-    if (input_attr.dims != data_.attributes().dims) {
-        throw exception{ fmt::format("The number of dimensions in the training data set ({}) and the provided data set ({}) must be the same!", input_attr.dims, data_.attributes().dims) };
+    if (input_attr.dims != data_.get_attributes().dims) {
+        throw exception{ fmt::format("The number of dimensions in the training data set ({}) and the provided data set ({}) must be the same!", input_attr.dims, data_.get_attributes().dims) };
     }
     if (used_n_neighbors < 1 || used_n_neighbors > input_attr.rank_size) {
         throw exception{ fmt::format("k ({}) must be in the range [1, number of data point per MPI rank ({}))!", used_n_neighbors, input_attr.rank_size) };

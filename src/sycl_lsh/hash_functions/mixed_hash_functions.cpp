@@ -6,7 +6,7 @@
 
 #include "sycl_lsh/hash_functions/mixed_hash_functions.hpp"
 
-#include "sycl_lsh/data_attributes.hpp"     // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
@@ -24,7 +24,7 @@
 
 namespace sycl_lsh {
 
-mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
@@ -127,7 +127,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
 
             // get additional information
             const locality_sensitive_hashing_options options = opt;
-            const data_attributes attr = attributes;
+            const data_set::attributes attr = attributes;
 
             cgh.parallel_for(sycl::range<2>{ opt.num_hash_tables, attributes.rank_size }, [=](sycl::item<2> item) {
                 const index_type idx = item.get_id(1);

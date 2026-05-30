@@ -28,6 +28,7 @@ namespace sycl_lsh {
 /// @cond Doxygen_suppress
 
 // create named arguments
+IGOR_MAKE_NAMED_ARGUMENT(params);
 IGOR_MAKE_NAMED_ARGUMENT(n_neighbors);
 IGOR_MAKE_NAMED_ARGUMENT(return_distance);
 

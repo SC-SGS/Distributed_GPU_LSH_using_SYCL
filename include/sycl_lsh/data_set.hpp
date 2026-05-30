@@ -6,12 +6,11 @@
  * @brief Implements the @ref sycl_lsh::data class representing the used data set.
  */
 
-#ifndef SYCL_LSH_DATA_HPP
-#define SYCL_LSH_DATA_HPP
+#ifndef SYCL_LSH_DATA_SET_HPP
+#define SYCL_LSH_DATA_SET_HPP
 #pragma once
 
 #include "sycl_lsh/constants.hpp"         // sycl_lsh::real_type
-#include "sycl_lsh/data_attributes.hpp"   // sycl_lsh::data_attributes
 #include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/logger.hpp"        // sycl_lsh::mpi::logger
@@ -32,9 +31,18 @@ class data_set {
     friend class hash_tables;
 
   public:
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                constructor                                                 //
-    // ---------------------------------------------------------------------------------------------------------- //
+    /**
+     * @brief Small helper struct encapsulating all data set attributes.
+     */
+    struct attributes {
+        /// The **total** number of data points of the used data set.
+        index_type total_size{ 0 };
+        /// The number of data points on **the current** MPI rank.
+        index_type rank_size{ 0 };
+        /// The number of dimensions of each data point of the used data set.
+        index_type dims{ 0 };
+    };
+
     /**
      * @brief Default construct an empty data set.
      */
@@ -57,21 +65,21 @@ class data_set {
      * @brief Return the data attributes of this data set.
      * @return the data set attributes (`[[nodiscard]]`)
      */
-    [[nodiscard]] data_attributes attributes() const noexcept { return data_attributes_; }
+    [[nodiscard]] attributes get_attributes() const noexcept { return attributes_; }
 
   private:
     // Modifying getter. Only used in the hash_tables class for the send_receive_round_robin implementation.
     [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
     /// The associated data attributes.
-    data_attributes data_attributes_{};
+    attributes attributes_{};
 
     /// The host buffer represented as a matrix.
     std::shared_ptr<aos_matrix<real_type>> data_ptr_{ nullptr };
 };
 
 /**
- * @brief Prints all attributes set in the @ref sycl_lsh::data_attributes associated with @p data to the output stream @p out.
+ * @brief Prints all attributes set in the @ref sycl_lsh::data_set::attributes associated with @p data to the output stream @p out.
  * @param[in,out] out the output stream
  * @param data the @ref sycl_lsh::data object representing the used data set
  * @return the output stream
@@ -83,4 +91,4 @@ std::ostream &operator<<(std::ostream &out, const data_set &data);
 template <>
 struct fmt::formatter<sycl_lsh::data_set> : fmt::ostream_formatter { };
 
-#endif  // SYCL_LSH_DATA_HPP
+#endif  // SYCL_LSH_DATA_SET_HPP

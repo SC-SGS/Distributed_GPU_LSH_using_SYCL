@@ -6,7 +6,7 @@
 
 #include "sycl_lsh/hash_functions/entropy_based.hpp"
 
-#include "sycl_lsh/data_attributes.hpp"     // sycl_lsh::data_attributes
+#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
@@ -24,7 +24,7 @@
 
 namespace sycl_lsh {
 
-entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
+entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const detail::device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm, const mpi::logger &logger) :
     queue_{ queue },
     device_ptr_{ detail::shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue_ } {
     const mpi::timer mpi_timer{ comm };
@@ -74,7 +74,7 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
 
             // get additional information
             const locality_sensitive_hashing_options options = opt;
-            const data_attributes attr = attributes;
+            const data_set::attributes attr = attributes;
 
             cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
                 const index_type idx = item.get_linear_id();
