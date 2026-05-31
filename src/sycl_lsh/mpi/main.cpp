@@ -15,7 +15,7 @@
 #include <functional>  // std::invoke
 #include <iostream>    // std::cerr, std::endl
 
-int sycl_lsh::mpi::main(int argc, char **argv, custom_main_ptr func) {
+int sycl_lsh::mpi::main(int &argc, char **&argv, custom_main_ptr func) {
     int return_code = EXIT_SUCCESS;
 
     // initialize the MPI environment with thread support

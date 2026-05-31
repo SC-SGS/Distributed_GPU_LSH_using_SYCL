@@ -75,7 +75,7 @@ class options {
      * @param[in] argc the number of command line arguments
      * @param[in] argv the provided command line arguments
      */
-    options(const mpi::communicator &comm, int argc, char **argv);
+    options(const mpi::communicator &comm, int &argc, char **&argv);
 
     /// The number of nearest-neighbors to search for.
     index_type n_neighbors{};

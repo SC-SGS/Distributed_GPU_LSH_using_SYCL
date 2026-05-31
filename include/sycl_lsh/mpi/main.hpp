@@ -13,7 +13,7 @@
 namespace sycl_lsh::mpi {
 
 /// The type of the custom main function called inside @ref sycl_lsh::mpi::main().
-using custom_main_ptr = int (*)(int, char **);
+using custom_main_ptr = int (*)(int &, char **&);
 
 /**
  * @brief Initializes and finalizes the MPI environment with the required level of thread support (*MPI_THREAD_SERIALIZED*)
@@ -24,7 +24,7 @@ using custom_main_ptr = int (*)(int, char **);
  * @return the return code of @p func or [*EXIT_FAILURE*](https://en.cppreference.com/w/cpp/utility/program/EXIT_status) if the
  *         required level of thread support couldn't be satisfied
  */
-int main(int argc, char **argv, custom_main_ptr func);
+int main(int &argc, char **&argv, custom_main_ptr func);
 
 }  // namespace sycl_lsh::mpi
 

@@ -26,7 +26,7 @@
 
 namespace sycl_lsh {
 
-options::options(const mpi::communicator &comm, const int argc, char **argv) {
+options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     // create command line options parser
     cxxopts::Options options(argv[0], "k-nearest-neighbors using Locality Sensitive Hashing and SYCL");
     options

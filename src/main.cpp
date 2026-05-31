@@ -10,7 +10,7 @@
 #include "sycl_lsh/mpi/detail/file_parser/file_parser.hpp"  // sycl_lsh::mpi::detail::make_file_parser
 #include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
 
-int custom_main(const int argc, char **argv) {
+int custom_main(int &argc, char **&argv) {
 // create a SYCL queue
 #if defined(SYCL_LSH_USE_CPU)
     // Select the default CPU device to run the SYCL kernels on.
