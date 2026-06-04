@@ -91,6 +91,7 @@ Provided configuration options are:
 | `SYCL_LSH_BENCHMARK`                  |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name. |
 | `SYCL_LSH_ENABLE_ASSERTS`             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                  |
 | `SYCL_LSH_RANDOM_NUMBERS_DEBUG`       |     `OFF`     | If `ON`, do not seed the random number generators to enable better reproducability (can be used for debugging).              |
+| `SYCL_LSH_USE_64BIT_TYPES`            |     `OFF`     | If `ON`, internally uses 64bit tyües instead of 32bit types.                                                                 |
 | `SYCL_LSH_ENABLE_DOCUMENTATION`       |     `OFF`     | Enables the documentation target (requires doxygen).                                                                         |
 
 ## Building the documentation
@@ -115,11 +116,17 @@ Usage:
       --file_parser arg         the type of the file parser: 
                                         0: binary
                                         1: arff (default: binary)
-      --knn_save_file arg       the file to which the calculated nearest-neighbors should be saved to
-      --knn_dist_save_file arg  the file to which the calculated nearest-neighbors distances should be saved to
-      --evaluate_knn_file arg   the file containing the correct nearest-neighbors for calculating the resulting recall
-      --evaluate_knn_dist_file arg
+      --indices_save_file arg   the file to which the calculated nearest-neighbors should be saved to
+      --distances_save_file arg
+                                the file to which the calculated nearest-neighbors distances should be saved to
+      --indices_ground_truth_file arg
+                                the file containing the correct nearest-neighbors for calculating the resulting recall
+      --distances_ground_truth_file arg
                                 the file containing the correct nearest-neighbors distances for calculating the resulting recall
+      --hash_function arg       the type of the hash functions: 
+                                        0: random-projections
+                                        1: entropy-based
+                                        2: mixed (default: random-projections)
       --hash_pool_size arg      the number of hash functions in the hash pool (default: 32)
       --num_hash_functions arg  the number of hash functions per hash table (default: 12)
       --num_hash_tables arg     the number of used hash tables (default: 8)
@@ -127,5 +134,6 @@ Usage:
   -w arg                        the segment size for the random projections hash functions (default: 1.0)
       --num_cut_off_points arg  the number of cut-off points for the entropy-based hash functions (default: 6)
       --file input_file         the input data file
-      --knn k                   the number of nearest-neighbors to calculate
+      --knn knn                 the number of nearest-neighbors to calculate
+
 ```

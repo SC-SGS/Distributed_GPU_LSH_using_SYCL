@@ -41,21 +41,21 @@ int custom_main(int &argc, char **&argv) {
         const sycl_lsh::nearest_neighbors_result result = nn.kneighbors(sycl_lsh::return_distance = true);
 
         // optionally save the calculated nearest-neighbor indices to a file
-        if (opt.knn_save_file.has_value()) {
-            result.save_indices(opt.knn_save_file.value());
+        if (opt.indices_save_file.has_value()) {
+            result.save_indices(opt.indices_save_file.value());
         }
         // optionally save the calculated nearest-neighbor distances to a file if return_distance was enabled
-        if (opt.knn_dist_save_file.has_value() && result.has_distances()) {
-            result.save_distances(opt.knn_dist_save_file.value());
+        if (opt.distances_save_file.has_value() && result.has_distances()) {
+            result.save_distances(opt.distances_save_file.value());
         }
 
         // optionally calculate the recall of the calculated nearest-neighbors
-        if (opt.evaluate_knn_file.has_value()) {
-            sycl_lsh::mpi::detail::log(comm, "recall: {:.2f}%\n", result.recall(opt.evaluate_knn_file.value()));
+        if (opt.indices_ground_truth_file.has_value()) {
+            sycl_lsh::mpi::detail::log(comm, "recall: {:.2f}%\n", result.recall(opt.indices_ground_truth_file.value()));
         }
         // optionally calculate the error ratio of the calculated nearest-neighbors if return_distance was enabled
-        if (opt.evaluate_knn_dist_file.has_value() && result.has_distances()) {
-            const auto [error_ratio, num_points, num_knn_not_found] = result.error_ratio(opt.evaluate_knn_dist_file.value());
+        if (opt.distances_ground_truth_file.has_value() && result.has_distances()) {
+            const auto [error_ratio, num_points, num_knn_not_found] = result.error_ratio(opt.distances_ground_truth_file.value());
             if (num_points == 0) {
                 sycl_lsh::mpi::detail::log(comm, "error ratio: {:.4f}\n", error_ratio);
             } else {

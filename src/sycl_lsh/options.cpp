@@ -63,10 +63,10 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
         .add_options()
             ("h,help", "print this helper message", cxxopts::value<bool>())
             ("file_parser", "the type of the file parser: \n\t0: binary\n\t1: arff", cxxopts::value<mpi::file_parser_type>()->default_value("binary"))
-            ("knn_save_file", "the file to which the calculated nearest-neighbors should be saved to", cxxopts::value<std::string>())
-            ("knn_dist_save_file", "the file to which the calculated nearest-neighbors distances should be saved to", cxxopts::value<std::string>())
-            ("evaluate_knn_file", "the file containing the correct nearest-neighbors for calculating the resulting recall", cxxopts::value<std::string>())
-            ("evaluate_knn_dist_file", "the file containing the correct nearest-neighbors distances for calculating the resulting recall", cxxopts::value<std::string>())
+            ("indices_save_file", "the file to which the calculated nearest-neighbors should be saved to", cxxopts::value<std::string>())
+            ("distances_save_file", "the file to which the calculated nearest-neighbors distances should be saved to", cxxopts::value<std::string>())
+            ("indices_ground_truth_file", "the file containing the correct nearest-neighbors for calculating the resulting recall", cxxopts::value<std::string>())
+            ("distances_ground_truth_file", "the file containing the correct nearest-neighbors distances for calculating the resulting recall", cxxopts::value<std::string>())
             // locality sensitive hashing specific options
             ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value("random-projections"))
             ("hash_pool_size", "the number of hash functions in the hash pool", cxxopts::value<index_type>()->default_value("32"))
@@ -123,17 +123,17 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
 
     file_parser = result["file_parser"].as<mpi::file_parser_type>();
 
-    if (result.contains("knn_save_file")) {
-        knn_save_file = result["knn_save_file"].as<std::string>();
+    if (result.contains("indices_save_file")) {
+        indices_save_file = result["indices_save_file"].as<std::string>();
     }
-    if (result.contains("knn_dist_save_file")) {
-        knn_dist_save_file = result["knn_dist_save_file"].as<std::string>();
+    if (result.contains("distances_save_file")) {
+        distances_save_file = result["distances_save_file"].as<std::string>();
     }
-    if (result.contains("evaluate_knn_file")) {
-        evaluate_knn_file = result["evaluate_knn_file"].as<std::string>();
+    if (result.contains("indices_ground_truth_file")) {
+        indices_ground_truth_file = result["indices_ground_truth_file"].as<std::string>();
     }
-    if (result.contains("evaluate_knn_dist_file")) {
-        evaluate_knn_dist_file = result["evaluate_knn_dist_file"].as<std::string>();
+    if (result.contains("distances_ground_truth_file")) {
+        distances_ground_truth_file = result["distances_ground_truth_file"].as<std::string>();
     }
 
     lsh_options.hash_function = result["hash_function"].as<hash_function_type>();
@@ -185,17 +185,17 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   sizeof(hash_value_type),
                                   opt.data_file);
 
-    if (opt.knn_save_file.has_value()) {
-        str += fmt::format("output file (indices): '{}'\n", opt.knn_save_file.value());
+    if (opt.indices_save_file.has_value()) {
+        str += fmt::format("output file (indices): '{}'\n", opt.indices_save_file.value());
     }
-    if (opt.knn_dist_save_file.has_value()) {
-        str += fmt::format("output file (distances): '{}'\n", opt.knn_dist_save_file.value());
+    if (opt.distances_save_file.has_value()) {
+        str += fmt::format("output file (distances): '{}'\n", opt.distances_save_file.value());
     }
-    if (opt.evaluate_knn_file.has_value()) {
-        str += fmt::format("input file (indices ground truth): '{}'\n", opt.evaluate_knn_file.value());
+    if (opt.indices_ground_truth_file.has_value()) {
+        str += fmt::format("input file (indices ground truth): '{}'\n", opt.indices_ground_truth_file.value());
     }
-    if (opt.evaluate_knn_dist_file.has_value()) {
-        str += fmt::format("input file (distances ground truth): '{}'\n", opt.evaluate_knn_dist_file.value());
+    if (opt.distances_ground_truth_file.has_value()) {
+        str += fmt::format("input file (distances ground truth): '{}'\n", opt.distances_ground_truth_file.value());
     }
     return out << opt.lsh_options << str;
 }

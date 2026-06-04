@@ -102,13 +102,13 @@ class options {
     mpi::file_parser_type file_parser{};
 
     /// The file to which the calculated nearest-neighbors should be saved to.
-    std::optional<std::string> knn_save_file{};
+    std::optional<std::string> indices_save_file{};
     /// The file to which the calculated nearest-neighbors **distances** should be saved to.
-    std::optional<std::string> knn_dist_save_file{};
+    std::optional<std::string> distances_save_file{};
     /// The file containing the correct nearest-neighbors for calculating the resulting recall.
-    std::optional<std::string> evaluate_knn_file{};
+    std::optional<std::string> indices_ground_truth_file{};
     /// The file containing the correct nearest-neighbors **distances** for calculating the error ratio.
-    std::optional<std::string> evaluate_knn_dist_file{};
+    std::optional<std::string> distances_ground_truth_file{};
 
     /// Various options accessible on the respective device.
     locality_sensitive_hashing_options lsh_options{};
