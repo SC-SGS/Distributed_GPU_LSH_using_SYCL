@@ -21,7 +21,7 @@
 #include "sycl_lsh/mpi/file_parser_types.hpp"
 #include "sycl_lsh/mpi/main.hpp"
 #include "sycl_lsh/nearest_neighbors.hpp"
-#include "sycl_lsh/nearest_neighbors_report.hpp"
+#include "sycl_lsh/nearest_neighbors_result.hpp"
 #include "sycl_lsh/options.hpp"
 
 /// The main namespace. Nearly all functions are located in this namespace.

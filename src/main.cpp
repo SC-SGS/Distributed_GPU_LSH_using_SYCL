@@ -7,8 +7,7 @@
  */
 
 #include "sycl_lsh/core.hpp"
-#include "sycl_lsh/mpi/detail/file_parser/file_parser.hpp"  // sycl_lsh::mpi::detail::make_file_parser
-#include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 
 int custom_main(int &argc, char **&argv) {
 // create a SYCL queue
@@ -42,32 +41,24 @@ int custom_main(int &argc, char **&argv) {
         nn.fit(data);
 
         // calculate the nearest-neighbors
-        const auto [indices, distances] = nn.kneighbors(sycl_lsh::return_distance = true);
+        const sycl_lsh::nearest_neighbors_result result = nn.kneighbors(sycl_lsh::return_distance = true);
 
-        // TODO: better hide behind some better API?
-
-        // optionally save calculated k-nearest-neighbor IDs
+        // optionally save the calculated nearest-neighbor indices to a file
         if (opt.knn_save_file.has_value()) {
-            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::index_type>(opt.knn_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
-            parser->write_content(data.get_attributes().total_size, opt.n_neighbors, indices);
+            result.save_indices(opt.knn_save_file.value());
         }
-        // optionally save calculated k-nearest-neighbor distances
-        if (opt.knn_dist_save_file.has_value() && distances.has_value()) {
-            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::real_type>(opt.knn_dist_save_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::write, comm);
-            parser->write_content(data.get_attributes().total_size, opt.n_neighbors, distances.value());
+        // optionally save the calculated nearest-neighbor distances to a file if return_distance was enabled
+        if (opt.knn_dist_save_file.has_value() && result.has_distances()) {
+            result.save_distances(opt.knn_dist_save_file.value());
         }
 
-        // optionally calculate the recall of the calculated k-nearest-neighbors
+        // optionally calculate the recall of the calculated nearest-neighbors
         if (opt.evaluate_knn_file.has_value()) {
-            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::index_type>(opt.evaluate_knn_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::read, comm);
-            const sycl_lsh::aos_matrix<sycl_lsh::index_type> correct_indices = parser->parse_content();
-            sycl_lsh::mpi::detail::log(comm, "recall: {}%\n", sycl_lsh::report::recall(indices, correct_indices, comm));
+            sycl_lsh::mpi::detail::log(comm, "recall: {}%\n", result.recall(opt.evaluate_knn_file.value()));
         }
-        // optionally calculate the error ration of the calculated k-nearest-neighbors
-        if (opt.evaluate_knn_dist_file.has_value() && distances.has_value()) {
-            const auto parser = sycl_lsh::mpi::detail::make_file_parser<sycl_lsh::real_type>(opt.evaluate_knn_dist_file.value(), sycl_lsh::mpi::file_parser_type::binary, sycl_lsh::mpi::detail::file::mode::read, comm);
-            const sycl_lsh::aos_matrix<sycl_lsh::real_type> correct_distances = parser->parse_content();
-            const auto [error_ratio, num_points, num_knn_not_found] = sycl_lsh::report::error_ratio(distances.value(), correct_distances, comm);
+        // optionally calculate the error ratio of the calculated nearest-neighbors if return_distance was enabled
+        if (opt.evaluate_knn_dist_file.has_value() && result.has_distances()) {
+            const auto [error_ratio, num_points, num_knn_not_found] = result.error_ratio(opt.evaluate_knn_dist_file.value());
             if (num_points == 0) {
                 sycl_lsh::mpi::detail::log(comm, "error ratio: {}\n", error_ratio);
             } else {

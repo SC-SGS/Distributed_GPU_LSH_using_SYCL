@@ -13,6 +13,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"          // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/timer.hpp"            // sycl_lsh::mpi::detail::timer
+#include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
 
 #include "fmt/format.h"  // fmt::format
@@ -50,7 +51,7 @@ void nearest_neighbors::fit(data_set X) {
     mpi::detail::log(comm_, "Fit the nearest-neighbors estimator in {}.\n\n", mpi_timer.elapsed());
 }
 
-auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const -> results {
+nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const {
     const mpi::detail::timer mpi_timer{ comm_ };
 
     const data_set::attributes input_attr = X.get_attributes();
@@ -97,15 +98,20 @@ auto nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neig
     // perform the k-nearest-neighbors calculation using locality sensitive hashing
     hash_tables_->search_nearest_neighbors(used_n_neighbors, X, indices, distances);
 
+// convert the distances since the sqrt is currently not applied
+#pragma omp parallel for collapse(2)
+    for (std::size_t row = 0; row < distances.num_rows(); ++row) {
+        for (std::size_t col = 0; col < distances.num_cols(); ++col) {
+            distances(row, col) = std::sqrt(distances(row, col));
+        }
+    }
+
     mpi::detail::log(comm_, "Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, mpi_timer.elapsed());
 
-    // TODO: currently, returns results per rank -> return results across all ranks doing a gather operation?
-
-    // TODO: change kernel logic to only calculate distances if requested?
     if (return_distances) {
-        return { std::move(indices), std::move(distances) };
+        return nearest_neighbors_result{ comm_, std::move(X), std::move(indices), std::move(distances) };
     }
-    return { std::move(indices), std::nullopt };
+    return nearest_neighbors_result{ comm_, std::move(X), std::move(indices) };
 }
 
 }  // namespace sycl_lsh

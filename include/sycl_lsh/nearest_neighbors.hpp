@@ -15,6 +15,7 @@
 #include "sycl_lsh/detail/hashing/hash_tables.hpp"  // sycl_lsh::detail::hashing::hash_tables_base
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
+#include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::has_only_named_args_v
 
 #include "igor/igor.hpp"  // igor::parser
@@ -30,16 +31,6 @@ namespace sycl_lsh {
  */
 class nearest_neighbors {
   public:
-    /**
-     * @brief Small wrapper struct containing the results of a nearest-neighbors search.
-     */
-    struct results {
-        /// Indices of the nearest points in the population matrix.
-        aos_matrix<index_type> indices;
-        /// Matrix representing the lengths to nearest-neighbors points, only present if return_distance was set to true.
-        std::optional<aos_matrix<real_type>> distances;
-    };
-
     /**
      * @brief Construct a new nearest_neighbor estimator.
      * @tparam NamedArgs the type of optional named arguments
@@ -95,7 +86,7 @@ class nearest_neighbors {
      * @throws sycl_lsh::exception if @p k is smaller than `1` or larger than the data set's rank_size
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
-    [[nodiscard]] results kneighbors(NamedArgs &&...named_args) const {
+    [[nodiscard]] nearest_neighbors_result kneighbors(NamedArgs &&...named_args) const {
         return kneighbors(data_, std::forward<NamedArgs>(named_args)...);
     }
 
@@ -112,7 +103,7 @@ class nearest_neighbors {
      * @throws sycl_lsh::exception if @p k is smaller than `1` or larger than the data set's rank_size
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
-    [[nodiscard]] results kneighbors(data_set X, NamedArgs &&...named_args) const {
+    [[nodiscard]] nearest_neighbors_result kneighbors(data_set X, NamedArgs &&...named_args) const {
         // check igor parameter
         const igor::parser parser{ std::forward<NamedArgs>(named_args)... };
 
@@ -138,7 +129,7 @@ class nearest_neighbors {
 
   private:
     // Implementing of the k-nearest-neighbors search.
-    [[nodiscard]] results kneighbors_impl(data_set X, index_type used_n_neighbors, bool return_distances) const;
+    [[nodiscard]] nearest_neighbors_result kneighbors_impl(data_set X, index_type used_n_neighbors, bool return_distances) const;
 
     /// The associated MPI communicator.
     mpi::communicator comm_;
