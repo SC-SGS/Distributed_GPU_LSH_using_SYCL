@@ -16,7 +16,7 @@
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
 #include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
-#include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::has_only_named_args_v
+#include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::{has_only_named_args_v, sanity_check_locality_sensitive_hashing_options}
 
 #include "igor/igor.hpp"  // igor::parser
 
@@ -57,6 +57,8 @@ class nearest_neighbors {
         if constexpr (parser.has(sycl_lsh::lsh_options)) {
             // update the options
             lsh_options_ = static_cast<decltype(lsh_options_)>(parser(sycl_lsh::lsh_options));
+            // perform some sanity checks
+            detail::sanity_check_locality_sensitive_hashing_options(lsh_options_);
         }
 
         // perform some sanity checks

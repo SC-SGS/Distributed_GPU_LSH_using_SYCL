@@ -59,4 +59,7 @@ exception{ msg, "device_ptr_exception", loc } { }
 matrix_exception::matrix_exception(const std::string &msg, source_location loc) :
     exception{ msg, "matrix_exception", loc } { }
 
+invalid_lsh_option_exception::invalid_lsh_option_exception(const std::string &msg, source_location loc) :
+    exception{ msg, "invalid_lsh_option_exception", loc } { }
+
 }  // namespace sycl_lsh

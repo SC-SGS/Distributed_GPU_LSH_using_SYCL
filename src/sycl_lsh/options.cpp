@@ -9,7 +9,7 @@
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
 #include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
 #include "sycl_lsh/detail/assert.hpp"                // SYCL_LSH_ASSERT
-#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lhs::cmd_parser_exit
+#include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lhs::cmd_parser_exit, sycl_lsh::invalid_lsh_option_exception
 #include "sycl_lsh/hash_function_types.hpp"          // sycl_lsh::hash_function_type
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"           // sycl_lsh::mpi::detail::log
@@ -25,6 +25,31 @@
 #include <string>     // std::string
 
 namespace sycl_lsh {
+
+namespace detail {
+
+void sanity_check_locality_sensitive_hashing_options(const locality_sensitive_hashing_options &options) {
+    if (options.hash_pool_size <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'hash_pool_size'! Must be larger than 0 but is {}.", options.hash_pool_size) };
+    }
+    if (options.num_hash_functions <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'num_hash_functions'! Must be larger than 0 but is {}.", options.num_hash_functions) };
+    }
+    if (options.num_hash_tables <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'num_hash_tables'! Must be larger than 0 but is {}.", options.num_hash_tables) };
+    }
+    if (options.hash_table_size <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'hash_table_size'! Must be larger than 0 but is {}.", options.hash_table_size) };
+    }
+    if (options.w <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'w'! Must be larger than 0 but is {}.", options.w) };
+    }
+    if (options.num_cut_off_points <= 0) {
+        throw invalid_lsh_option_exception{ fmt::format("Invalid 'num_cut_off_points'! Must be larger than 0 but is {}.", options.num_cut_off_points) };
+    }
+}
+
+}  // namespace detail
 
 options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     // create command line options parser
@@ -120,13 +145,7 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     lsh_options.num_cut_off_points = result["num_cut_off_points"].as<index_type>();
 
     // perform some sanity checks
-    // TODO: exceptions!
-    SYCL_LSH_ASSERT(lsh_options.hash_pool_size > 0, "Invalid hash_pool_size!");
-    SYCL_LSH_ASSERT(lsh_options.num_hash_functions > 0, "Invalid num_hash_functions!");
-    SYCL_LSH_ASSERT(lsh_options.num_hash_tables > 0, "Invalid num_hash_tables!");
-    SYCL_LSH_ASSERT(lsh_options.hash_table_size > 0, "Invalid hash_table_size!");
-    SYCL_LSH_ASSERT(lsh_options.w > 0.0, "Invalid w!");
-    SYCL_LSH_ASSERT(lsh_options.num_cut_off_points > 0, "Invalid num_cut_off_points!");
+    detail::sanity_check_locality_sensitive_hashing_options(lsh_options);
 }
 
 std::ostream &operator<<(std::ostream &out, const options &opt) {

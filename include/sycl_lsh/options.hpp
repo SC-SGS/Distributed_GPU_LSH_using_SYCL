@@ -64,6 +64,23 @@ struct locality_sensitive_hashing_options {
     index_type num_cut_off_points{};
 };
 
+namespace detail {
+
+/**
+ * @details Perform some sanity checks for the Locality Sensitive Hashing options.
+ * @param options the LSH options to sanity check
+ *
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.hash_pool_size is smaller than 1
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.num_hash_functions is smaller than 1
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.num_hash_tables is smaller than 1
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.hash_table_size is smaller than 1
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.w is smaller than 1
+ * @throws sycl_lsh::invalid_lsh_option_exception if @p options.num_cut_off_points is smaller than 1
+ */
+void sanity_check_locality_sensitive_hashing_options(const locality_sensitive_hashing_options &options);
+
+}  // namespace detail
+
 /**
  * @brief Class containing and managing all compile time and runtime hyperparameters to change the behavior of the LSH algorithm.
  */
