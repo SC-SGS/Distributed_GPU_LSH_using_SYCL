@@ -17,7 +17,6 @@
 #include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::{file, file::mode}
-#include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/type_cast.hpp"                // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"                  // SYCL_LSH_MPI_ERROR_CHECK
@@ -113,7 +112,6 @@ class binary_parser final : public file_parser<T> {
 template <typename T>
 binary_parser<T>::binary_parser(const std::string &file_name, const file::mode mode, const communicator &comm) :
     file_parser<T>{ file_name, mode, comm } {
-    detail::log(comm, "Parsing the data file '{}' using the binary_parser together with MPI IO.\n", file_name);
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -195,8 +193,6 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
         }
     }
 
-    detail::log(comm_, "Parsed the data file '{}' in {}.\n", file_name_, mpi_timer.elapsed());
-
     return buffer;
 }
 
@@ -223,8 +219,6 @@ void binary_parser<T>::write_content(const index_type total_size, const index_ty
         correct_rank_size = total_size - ((comm_.size() - 1) * correct_rank_size);
     }
     SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write_ordered(file_.get(), buffer.data(), correct_rank_size * dims, detail::mpi_datatype<parsing_type>(), MPI_STATUS_IGNORE));
-
-    detail::log(comm_, "Wrote content to file '{}' in {}.\n", file_name_, mpi_timer.elapsed());
 }
 
 }  // namespace sycl_lsh::mpi::detail

@@ -148,57 +148,56 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     detail::sanity_check_locality_sensitive_hashing_options(lsh_options);
 }
 
+std::ostream &operator<<(std::ostream &out, const locality_sensitive_hashing_options &opt) {
+    std::string str = fmt::format("hash_functions_type: \"{}\"\n"
+                                  "hash_pool_size: {}\n"
+                                  "num_hash_functions: {}\n"
+                                  "num_hash_tables: {}\n"
+                                  "hash_table_size: {}\n",
+                                  opt.hash_function,
+                                  opt.hash_pool_size,
+                                  opt.num_hash_functions,
+                                  opt.num_hash_tables,
+                                  opt.hash_table_size);
+
+    if (opt.hash_function != hash_function_type::entropy_based) {
+        str += fmt::format("w: {}\n", opt.w);
+    }
+    if (opt.hash_function != hash_function_type::random_projections) {
+        str += fmt::format("num_cut_off_points: {}\n", opt.num_cut_off_points);
+    }
+    return out << str;
+}
+
 std::ostream &operator<<(std::ostream &out, const options &opt) {
     // compile time constants and options
-    std::string str = fmt::format("real_type: \"{} ({} byte)\"\n"
-                                  "index_type: \"{} ({} byte)\"\n"
-                                  "hash_value_type: \"{} ({} byte)\"\n"
-                                  "blocking_size: {}\n"
-                                  "k: {}\n"
-                                  "file: \"{}\"\n"
-                                  "file_parser: \"{}\"\n",
+    std::string str = fmt::format("n_neighbors: {}\n"
+                                  "real_type: {} ({} byte)\n"
+                                  "index_type: {} ({} byte)\n"
+                                  "hash_value_type: {} ({} byte)\n"
+                                  "input file (data set): '{}'\n",
+                                  opt.n_neighbors,
                                   detail::arithmetic_type_name<real_type>(),
                                   sizeof(real_type),
                                   detail::arithmetic_type_name<index_type>(),
                                   sizeof(index_type),
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
-                                  BLOCKING_SIZE,
-                                  opt.n_neighbors,
-                                  opt.data_file,
-                                  opt.file_parser);
+                                  opt.data_file);
 
     if (opt.knn_save_file.has_value()) {
-        str += fmt::format("knn_save_file: \"{}\"\n", opt.knn_save_file.value());
+        str += fmt::format("output file (indices): '{}'\n", opt.knn_save_file.value());
     }
     if (opt.knn_dist_save_file.has_value()) {
-        str += fmt::format("knn_dist_save_file: \"{}\"\n", opt.knn_dist_save_file.value());
+        str += fmt::format("output file (distances): '{}'\n", opt.knn_dist_save_file.value());
     }
     if (opt.evaluate_knn_file.has_value()) {
-        str += fmt::format("evaluate_knn_file: \"{}\"\n", opt.evaluate_knn_file.value());
+        str += fmt::format("input file (indices ground truth): '{}'\n", opt.evaluate_knn_file.value());
     }
     if (opt.evaluate_knn_dist_file.has_value()) {
-        str += fmt::format("evaluate_knn_dist_file: \"{}\"\n", opt.evaluate_knn_dist_file.value());
+        str += fmt::format("input file (distances ground truth): '{}'\n", opt.evaluate_knn_dist_file.value());
     }
-
-    str += fmt::format("hash_functions_type: \"{}\"\n"
-                       "hash_pool_size: {}\n"
-                       "num_hash_functions: {}\n"
-                       "num_hash_tables: {}\n"
-                       "hash_table_size: {}\n",
-                       opt.lsh_options.hash_function,
-                       opt.lsh_options.hash_pool_size,
-                       opt.lsh_options.num_hash_functions,
-                       opt.lsh_options.num_hash_tables,
-                       opt.lsh_options.hash_table_size);
-
-    if (opt.lsh_options.hash_function != hash_function_type::entropy_based) {
-        str += fmt::format("w: {}\n", opt.lsh_options.w);
-    }
-    if (opt.lsh_options.hash_function != hash_function_type::random_projections) {
-        str += fmt::format("num_cut_off_points: {}\n", opt.lsh_options.num_cut_off_points);
-    }
-    return out << str;
+    return out << opt.lsh_options << str;
 }
 
 }  // namespace sycl_lsh

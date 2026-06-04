@@ -115,6 +115,14 @@ class options {
 };
 
 /**
+ * @brief Print all LSH related options set in @p opt to the output stream @p out.
+ * @param[in,out] out the output stream
+ * @param[in] opt the @ref sycl_lsh::locality_sensitive_hashing_options
+ * @return the output stream
+ */
+std::ostream &operator<<(std::ostream &out, const locality_sensitive_hashing_options &opt);
+
+/**
  * @brief Print all options set in @p opt to the output stream @p out.
  * @param[in,out] out the output stream
  * @param[in] opt the @ref sycl_lsh::options
@@ -123,6 +131,9 @@ class options {
 std::ostream &operator<<(std::ostream &out, const options &opt);
 
 }  // namespace sycl_lsh
+
+template <>
+struct fmt::formatter<sycl_lsh::locality_sensitive_hashing_options> : fmt::ostream_formatter { };
 
 template <>
 struct fmt::formatter<sycl_lsh::options> : fmt::ostream_formatter { };

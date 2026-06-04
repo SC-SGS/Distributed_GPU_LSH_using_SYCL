@@ -84,6 +84,9 @@ void log_on_main(const communicator &comm, const std::string_view msg, Args &&..
  */
 template <typename... Args>
 void log_from_all(const communicator &comm, const std::string_view msg, Args &&...args) {
+    // wait until all MPI processes reach this function
+    comm.barrier();
+
     // get the sizes of each message
     std::vector<int> sizes(comm.size());
     const std::string msg_substituted = fmt::format(msg, std::forward<Args>(args)...);
@@ -107,6 +110,9 @@ void log_from_all(const communicator &comm, const std::string_view msg, Args &&.
     if (comm.is_main_rank()) {
         std::clog << total_msg;
     }
+
+    // wait until all MPI processes finished this function
+    comm.barrier();
 }
 
 }  // namespace sycl_lsh::mpi::detail

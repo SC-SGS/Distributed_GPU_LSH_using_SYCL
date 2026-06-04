@@ -21,18 +21,15 @@ int custom_main(int &argc, char **&argv) {
 
     // create MPI communicator
     const sycl_lsh::mpi::communicator comm{};
+    sycl_lsh::mpi::detail::log(comm, "Using {} MPI rank(s) for the nearest-neighbor calculation.\n\n", comm.size());
 
     try {
         // parse options and print
         const sycl_lsh::options opt(comm, argc, argv);
-        sycl_lsh::mpi::detail::log(comm, "Used options: \n{}\n", opt);
-
-        // log current number of MPI ranks
-        sycl_lsh::mpi::detail::log(comm, "MPI_Comm_size: {}\n\n", comm.size());
+        sycl_lsh::mpi::detail::log(comm, "{}\n", opt);
 
         // parse data and print data attributes
         sycl_lsh::data_set data{ comm, opt.data_file };
-        sycl_lsh::mpi::detail::log(comm, "\nUsed data set:\n{}\n", data);
 
         // create a nearest-neighbors object performing the unsupervised learning task
         sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options };
@@ -54,15 +51,15 @@ int custom_main(int &argc, char **&argv) {
 
         // optionally calculate the recall of the calculated nearest-neighbors
         if (opt.evaluate_knn_file.has_value()) {
-            sycl_lsh::mpi::detail::log(comm, "recall: {}%\n", result.recall(opt.evaluate_knn_file.value()));
+            sycl_lsh::mpi::detail::log(comm, "recall: {:.2f}%\n", result.recall(opt.evaluate_knn_file.value()));
         }
         // optionally calculate the error ratio of the calculated nearest-neighbors if return_distance was enabled
         if (opt.evaluate_knn_dist_file.has_value() && result.has_distances()) {
             const auto [error_ratio, num_points, num_knn_not_found] = result.error_ratio(opt.evaluate_knn_dist_file.value());
             if (num_points == 0) {
-                sycl_lsh::mpi::detail::log(comm, "error ratio: {}\n", error_ratio);
+                sycl_lsh::mpi::detail::log(comm, "error ratio: {:.4f}\n", error_ratio);
             } else {
-                sycl_lsh::mpi::detail::log(comm, "error ratio: {} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
+                sycl_lsh::mpi::detail::log(comm, "error ratio: {:.4f} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
             }
         }
     } catch (const sycl_lsh::cmd_parser_exit &e) {

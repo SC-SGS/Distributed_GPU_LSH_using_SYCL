@@ -132,8 +132,9 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
     offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
     // log used devices
-    mpi::detail::log_from_all(comm_, "[{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
-    const mpi::detail::timer mpi_timer{ comm_ };
+    mpi::detail::log(comm_, "Using the following device(s) for the nearest-neighbor calculation:\n");
+    mpi::detail::log_from_all(comm_, "  - [{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
+    mpi::detail::log(comm_, "\n");
 
     // copy the owning data to the device
     owning_data_ptr_.copy_to_device(data.data());
@@ -153,14 +154,10 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
 
     // fill the hash tables based on the previously calculated offsets
     this->fill_hash_tables(data.get_attributes());
-
-    mpi::detail::log(comm_, "Created hash tables in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::count_hash_values(const data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr) {
-    const mpi::detail::timer mpi_timer{ comm_ };
-
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         index_type *hash_values_count = hash_values_count_ptr.get();
@@ -184,14 +181,10 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
 
     // wait until the kernel finished
     queue_.wait_and_throw();
-
-    mpi::detail::log(comm_, "Counted hash values in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr) {
-    const mpi::detail::timer mpi_timer{ comm_ };
-
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         const index_type *hash_values_count = hash_values_count_ptr.get();
@@ -218,14 +211,10 @@ void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &
 
     // wait until the kernel finished
     queue_.wait_and_throw();
-
-    mpi::detail::log(comm_, "Calculated offsets in {}.\n", mpi_timer.elapsed());
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr) {
-    const mpi::detail::timer mpi_timer{ comm_ };
-
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         const real_type *data = owning_data_ptr_.get();
@@ -274,8 +263,6 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
 
     // wait until the kernel finished
     queue_.wait_and_throw();
-
-    mpi::detail::log(comm_, "Filled hash tables in {}.\n", mpi_timer.elapsed());
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

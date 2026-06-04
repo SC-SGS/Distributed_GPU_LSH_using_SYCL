@@ -27,7 +27,7 @@ data_set::data_set(const mpi::communicator &comm, const std::string &filename, c
     attributes_ = attributes{ parser->parse_total_size(), parser->parse_rank_size(), parser->parse_dims() };
     data_ptr_ = std::make_shared<aos_matrix<real_type>>(parser->parse_content());
 
-    mpi::detail::log(comm, "Created data set in {}.\n", mpi_timer.elapsed());
+    mpi::detail::log(comm, "Created a data set with {} total data points ({} per MPI rank) and {} dimensions from '{}' in {}.\n\n", attributes_.total_size, attributes_.rank_size, attributes_.dims, filename, mpi_timer.elapsed());
 }
 
 std::ostream &operator<<(std::ostream &out, const data_set &data) {

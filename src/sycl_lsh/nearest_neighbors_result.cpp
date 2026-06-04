@@ -14,9 +14,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::file
 #include "sycl_lsh/mpi/detail/file_parser/file_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
-#include "sycl_lsh/mpi/detail/logging.hpp"                  // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/detail/math.hpp"                     // sycl_lsh::mpi::detail::sum
-#include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
 
 #include "fmt/format.h"  // fmt::format
 
@@ -82,8 +80,6 @@ void nearest_neighbors_result::save_distances(const std::string &filename, const
 }
 
 real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct_indices) const {
-    const mpi::detail::timer mpi_timer{ comm_ };
-
     // perform sanity checks
     if (indices_.shape() != correct_indices.shape()) {
         throw exception{ fmt::format("The index sizes missmatch!: {} != {}", indices_.shape(), correct_indices.shape()) };
@@ -108,8 +104,6 @@ real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct
     // gather the results from all MPI ranks
     const std::size_t total_size = mpi::detail::sum(indices_.num_rows(), comm_);
     const real_type res = (static_cast<real_type>(mpi::detail::sum(count, comm_)) / static_cast<real_type>(total_size * indices_.num_cols())) * real_type{ 100.0 };
-
-    mpi::detail::log(comm_, "\nCalculated recall in {}.\n", mpi_timer.elapsed());
     return res;
 }
 
@@ -123,8 +117,6 @@ std::tuple<real_type, index_type, index_type> nearest_neighbors_result::error_ra
     if (!this->has_distances()) {
         throw exception{ "Distances not requested using \"return_distance\". Therefore, the error_ratio cannot be calculated!" };
     }
-
-    const mpi::detail::timer mpi_timer{ comm_ };
 
     // perform sanity checks
     if (distances_->shape() != correct_distances.shape()) {
@@ -184,8 +176,6 @@ std::tuple<real_type, index_type, index_type> nearest_neighbors_result::error_ra
     const real_type avg_mean_error_ratio = mpi::detail::sum(mean_error_ratio, comm_) / static_cast<real_type>(mpi::detail::sum(mean_error_count, comm_));
     const index_type total_num_points_not_found = mpi::detail::sum(num_points_not_found, comm_);
     const index_type total_num_knn_not_found = mpi::detail::sum(num_knn_not_found, comm_);
-
-    mpi::detail::log(comm_, "\nCalculated error ratio in {}.\n", mpi_timer.elapsed());
     return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
 }
 

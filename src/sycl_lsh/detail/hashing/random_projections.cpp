@@ -9,8 +9,6 @@
 #include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
 #include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
-#include "sycl_lsh/mpi/detail/timer.hpp"    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
 #include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
 
@@ -26,8 +24,6 @@ namespace sycl_lsh::detail::hashing {
 
 random_projections::random_projections(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
     device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue } {
-    const mpi::detail::timer mpi_timer{ comm };
-
     std::vector<real_type> host_buffer(device_ptr_.size());
 
     // create hash pool only on MPI master rank
@@ -81,8 +77,6 @@ random_projections::random_projections(const locality_sensitive_hashing_options 
 
     // copy the host data to the device
     device_ptr_.copy_to_device(host_buffer);
-
-    mpi::detail::log(comm, "Created 'random_projections' hash functions in {}.\n", mpi_timer.elapsed());
 }
 
 }  // namespace sycl_lsh::detail::hashing
