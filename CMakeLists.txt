@@ -335,6 +335,15 @@ if (SYCL_LSH_RANDOM_NUMBERS_DEBUG)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_RANDOM_NUMBERS_DEBUG)
 endif ()
 
+# use 64bit floating point and index types if requested
+option(SYCL_LSH_USE_64BIT_TYPES "Use 64bit types (real_type, index_type, hash_value_type) instead of their 32bit counterparts." OFF)
+if (SYCL_LSH_USE_64BIT_TYPES)
+    message(STATUS "Using 64bit types.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_64BIT_TYPES)
+else ()
+    message(STATUS "Using 32bit types (default).")
+endif ()
+
 # enable benchmarking using an output file # TODO: combine with hardware sampling?
 set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
 if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")

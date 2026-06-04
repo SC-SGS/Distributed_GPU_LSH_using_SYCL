@@ -11,19 +11,25 @@ from scipy.io import arff
 import numpy as np
 import sys
 
-real_type = np.float32
-index_type = np.uint32
-
 # setup command line arguments parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_file", help="the '.arff' file to convert to binary", type=str, required=True)
 parser.add_argument("--output_file", help="the file to write the binary representation to", type=str, required=True)
+parser.add_argument("--use_64bit_types", help="use 64bit types", action="store_true")
 args = parser.parse_args()
 
 if not args.input_file.endswith('.arff'):
     raise ValueError(f"'{args.input_file}' is not an .arff file!")
 if args.output_file.endswith('.arff'):
     raise ValueError(f"The output file ('{args.output_file}') should NOT have an '.arff' extension!")
+
+# set the used real_type and index_type
+if args.use_64bit_types:
+    real_type = np.float64
+    index_type = np.uint64
+else:
+    real_type = np.float32
+    index_type = np.uint32
 
 # read .arff file and convert it to the custom binary format
 data = arff.loadarff(args.input_file)[0]

@@ -13,9 +13,6 @@ import numpy as np
 import sys
 import csv
 
-real_type = np.float32
-index_type = np.uint32
-
 # setup command line arguments parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--size", help="the number of data points", type=int, required=True)
@@ -25,8 +22,17 @@ parser.add_argument("--num_cluster", help="the number of different clusters", ty
 parser.add_argument("--cluster_std", help="the clusters standard deviation", type=float, default=1.0, required=False)
 parser.add_argument("--scale", help="scales the data points to [0, 1]", action="store_true")
 parser.add_argument("--binary", help="saves the data in binary format", action="store_true")
+parser.add_argument("--use_64bit_types", help="use 64bit types", action="store_true")
 parser.add_argument("--debug", help="uses debug data", action="store_true")
 args = parser.parse_args()
+
+# set the used real_type and index_type
+if args.use_64bit_types:
+    real_type = np.float64
+    index_type = np.uint64
+else:
+    real_type = np.float32
+    index_type = np.uint32
 
 # generate data points
 if args.debug:
