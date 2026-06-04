@@ -17,23 +17,24 @@
 #include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::{file, file::mode}
-#include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/mpi/detail/type_cast.hpp"                // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"                  // SYCL_LSH_MPI_ERROR_CHECK
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_File related functions
 
-#include <string>  // std::string
+#include <cstdint>  // std::uint64_t
+#include <string>   // std::string
 
 namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief File parser class for a custom **binary** data format.
- * @details Expected file format: header information with the total number of data points and the number of dimensions followed by
+ * @details Expected file format: header information with the size of the used real_type in bytes, the total number of data points, and the number of dimensions followed by
  *          the data in *Array of Structs* format.
  *
  * Example (in text format, correct files **must** be in binary form):
+ * 4
  * 4
  * 2
  * 0.0 0.1
@@ -41,6 +42,7 @@ namespace sycl_lsh::mpi::detail {
  * 0.4 0.5
  * 0.6 0.7
  * @tparam T the type of the data to parse
+ * @note The first three rows must always be stored using a 64bit unsigned integer.
  */
 template <typename T>
 class binary_parser final : public file_parser<T> {
@@ -90,9 +92,10 @@ class binary_parser final : public file_parser<T> {
      *          diverge from the number of values which should theoretically be available.
      * @return the parsed data (`[[nodiscard]]`)
      *
-     * @note Throws a `sycl_lsh::file_parsing_exception` if the file has been opened in write mode.
-     * @note Throws a `sycl_lsh::file_parsing_exception` if the header information and type doesn't match with the file size.
-     * @note Throws a `sycl_lsh::file_parsing_exception` if the buffer isn't big enough.
+     * @throws sycl_lsh::file_parsing_exception if the file has been opened in write mode
+     * @throws sycl_lsh::file_parsing_exception if the header information and type doesn't match with the file size
+     * @throws sycl_lsh::file_parsing_exception if the buffer isn't big enough
+     * @throws sycl_lsh::file_parsing_exception if the size of the parsing_type does not match the size used to write the file data
      */
     [[nodiscard]] aos_matrix<parsing_type> parse_content() const override;
     /**
@@ -104,6 +107,13 @@ class binary_parser final : public file_parser<T> {
      * @note Throws a `sycl_lsh::file_parsing_exception` if the file has been opened in read mode.
      */
     void write_content(index_type total_size, index_type dims, const aos_matrix<parsing_type> &buffer) const override;
+
+  private:
+    /**
+     * @brief Check if the file content is stored using the correct parsing_type.
+     * @throws sycl_lsh::file_parsing_exception if the size of the parsing type does not match the size used to write the file data
+     */
+    void validate_parsing_type() const;
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -118,33 +128,44 @@ binary_parser<T>::binary_parser(const std::string &file_name, const file::mode m
 //                                                  parsing                                                   //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename T>
+void binary_parser<T>::validate_parsing_type() const {
+    // read first line containing the size of the stored parsing_type in bytes
+    std::uint64_t real_type_size{};
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), 0, &real_type_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    if (real_type_size != sizeof(real_type)) {
+        throw file_parsing_exception{ fmt::format("The data was stored using a {} Byte type but is now read using a {} Byte type which is not supported!", real_type_size, sizeof(parsing_type)) };
+    }
+}
+
+template <typename T>
 index_type binary_parser<T>::parse_total_size() const {
-    // read first line containing the total_size
-    index_type total_size{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), 0, &total_size, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
-    return total_size;
+    // read the second line containing the total_size
+    std::uint64_t total_size{};
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), sizeof(std::uint64_t), &total_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    return static_cast<index_type>(total_size);
 }
 
 template <typename T>
 index_type binary_parser<T>::parse_dims() const {
-    index_type dims{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), sizeof(index_type), &dims, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
-    return dims;
+    // read the third line containing the number of dimensions
+    std::uint64_t dims{};
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), 2 * sizeof(std::uint64_t), &dims, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    return static_cast<index_type>(dims);
 }
 
 template <typename T>
 auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
-    const detail::timer mpi_timer{ comm_ };
-
     // throw if file has been opened in the wrong mode
     if (mode_ == file::mode::write) {
         throw file_parsing_exception{ "Can't read from a file opened in write mode!" };
     }
 
-    constexpr index_type header_offset = 2 * sizeof(index_type);  // header information (size and dims)
+    // check that the parsing_type used to store the data is the same as the one used to read it
+    this->validate_parsing_type();
     const index_type total_size = this->parse_total_size();
     const index_type rank_size = this->parse_rank_size();
     const index_type dims = this->parse_dims();
+    constexpr index_type header_offset = 3 * sizeof(std::uint64_t);  // header information (parsing_type size in bytes, total size, and number of dims)
 
     // perform minimal sanity checks
     SYCL_LSH_ASSERT(0 < total_size, "Illegal total size!");
@@ -198,8 +219,6 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
 
 template <typename T>
 void binary_parser<T>::write_content(const index_type total_size, const index_type dims, const aos_matrix<parsing_type> &buffer) const {
-    const detail::timer mpi_timer{ comm_ };
-
     // throw if file has been opened in the wrong mode
     if (mode_ == file::mode::read) {
         throw file_parsing_exception{ "Can't write to a file opened in read mode!" };
