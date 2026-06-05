@@ -28,11 +28,11 @@
 /// The main namespace. Nearly all functions are located in this namespace.
 namespace sycl_lsh { }
 
-/// The main namespace containing evaluation functions.
-namespace sycl_lsh::report { }
-
 /// This namespace is for implementation details only and **should not** be used directly bey users.
 namespace sycl_lsh::detail { }
+
+/// This namespace is for hashing related implementation details only and **should not** be used directly bey users.
+namespace sycl_lsh::detail::hashing { }
 
 /// This namespace is for wrapper classes and functions related to MPI.
 namespace sycl_lsh::mpi { }
