@@ -35,11 +35,11 @@ std::istream &operator>>(std::istream &in, hash_function_type &hash_function) {
     // convert string to lower case representation
     str = detail::to_lower_case(str);
 
-    if (str == "random_projections" || str == "random-projections") {
+    if (str == "0" || str == "random_projections" || str == "random-projections") {
         hash_function = hash_function_type::random_projections;
-    } else if (str == "entropy_based" || str == "entropy-based" || str == "entropy") {
+    } else if (str == "1" || str == "entropy_based" || str == "entropy-based" || str == "entropy") {
         hash_function = hash_function_type::entropy_based;
-    } else if (str == "mixed_hash_functions" || str == "mixed-hash-functions" || str == "mixed") {
+    } else if (str == "2" || str == "mixed_hash_functions" || str == "mixed-hash-functions" || str == "mixed") {
         hash_function = hash_function_type::mixed_hash_functions;
     } else {
         in.setstate(std::ios::failbit);
