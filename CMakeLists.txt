@@ -351,6 +351,20 @@ else ()
     message(STATUS "Using 32bit types (default).")
 endif ()
 
+# set specific blocking size if requested
+if (DEFINED ENV{SYCL_LSH_BLOCKING_SIZE})
+    set(SYCL_LSH_BLOCKING_SIZE $ENV{SYCL_LSH_BLOCKING_SIZE} CACHE STRING "The used blocking size." FORCE)
+endif ()
+if (DEFINED SYCL_LSH_BLOCKING_SIZE)
+    if (SYCL_LSH_BLOCKING_SIZE MATCHES "^[0-9]+$" AND SYCL_LSH_BLOCKING_SIZE GREATER 0)
+        message(STATUS "Set BLOCKING_SIZE to ${SYCL_LSH_BLOCKING_SIZE}.")
+        # add target definition
+        target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BLOCKING_SIZE=${SYCL_LSH_BLOCKING_SIZE})
+    else ()
+        message(SEND_ERROR "SYCL_LSH_BLOCKING_SIZE must be an integer greater than 0 but is \"${SYCL_LSH_BLOCKING_SIZE}\"!")
+    endif ()
+endif ()
+
 ########################################################################################################################
 #                                               enable hardware sampling                                               #
 ########################################################################################################################

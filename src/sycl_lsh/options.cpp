@@ -6,7 +6,7 @@
 
 #include "sycl_lsh/options.hpp"
 
-#include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
+#include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type, sycl_lsh::BLOCKING_SIZE
 #include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
 #include "sycl_lsh/detail/assert.hpp"                // SYCL_LSH_ASSERT
 #include "sycl_lsh/exceptions/exceptions.hpp"        // sycl_lhs::cmd_parser_exit, sycl_lsh::invalid_lsh_option_exception
@@ -182,6 +182,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   "real_type: {} ({} byte)\n"
                                   "index_type: {} ({} byte)\n"
                                   "hash_value_type: {} ({} byte)\n"
+                                  "BLOCKING_SIZE: {}\n"
                                   "profiling_type: {}\n"
                                   "input file (data set): '{}'\n",
                                   opt.n_neighbors,
@@ -191,6 +192,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   sizeof(index_type),
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
+                                  BLOCKING_SIZE,
                                   opt.profiling_type,
                                   opt.data_file);
 

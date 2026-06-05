@@ -36,7 +36,11 @@ using hash_value_type = std::uint32_t;
 #endif
 
 /// The used internal blocking size used to speed up the calculations.
+#if defined(SYCL_LSH_BLOCKING_SIZE)
+constexpr index_type BLOCKING_SIZE = SYCL_LSH_BLOCKING_SIZE;
+#else
 constexpr index_type BLOCKING_SIZE = 10;
+#endif
 
 // Perform some compile time sanity checks.
 static_assert(std::is_floating_point_v<real_type>, "The real_type must be a floating point type!");
