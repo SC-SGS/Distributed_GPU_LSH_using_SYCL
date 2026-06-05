@@ -93,6 +93,12 @@ void profiler::add_entry(const options &opt) {
     this->add_entry(opt.lsh_options);
 }
 
+void profiler::add_event(const std::string &name) const {
+    if (hardware_sampler_ != nullptr) {
+        hardware_sampler_->add_event(name);
+    }
+}
+
 void profiler::dump(const std::string &filename) {
     // if the profiling type is none, nothing to be done
     if (profiling_type_ != profiling_types::none) {
@@ -163,6 +169,10 @@ void profiler::dump(std::ostream &out) {
 
 void profiler::clear_entries() {
     entries_.clear();
+}
+
+profiling_types profiler::profiling_type() const noexcept {
+    return profiling_type_;
 }
 
 }  // namespace sycl_lsh

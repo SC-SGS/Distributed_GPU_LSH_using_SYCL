@@ -70,6 +70,12 @@ class profiler {
     }
 
     /**
+     * @brief Add a new hws event. has no effect if the profiling_type is not set to profiling_types::hws.
+     * @param[in] name the event name
+     */
+    void add_event(const std::string &name) const;
+
+    /**
      * @brief Dump all gathered profiling entries to the @p filename in a YAML format.
      * @param[in] filename the output YAML file name
      */
@@ -84,6 +90,12 @@ class profiler {
      * @brief Remove all already gathered entries.
      */
     void clear_entries();
+
+    /**
+     * @brief Get the current profiling type.
+     * @return the profiling type (`[[nodiscard]]`)
+     */
+    [[nodiscard]] profiling_types profiling_type() const noexcept;
 
   private:
     // The actual implementation. Passes the map as first parameter to be able to also add metadata to the map copy easily.

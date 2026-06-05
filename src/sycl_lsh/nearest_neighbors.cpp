@@ -27,6 +27,11 @@ namespace sycl_lsh {
 void nearest_neighbors::fit(data_set X) {
     const mpi::detail::timer mpi_timer{ comm_ };
 
+    // add event if available
+    if (profiler_ != nullptr) {
+        profiler_->add_event("fit_start");
+    }
+
     // perform some sanity checks
     if (X.get_attributes().rank_size == 0) {
         throw exception{ "The provided training data set is empty!" };
@@ -52,8 +57,9 @@ void nearest_neighbors::fit(data_set X) {
     const auto runtime = mpi_timer.elapsed();
     mpi::detail::log(comm_, "Fit the nearest-neighbors estimator in {}.\n\n", runtime);
 
-    // add entry if available
+    // add event and entry if available
     if (profiler_ != nullptr) {
+        profiler_->add_event("fit_end");
         profiler_->add_entry("fit", "total_runtime", runtime);
         profiler_->add_entry("fit", data_.get_attributes());
     }
@@ -61,6 +67,11 @@ void nearest_neighbors::fit(data_set X) {
 
 nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const {
     const mpi::detail::timer mpi_timer{ comm_ };
+
+    // add event if available
+    if (profiler_ != nullptr) {
+        profiler_->add_event("kneighbors_start");
+    }
 
     const data_set::attributes input_attr = X.get_attributes();
 
@@ -117,8 +128,9 @@ nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const in
     const auto runtime = mpi_timer.elapsed();
     mpi::detail::log(comm_, "Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, runtime);
 
-    // add entry if available
+    // add event and entry if available
     if (profiler_ != nullptr) {
+        profiler_->add_event("kneighbors_end");
         profiler_->add_entry("nearest_neighbors", "total_runtime", runtime);
         profiler_->add_entry("nearest_neighbors", "return_distance", return_distances);
         profiler_->add_entry("nearest_neighbors", "n_neighbors", used_n_neighbors);
