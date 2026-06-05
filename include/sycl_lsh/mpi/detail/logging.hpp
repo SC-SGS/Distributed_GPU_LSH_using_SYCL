@@ -16,7 +16,7 @@
 #include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 
 #include "fmt/format.h"  // fmt::format
-#include "mpi.h"         // MPI_Gather, MPI_Gatherv
+#include "fmt/ranges.h"  // fmt::join
 
 #include <cstddef>      // std::size_t
 #include <iostream>     // std::clog
@@ -84,35 +84,14 @@ void log_on_main(const communicator &comm, const std::string_view msg, Args &&..
  */
 template <typename... Args>
 void log_from_all(const communicator &comm, const std::string_view msg, Args &&...args) {
-    // wait until all MPI processes reach this function
-    comm.barrier();
-
-    // get the sizes of each message
-    std::vector<int> sizes(comm.size());
+    // substitute the message
     const std::string msg_substituted = fmt::format(msg, std::forward<Args>(args)...);
-    int msg_size = static_cast<int>(msg_substituted.size());
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Gather(&msg_size, 1, detail::mpi_datatype<typename decltype(sizes)::value_type>(), sizes.data(), 1, detail::mpi_datatype<decltype(msg_size)>(), 0, comm));
-
-    // calculate total msg size
-    const int total_msg_size = std::accumulate(sizes.cbegin(), sizes.cend(), 0);
-
-    // calculate displacements
-    std::vector<int> displacements(sizes.size(), 0);
-    for (std::size_t i = 1; i < displacements.size(); ++i) {
-        displacements[i] = displacements[i - 1] + sizes[i - 1];
-    }
-
-    // get all messages
-    std::string total_msg(total_msg_size, ' ');
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Gatherv(msg_substituted.data(), static_cast<int>(msg_substituted.size()), detail::mpi_datatype<char>(), total_msg.data(), sizes.data(), displacements.data(), detail::mpi_datatype<char>(), 0, comm));
-
-    // print total msg on master rank
+    // gather the full string on the MPI main rank
+    const std::vector<std::string> msg_parts = comm.gather(msg_substituted);
+    // print full msg on master rank
     if (comm.is_main_rank()) {
-        std::clog << total_msg;
+        std::clog << fmt::format("{}\n", fmt::join(msg_parts, "")) << std::endl;
     }
-
-    // wait until all MPI processes finished this function
-    comm.barrier();
 }
 
 }  // namespace sycl_lsh::mpi::detail

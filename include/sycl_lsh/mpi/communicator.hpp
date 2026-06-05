@@ -14,7 +14,10 @@
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 
-#include "mpi.h"  // MPI_Comm, MPI_COMM_WORLD, MPI_Sendrecv_replace
+#include "mpi.h"  // MPI_Comm, MPI_COMM_WORLD, MPI_Sendrecv_replace, MPI_Gather
+
+#include <string>  // std::string
+#include <vector>  // std::vector
 
 namespace sycl_lsh::mpi {
 
@@ -89,6 +92,31 @@ class communicator {
             SYCL_LSH_MPI_ERROR_CHECK(MPI_Sendrecv_replace(data.data(), data.size(), mpi::detail::mpi_datatype<T>(), destination, 0, source, 0, comm_, MPI_STATUS_IGNORE));
         }
     }
+
+    /**
+     * @brief Gather the @p value from each MPI rank on the `communicator::main_rank()`.
+     * @tparam T the type of the values to gather
+     * @param[in] value the value to gather at the main MPI rank
+     * @return a `std::vector` containing all gathered values (`[[nodiscard]]`)
+     */
+    template <typename T>
+    [[nodiscard]] std::vector<T> gather(T value) const {
+        // if we have only a single MPI rank, just return it without any MPI calls
+        if (this->size() == 1) {
+            return { value };
+        }
+
+        std::vector<T> result(this->size());
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Gather(&value, 1, detail::mpi_datatype<T>(), result.data(), 1, detail::mpi_datatype<T>(), communicator::main_rank(), comm_));
+        return result;
+    }
+
+    /**
+     * @brief Gather the @p str from all MPI ranks in this communicator and return it on the master rank only!
+     * @param[in] str the string to retrieve on the MPI master rank from each rank
+     * @return the vector of strings from each MPI rank (`[[nodiscard]]`)
+     */
+    [[nodiscard]] std::vector<std::string> gather(const std::string &str) const;
 
   private:
     /// The wrapped MPI communicator.
