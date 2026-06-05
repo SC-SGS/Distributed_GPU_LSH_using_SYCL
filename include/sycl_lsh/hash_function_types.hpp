@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Implements the enumeration containing all support hash function types.
+ * @brief Implements the enumeration containing all supported hash function types.
  */
 
 #ifndef SYCL_LSH_HASH_FUNCTION_TYPES_HPP
