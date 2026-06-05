@@ -53,7 +53,7 @@ class nearest_neighbors_result {
 
     /**
      * @brief Return the indices of the point @p idx on this MPI rank.
-     * @detail Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
+     * @details Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
      *         value of sycl_lsh::nearest_neighbor_results::indices may be more performant.
      * @param[in] idx the index of the point
      * @return the calculated nearest-neighbor indices of point @p idx (`[[nodiscard`]])
@@ -70,7 +70,7 @@ class nearest_neighbors_result {
 
     /**
      * @brief Return the distances of the point @p idx on this MPI rank if reporting them was enabled.
-     * @detail Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
+     * @details Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
      *         value of sycl_lsh::nearest_neighbor_results::distances may be more performant.
      * @param[in] idx the index of the point
      * @return the calculated nearest-neighbor distances of point @p idx (`[[nodiscard`]])
@@ -137,9 +137,22 @@ class nearest_neighbors_result {
     [[nodiscard]] std::tuple<real_type, index_type, index_type> error_ratio(const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary) const;
 
   private:
-    // Create a new nearest-neighbor result by only providing the calculated indices.
+    /**
+     * @brief Create a new nearest-neighbor result by only providing the calculated indices.
+     * @param[in] comm the associated @ref sycl_lsh::mpi::communicator
+     * @param[in] data the queried data set
+     * @param[in] indices the calculated nearest-neighbor indices
+     * @param[in] profiler the performance profiler
+     */
     explicit nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, std::shared_ptr<profiler> profiler);
-    // Create a new nearest-neighbor result by providing the calculated indices and distances.
+    /**
+     * @brief Create a new nearest-neighbor result by providing the calculated indices and distances.
+     * @param[in] comm the associated @ref sycl_lsh::mpi::communicator
+     * @param[in] data the queried data set
+     * @param[in] indices the calculated nearest-neighbor indices
+     * @param[in] distances the calculated nearest-neighbor distances
+     * @param[in] profiler the performance profiler
+     */
     nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances, std::shared_ptr<profiler> profiler);
 
     /// THe associated MPI communicator.

@@ -8,8 +8,8 @@ list(APPEND CMAKE_MESSAGE_INDENT "Documentation:  ")
 find_package(Doxygen REQUIRED OPTIONAL_COMPONENTS dot)
 
 ## configure doxygen
-set(DOXYGEN_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/docs")
-set(DOXYGEN_IMAGE_PATH "${PROJECT_SOURCE_DIR}/docs/resources")
+set(DOXYGEN_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/doc")
+set(DOXYGEN_IMAGE_PATH "${PROJECT_SOURCE_DIR}/doc/resources")
 set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "README.md")
 set(DOXYGEN_FILE_PATTERNS "*.hpp;*.dox")
 set(DOXYGEN_STRIP_FROM_PATH "${PROJECT_SOURCE_DIR}")
@@ -45,7 +45,7 @@ set(DOXYGEN_ALIASES
 ## add doxygen as target
 doxygen_add_docs(
         doc
-        "${PROJECT_SOURCE_DIR}/include;${PROJECT_SOURCE_DIR}/docs/resources;${PROJECT_SOURCE_DIR}/README.md"
+        "${PROJECT_SOURCE_DIR}/include;${PROJECT_SOURCE_DIR}/doc/resources;${PROJECT_SOURCE_DIR}/README.md"
         ALL # add to the default build target
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         COMMENT "Generating API documentation with Doxygen"
@@ -53,7 +53,7 @@ doxygen_add_docs(
 
 # install targets for the documentation
 include(GNUInstallDirs)
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/docs/html" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/doc/html" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES "${CMAKE_CURRENT_LIST_DIR}/documentation.html" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 
 list(POP_BACK CMAKE_MESSAGE_INDENT)

@@ -46,7 +46,11 @@ std::istream &operator>>(std::istream &in, profiling_types &profiling_type);
 
 }  // namespace sycl_lsh
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::profiling_types> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_PROFILING_TYPES_HPP

@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Implements the @ref sycl_lsh::data class representing the used data set.
+ * @brief Implements the @ref sycl_lsh::data_set class representing the used data set.
  */
 
 #ifndef SYCL_LSH_DATA_SET_HPP
@@ -85,7 +85,7 @@ class data_set {
 
     /**
      * @brief Construct a new data_set from @p filename using the @p file_parser type.
-     * @detail Uses the binary file parser by default.
+     * @details Uses the binary file parser by default.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] filename the file to parse
      * @param[in] named_args optional additional named arguments (sycl_lsh::profiler)
@@ -107,10 +107,19 @@ class data_set {
     [[nodiscard]] attributes get_attributes() const noexcept { return attributes_; }
 
   private:
-    // initialize the internal data; necessary to be able to do it in the cpp file (constructors are templated)
+    /**
+     * @brief Initialize the data from @p filename using the @p file_parser type.
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] filename the file to parse
+     * @param[in] file_parser the file parser type
+     */
     void init(const mpi::communicator &comm, const std::string &filename, mpi::file_parser_type file_parser);
 
-    // Modifying getter. Only used in the hash_tables class for the send_receive_round_robin implementation.
+    /**
+     * @brief Return the data points in this data set in a mutable way.
+     * @attention Must be used with caution!
+     * @return the data points (`[[nodiscard]]`)
+     */
     [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
     /// The associated data attributes.
@@ -126,14 +135,18 @@ class data_set {
 /**
  * @brief Prints all attributes set in the @ref sycl_lsh::data_set::attributes associated with @p data to the output stream @p out.
  * @param[in,out] out the output stream
- * @param data the @ref sycl_lsh::data object representing the used data set
+ * @param data the @ref sycl_lsh::data_set object representing the used data set
  * @return the output stream
  */
 std::ostream &operator<<(std::ostream &out, const data_set &data);
 
 }  // namespace sycl_lsh
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::data_set> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_DATA_SET_HPP

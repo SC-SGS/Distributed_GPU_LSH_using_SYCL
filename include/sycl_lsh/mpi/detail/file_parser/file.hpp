@@ -39,7 +39,7 @@ class file {
     //                                        constructors and destructor                                         //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::file, i.e., open the file @p file_name in the mode @p open_mode.
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::file, i.e., open the file @p file_name in the mode @p open_mode.
      * @details If the file should be opened in write mode and already exists, it gets deleted before the first write.
      * @param[in] file_name the file to open
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
@@ -53,12 +53,12 @@ class file {
      */
     file(const file &) = delete;
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::file from the resources hold by @p other.
-     * @param[in,out] other the @ref sycl_lsh::mpi::file to move-from
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::file from the resources hold by @p other.
+     * @param[in,out] other the @ref sycl_lsh::mpi::detail::file to move-from
      */
     file(file &&other) noexcept;
     /**
-     * @brief Destruct the @ref sycl_lsh::mpi::file object, i.e., closes the previously opened file.
+     * @brief Destruct the @ref sycl_lsh::mpi::detail::file object, i.e., closes the previously opened file.
      */
     ~file();
 
@@ -71,7 +71,7 @@ class file {
     file &operator=(const file &) = delete;
     /**
      * @brief Move-assigns @p rhs to `*this`.
-     * @param[in] rhs the @ref sycl_lsh::mpi::file to move-from
+     * @param[in] rhs the @ref sycl_lsh::mpi::detail::file to move-from
      * @return `*this`
      */
     file &operator=(file &&rhs) noexcept;
@@ -81,13 +81,13 @@ class file {
     // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Get the underlying MPI file.
-     * @return the MPI file wrapped in this @ref sycl_lsh::mpi::file object (`[[nodiscard]]`)
+     * @return the MPI file wrapped in this @ref sycl_lsh::mpi::detail::file object (`[[nodiscard]]`)
      */
     [[nodiscard]] const MPI_File &get() const noexcept { return file_; }
 
     /**
      * @brief Get the underlying MPI file.
-     * @return the MPI file wrapped in this @ref sycl_lsh::mpi::file object (`[[nodiscard]]`)
+     * @return the MPI file wrapped in this @ref sycl_lsh::mpi::detail::file object (`[[nodiscard]]`)
      */
     [[nodiscard]] MPI_File &get() noexcept { return file_; }
 
@@ -114,7 +114,11 @@ std::istream &operator>>(std::istream &in, file::mode &mode);
 
 }  // namespace sycl_lsh::mpi::detail
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::mpi::detail::file::mode> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_HPP

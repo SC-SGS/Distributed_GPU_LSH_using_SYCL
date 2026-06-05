@@ -46,6 +46,7 @@ namespace sycl_lsh::mpi::detail {
  */
 template <typename T>
 class binary_parser final : public file_parser<T> {
+    /// The binary_parser's base type.
     using base_type = file_parser<T>;
 
     // make base class members visible
@@ -62,9 +63,9 @@ class binary_parser final : public file_parser<T> {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::binary_parser object responsible for parsing the custom binary file format.
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::binary_parser object responsible for parsing the custom binary file format.
      * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
+     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
     binary_parser(const std::string &file_name, file::mode mode, const communicator &comm);
@@ -74,13 +75,13 @@ class binary_parser final : public file_parser<T> {
     // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Parse the **total** number of data points in the file.
-     * @details Reads the total size from the first line of the file. The type must be of @ref options::index_type.
+     * @details Reads the total size from the first line of the file. The type must be of @ref sycl_lsh::index_type.
      * @return the total number of data points (`[[nodiscard]]`)
      */
     [[nodiscard]] index_type parse_total_size() const override;
     /**
      * @brief Parse the number of dimensions of each data point in the file.
-     * @details Reads the number of dimensions from the second line of the file. The type must be of @ref options::index_type.\n
+     * @details Reads the number of dimensions from the second line of the file. The type must be of @ref sycl_lsh::index_type .\n
      *          Assumes that each data points has the same number of dimensions.
      * @return the number of dimensions (`[[nodiscard]]`)
      */

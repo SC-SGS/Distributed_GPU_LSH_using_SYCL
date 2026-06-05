@@ -387,7 +387,7 @@ list(POP_BACK CMAKE_MESSAGE_INDENT)
 ########################################################################################################################
 option(SYCL_LSH_ENABLE_DOCUMENTATION "Enable the generation of the documentation using Doxygen" OFF)
 if (SYCL_LSH_ENABLE_DOCUMENTATION)
-    add_subdirectory(docs)
+    add_subdirectory(doc)
     # if documentation is enabled, add documentation warning flag when compiling with clang
     target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<$<COMPILE_LANG_AND_ID:CXX,Clang,IntelLLVM>:-Wdocumentation>)
 endif ()

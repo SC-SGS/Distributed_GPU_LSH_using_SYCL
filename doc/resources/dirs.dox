@@ -10,7 +10,7 @@
  * @author Marcel Breyer
  *
  * @brief This directory contains all helper classes and functions.
- * @detail Not intended to be used by a user.
+ * @details Not intended to be used by a user.
  */
 
 /**
@@ -18,7 +18,7 @@
  * @author Marcel Breyer
  *
  * @brief This directory contains all helper classes and functions related to the actual hashing.
- * @detail Not intended to be used by a user.
+ * @details Not intended to be used by a user.
  */
 
 /**
@@ -40,7 +40,7 @@
  * @author Marcel Breyer
  *
  * @brief This directory contains all helper wrapper classes or functions around MPI functions.
- * @detail Not intended to be used by a user.
+ * @details Not intended to be used by a user.
  */
 
 /**
@@ -48,5 +48,5 @@
  * @author Marcel Breyer
  *
  * @brief This directory contains all MPI file parsing related classes and functions.
- * @detail Not intended to be used by a user.
+ * @details Not intended to be used by a user.
  */

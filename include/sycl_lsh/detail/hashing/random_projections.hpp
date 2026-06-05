@@ -60,7 +60,7 @@ class random_projections {
 };
 
 /**
- * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::random_projections class to calculate the
+ * @brief Specialization of the @ref sycl_lsh::detail::hashing::lsh_hash class for the @ref sycl_lsh::detail::hashing::random_projections class to calculate the
  *        hash value.
  */
 template <>

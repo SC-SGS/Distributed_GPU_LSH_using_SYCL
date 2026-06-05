@@ -44,7 +44,11 @@ std::istream &operator>>(std::istream &in, file_parser_type &parser);
 
 }  // namespace sycl_lsh::mpi
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::mpi::file_parser_type> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_MPI_FILE_PARSER_TYPES_HPP

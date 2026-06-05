@@ -26,7 +26,7 @@ namespace sycl_lsh::mpi::detail {
  * @tparam parsing_type the type to parse
  * @param[in] filename the name of the file
  * @param[in] file_parser the type of the file parser to use
- * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
+ * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @return a file parser with the requested type (`[[nodiscard]]`)
  */

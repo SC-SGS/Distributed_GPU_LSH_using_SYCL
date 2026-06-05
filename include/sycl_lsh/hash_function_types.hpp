@@ -46,7 +46,11 @@ std::istream &operator>>(std::istream &in, hash_function_type &hash_function);
 
 }  // namespace sycl_lsh
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::hash_function_type> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_HASH_FUNCTION_TYPES_HPP

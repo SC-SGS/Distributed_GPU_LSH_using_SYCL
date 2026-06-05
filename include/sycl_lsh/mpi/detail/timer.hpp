@@ -17,7 +17,9 @@
 namespace sycl_lsh::mpi::detail {
 
 // defines values to test against the SYCL_LSH_TIMER
+/// The macro definition representing the NON_BLOCKING timer implementation.
 #define SYCL_LSH_NON_BLOCKING_TIMER 0
+/// The macro definition representing the BLOCKING timer implementation.
 #define SYCL_LSH_BLOCKING_TIMER 1
 
 /**
@@ -60,7 +62,7 @@ class timer {
     void restart();
 
     /**
-     * @brief Returns the elapsed time since the construction of this timer or the last call to @ref sycl_lsh::mpi::timer::restart().
+     * @brief Returns the elapsed time since the construction of this timer or the last call to @ref sycl_lsh::mpi::detail::timer::restart().
      * @details Different behavior based on the specified *SYCL_LSH_TIMER*:
      *          - *NONE*: returns `0`
      *          - *NON_BLOCKING*: returns the elapsed time on the current MPI rank

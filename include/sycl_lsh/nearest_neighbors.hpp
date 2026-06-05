@@ -84,7 +84,7 @@ class nearest_neighbors {
 
     /**
      * @brief Find the nearest-neighbors of a point using the training data. Returns indices of and distances to the neighbors of each point.
-     * @details Calculates the nearest-neighbors for the data set that was also used for the call to fit()
+     * @details Calculates the nearest-neighbors for the data set that was also used for the call to fit().
      * @tparam NamedArgs the type of optional named arguments
      * @param[in] named_args the optional named arguments
      * @return the indices of and distances to the neighbors of each point (`[[nodiscard]]`)
@@ -137,7 +137,13 @@ class nearest_neighbors {
     }
 
   private:
-    // Implementing of the k-nearest-neighbors search.
+    /**
+     * @brief Find the nearest-neighbors of a point using the training data. Returns indices of and distances to the neighbors of each point.
+     * @param[in] X the data set to calculate the nearest-neighbors for
+     * @param[in] used_n_neighbors the number of nearest-neighbors to calculate
+     * @param[in] return_distances whether the nearest-neighbor distances should be returned
+     * @return the indices of and distances to the neighbors of each point (`[[nodiscard]]`)
+     */
     [[nodiscard]] nearest_neighbors_result kneighbors_impl(data_set X, index_type used_n_neighbors, bool return_distances) const;
 
     /// The associated MPI communicator.

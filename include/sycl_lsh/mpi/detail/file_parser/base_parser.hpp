@@ -38,9 +38,9 @@ class file_parser {
     //                                         constructor and destructor                                         //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::file_parser object and opens the file @p file_name.
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::file_parser object and opens the file @p file_name.
      * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
+     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
     file_parser(const std::string &file_name, file::mode mode, const communicator &comm);

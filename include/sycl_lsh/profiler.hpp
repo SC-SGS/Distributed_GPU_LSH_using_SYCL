@@ -26,6 +26,10 @@
 
 namespace sycl_lsh {
 
+/**
+ * @brief A class to track some profiling information like runtimes are hardware characteristics.
+ * @details The profiling capabilities can be selected using the profiling_types.
+ */
 class profiler {
   public:
     /**
@@ -98,7 +102,14 @@ class profiler {
     [[nodiscard]] profiling_types profiling_type() const noexcept;
 
   private:
-    // The actual implementation. Passes the map as first parameter to be able to also add metadata to the map copy easily.
+    /**
+     * @brief The actual implementation. Passes the map as first parameter to be able to also add metadata to the map copy easily.
+     * @tparam T the type of the value to add
+     * @param[in,out] entries_map the map to add the entry to
+     * @param[in] group the group name
+     * @param[in] name the value name
+     * @param[in] value the value
+     */
     template <typename T>
     void add_entry_impl(std::map<std::string, std::map<std::string, std::string>> &entries_map, const std::string &group, const std::string &name, const T &value) {
         // if the profiling type is none, nothing to be done

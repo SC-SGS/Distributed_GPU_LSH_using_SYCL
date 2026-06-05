@@ -28,6 +28,7 @@ namespace sycl_lsh::mpi::detail {
  */
 template <typename T>
 class arff_parser final : public file_parser<T> {
+    /// The arff_parser's base type.
     using base_type = file_parser<T>;
 
   public:
@@ -38,13 +39,13 @@ class arff_parser final : public file_parser<T> {
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::arff_parser object responsible for parsing
-     *        [`.arff´](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::arff_parser object responsible for parsing
+     *        [.arff](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
      * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::file::mode::read or @ref sycl_lsh::mpi::file::mode::write)
+     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      *
-     * @throws sycl_lsh::exception since `.arff` files aren't currently supported.
+     * @throws sycl_lsh::exception since .arff files aren't currently supported.
      */
     arff_parser(const std::string &file_name, file::mode mode, const communicator &comm);
 
@@ -69,7 +70,7 @@ class arff_parser final : public file_parser<T> {
      * @brief Parse the content of the file.
      * @return the parsed data (`[[nodiscard]]`)
      *
-     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     * @throws sycl_lsh::not_implemented since .arff files aren't currently supported.
      */
     [[nodiscard]] aos_matrix<parsing_type> parse_content() const override;
     /**
@@ -78,7 +79,7 @@ class arff_parser final : public file_parser<T> {
      * @param[in] dims the number of dimensions of each value
      * @param[in] buffer the data to write to the file
      *
-     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     * @throws sycl_lsh::not_implemented since .arff files aren't currently supported.
      */
     void write_content(index_type total_size, index_type dims, const aos_matrix<parsing_type> &buffer) const override;
 };

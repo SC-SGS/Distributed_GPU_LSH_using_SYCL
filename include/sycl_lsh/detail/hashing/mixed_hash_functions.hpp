@@ -25,24 +25,6 @@ namespace sycl_lsh::detail::hashing {
  */
 class mixed_hash_functions {
   public:
-    /**
-     * @brief Struct to specify the part of the host buffer when requesting the conversion of a multidimensional index to a
-     *        one-dimensional index.
-     */
-    struct buffer_part {
-        /** Calculate conversion only for the random projections part. */
-        constexpr static struct hash_functions_t {
-        } hash_functions{};
-
-        /** Calculate conversion only for the entropy-based part. */
-        constexpr static struct hash_combine_t {
-        } hash_combine{};
-
-        /** Calculate conversion only for the cut-off points part. */
-        constexpr static struct cut_off_points_t {
-        } cut_off_points{};
-    };
-
     // ---------------------------------------------------------------------------------------------------------- //
     //                                                constructor                                                 //
     // ---------------------------------------------------------------------------------------------------------- //
@@ -77,7 +59,7 @@ class mixed_hash_functions {
 };
 
 /**
- * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::mixed_hash_functions class to calculate the
+ * @brief Specialization of the @ref sycl_lsh::detail::hashing::lsh_hash class for the @ref sycl_lsh::detail::hashing::mixed_hash_functions class to calculate the
  *        hash value.
  */
 template <>

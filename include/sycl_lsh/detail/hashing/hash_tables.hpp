@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-12-10
  *
- * @brief Implements the @ref sycl_lsh::detail::hash_tables class representing the used LSH hash tables.
+ * @brief Implements the @ref sycl_lsh::detail::hashing::hash_tables class representing the used LSH hash tables.
  */
 
 #ifndef SYCL_LSH_DETAIL_HASHING_HASH_TABLES_HPP
@@ -61,9 +61,9 @@ template <typename HashFunction>
 class hash_tables : public hash_tables_base {
   public:
     /**
-     * @brief Constructs a new @ref sycl_lsh::detail::hash_tables object initializing the LSH hash tables.
+     * @brief Constructs a new @ref sycl_lsh::detail::hashing::hash_tables object initializing the LSH hash tables.
      * @param[in] options the used LSH options
-     * @param[in] data the used @ref sycl_lsh::data representing the used data set
+     * @param[in] data the used @ref sycl_lsh::data_set representing the used data set
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] profiler the performance profiler used to log runtime information, if requested

@@ -60,7 +60,7 @@ class entropy_based {
 };
 
 /**
- * @brief Specialization of the @ref sycl_lsh::lsh_hash class for the @ref sycl_lsh::entropy_based class to calculate the
+ * @brief Specialization of the @ref sycl_lsh::detail::hashing::lsh_hash class for the @ref sycl_lsh::detail::hashing::entropy_based class to calculate the
  *        hash value.
  */
 template <>

@@ -139,10 +139,14 @@ std::ostream &operator<<(std::ostream &out, const options &opt);
 
 }  // namespace sycl_lsh
 
+/// @cond Doxygen_suppress
+
 template <>
 struct fmt::formatter<sycl_lsh::locality_sensitive_hashing_options> : fmt::ostream_formatter { };
 
 template <>
 struct fmt::formatter<sycl_lsh::options> : fmt::ostream_formatter { };
+
+/// @endcond
 
 #endif  // SYCL_LSH_OPTIONS_HPP
