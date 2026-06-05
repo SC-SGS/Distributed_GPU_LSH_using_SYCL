@@ -4,7 +4,7 @@
  * @date 2020-today
  */
 
-#include "sycl_lsh/detail/shape.hpp"
+#include "sycl_lsh/shape.hpp"
 
 #include "fmt/format.h"  // fmt::format
 
@@ -12,7 +12,7 @@
 #include <cstddef>    // std::size_t
 #include <iostream>   // std:ostream, std::istream
 
-namespace sycl_lsh::detail {
+namespace sycl_lsh {
 
 shape::shape(const std::size_t x_p, const std::size_t y_p) noexcept :
     x{ x_p },

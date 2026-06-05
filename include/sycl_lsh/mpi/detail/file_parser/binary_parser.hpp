@@ -19,6 +19,7 @@
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::{file, file::mode}
 #include "sycl_lsh/mpi/detail/type_cast.hpp"                // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"                  // SYCL_LSH_MPI_ERROR_CHECK
+#include "sycl_lsh/shape.hpp"                               // sycl_lsh::shape
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi.h"         // MPI_File related functions
@@ -166,12 +167,12 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
     SYCL_LSH_ASSERT(0 < rank_size, "Illegal rank size!");
     SYCL_LSH_ASSERT(0 < dims, "Illegal number of dimensions!");
 
-    sycl_lsh::aos_matrix<parsing_type> buffer{ sycl_lsh::detail::shape{ rank_size, dims } };
+    sycl_lsh::aos_matrix<parsing_type> buffer{ shape{ rank_size, dims } };
 
     // check for correct type
     MPI_Offset file_size{};
     SYCL_LSH_MPI_ERROR_CHECK(MPI_File_get_size(file_, &file_size));  // get file size
-    file_size -= header_offset;                                            // subtract header information (size and dims)
+    file_size -= header_offset;                                      // subtract header information (size and dims)
     if (static_cast<index_type>(file_size) != total_size * dims * sizeof(parsing_type)) {
         throw file_parsing_exception{ fmt::format("Broken file '{}'! File size ({}) doesn't match header information ({} * {} * sizeof(parsing_type) = {})", filename_, file_size, total_size, dims, total_size * dims * sizeof(parsing_type)) };
     }

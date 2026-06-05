@@ -29,7 +29,6 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/mixed_hash_functions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/random_projections.cpp
 
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/shape.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
 
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
@@ -51,6 +50,7 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiler.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiling_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/shape.cpp
 )
 
 # create library

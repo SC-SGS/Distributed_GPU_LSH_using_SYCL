@@ -8,7 +8,6 @@
 
 #include "sycl_lsh/data_set.hpp"                    // sycl_lsh::data_set
 #include "sycl_lsh/detail/hashing/hash_tables.hpp"  // sycl_lsh::detail::hashing::hash_tables
-#include "sycl_lsh/detail/shape.hpp"                // sycl_lsh::detail::shape
 #include "sycl_lsh/matrix.hpp"                      // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"          // sycl_lsh::mpi::detail::log
@@ -16,6 +15,7 @@
 #include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
 #include "sycl_lsh/profiler.hpp"                    // sycl_lsh::profiler
+#include "sycl_lsh/shape.hpp"                       // sycl_lsh::shape
 
 #include "fmt/format.h"  // fmt::format
 
@@ -90,8 +90,8 @@ nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const in
     }
 
     // initialize the k-nearest-neighbors data to default values before calculating them
-    aos_matrix<index_type> indices{ detail::shape{ input_attr.rank_size, used_n_neighbors } };
-    aos_matrix<real_type> distances{ detail::shape{ input_attr.rank_size, used_n_neighbors }, std::numeric_limits<real_type>::max() };
+    aos_matrix<index_type> indices{ shape{ input_attr.rank_size, used_n_neighbors } };
+    aos_matrix<real_type> distances{ shape{ input_attr.rank_size, used_n_neighbors }, std::numeric_limits<real_type>::max() };
 
     // calculate start ID
     const index_type base_id = comm_.rank() * input_attr.rank_size;

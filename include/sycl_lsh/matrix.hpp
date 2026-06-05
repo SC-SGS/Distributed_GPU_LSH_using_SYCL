@@ -11,9 +11,9 @@
 #pragma once
 
 #include "sycl_lsh/detail/assert.hpp"          // SYCL_LSH_ASSERT
-#include "sycl_lsh/detail/shape.hpp"           // sycl_lsh::shape
 #include "sycl_lsh/detail/utility.hpp"         // sycl_lsh::detail::{always_false_v, unreachable}
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::matrix_exception
+#include "sycl_lsh/shape.hpp"                  // sycl_lsh::shape
 
 #include "fmt/base.h"     // fmt::formatter
 #include "fmt/color.h"    // fmt::fg, fmt::color::orange
@@ -98,7 +98,7 @@ class matrix {
      * @param[in] shape the shape of the matrix, i.e., the number of rows and columns
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero; creates an empty matrix if both are zero
      */
-    explicit matrix(detail::shape shape);
+    explicit matrix(sycl_lsh::shape shape);
     /**
      * @brief Create a matrix of size (@p shape.x + @p padding.x) x (@p shape.y + @p padding.y) and default-initializes all values.
      * @details The padding entries are always initialized to `0`!
@@ -106,7 +106,7 @@ class matrix {
      * @param[in] padding the padding of the matrix, i.e., the number of padding entries for each row and column
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero; creates an empty matrix if both are zero
      */
-    matrix(detail::shape shape, detail::shape padding);
+    matrix(sycl_lsh::shape shape, sycl_lsh::shape padding);
 
     /**
      * @brief Create a matrix of size @p shape.x x @p shape.y and initialize all entries with the value @p init.
@@ -116,7 +116,7 @@ class matrix {
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero; creates an empty matrix if both are zero
      */
     template <typename U, std::enable_if_t<std::is_convertible_v<U, value_type>, bool> = true>
-    matrix(detail::shape shape, const U &init);
+    matrix(sycl_lsh::shape shape, const U &init);
     /**
      * @brief Create a matrix of size (@p shape.x + @p padding.x) x (@p shape.y + @p padding.y) and initialize all valid entries with the value @p init.
      * @details The padding entries are always initialized to `0`!
@@ -127,7 +127,7 @@ class matrix {
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero; creates an empty matrix if both are zero
      */
     template <typename U, std::enable_if_t<std::is_convertible_v<U, value_type>, bool> = true>
-    matrix(detail::shape shape, const U &init, detail::shape padding);
+    matrix(sycl_lsh::shape shape, const U &init, sycl_lsh::shape padding);
 
     /**
      * @brief Create a matrix of size @p shape.x x @p shape.y and initialize it to the values provided via @p data.
@@ -137,7 +137,7 @@ class matrix {
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero
      * @throws sycl_lsh::matrix_exception if @p shape.x times @p shape.y is not equal to the number of values in @p data
      */
-    matrix(detail::shape shape, const std::vector<value_type> &data);
+    matrix(sycl_lsh::shape shape, const std::vector<value_type> &data);
     /**
      * @brief Create a matrix of size (@p shape.x + @p padding.x) x (@p shape.y + @p padding.y) and initialize it to the values provided via @p data.
      * @note The underlying layout of @p data must be the same as the matrix layout since a simple `std::memcpy` is used.
@@ -148,7 +148,7 @@ class matrix {
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero
      * @throws sycl_lsh::matrix_exception if @p shape.x times @p shape.y is not equal to the number of values in @p data
      */
-    matrix(detail::shape shape, const std::vector<value_type> &data, detail::shape padding);
+    matrix(sycl_lsh::shape shape, const std::vector<value_type> &data, sycl_lsh::shape padding);
 
     /**
      * @brief Create a matrix of size @p shape.x x @p shape.y and initialize it to the values provided via @p data.
@@ -157,7 +157,7 @@ class matrix {
      * @param[in] data the pointer to the data values
      * @throws sycl_lsh::matrix_exception if exactly one of @p shape.x or @p shape.y is zero
      */
-    matrix(detail::shape shape, const_pointer data);
+    matrix(sycl_lsh::shape shape, const_pointer data);
     /**
      * @brief Create a matrix of size (@p shape.x + @p padding.x) x (@p shape.y + @p padding.y) and initialize it to the values provided via @p data.
      * @note The underlying layout of @p data must be the same as the matrix layout since a simple `std::memcpy` is used.
@@ -167,7 +167,7 @@ class matrix {
      * @param[in] padding the padding of the matrix, i.e., the number of padding entries for each row and column
      * @throws sycl_lsh::matrix_exception if exactly one of the @p shape values is zero
      */
-    matrix(detail::shape shape, const_pointer data, detail::shape padding);
+    matrix(sycl_lsh::shape shape, const_pointer data, sycl_lsh::shape padding);
 
     /**
      * @brief Construct a new matrix from @p other. Respects potential different layout types.
@@ -183,7 +183,7 @@ class matrix {
      * @param[in] padding the padding of the new matrix, i.e., the number of padding entries for each row and column
      */
     template <memory_layout other_layout_>
-    matrix(const matrix<T, other_layout_> &other, detail::shape padding);
+    matrix(const matrix<T, other_layout_> &other, sycl_lsh::shape padding);
 
     /**
      * @brief Create a matrix from the provided 2D vector @p data.
@@ -198,7 +198,7 @@ class matrix {
      * @param[in] data the data used to initialize this matrix
      * @param[in] padding the padding of the matrix, i.e., the number of padding entries for each row and column
      */
-    matrix(const std::vector<std::vector<value_type>> &data, detail::shape padding);
+    matrix(const std::vector<std::vector<value_type>> &data, sycl_lsh::shape padding);
 
     /**
      * @brief Return the number of entries in the matrix **without** padding.
@@ -211,7 +211,7 @@ class matrix {
      * @brief Returns the shape of the matrix, i.e., the number of rows and columns **without** padding.
      * @return the shape of the matrix (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape shape() const noexcept { return shape_; }
+    [[nodiscard]] sycl_lsh::shape shape() const noexcept { return shape_; }
 
     /**
      * @brief Return the number of rows in the matrix **without** padding.
@@ -237,7 +237,7 @@ class matrix {
      * @brief Return the padding sizes for the rows and columns.
      * @return the padding sizes (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape padding() const noexcept { return padding_; }
+    [[nodiscard]] sycl_lsh::shape padding() const noexcept { return padding_; }
 
     /**
      * @brief Return the number of entries in the matrix **including** padding.
@@ -250,7 +250,7 @@ class matrix {
      * @brief Returns the shape of the matrix **including** padding, i.e., the number of rows + row padding and columns + column padding.
      * @return the shape of the matrix **including** padding (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape shape_padded() const noexcept { return detail::shape{ shape_.x + padding_.x, shape_.y + padding_.y }; }
+    [[nodiscard]] sycl_lsh::shape shape_padded() const noexcept { return sycl_lsh::shape{ shape_.x + padding_.x, shape_.y + padding_.y }; }
 
     /**
      * @brief Return the number of rows in the matrix **including** padding.
@@ -379,7 +379,7 @@ class matrix {
      * @param[in] source the source buffer
      * @param[in] source_shape the shape of the source buffer
      */
-    void opt_mismatched_padding_copy(pointer dest, const detail::shape dest_shape, const_pointer source, const detail::shape source_shape) {
+    void opt_mismatched_padding_copy(pointer dest, const sycl_lsh::shape dest_shape, const_pointer source, const sycl_lsh::shape source_shape) {
         if constexpr (layout_ == memory_layout::aos) {
 // copy row-wise
 #pragma omp parallel for
@@ -398,19 +398,19 @@ class matrix {
     }
 
     /// The shape of the matrix.
-    detail::shape shape_;
+    sycl_lsh::shape shape_;
     /// The shape of the padding for each row and column.
-    detail::shape padding_;
+    sycl_lsh::shape padding_;
     /// The (linearized, either in AoS or SoA layout) data.
     std::vector<value_type> data_{};
 };
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape) :
     matrix{ shape, value_type{} } { }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape, const detail::shape padding) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const sycl_lsh::shape padding) :
     shape_{ shape },
     padding_{ padding },
     data_(this->size_padded(), value_type{}) {
@@ -424,7 +424,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const detail::shape paddin
 
 template <typename T, memory_layout layout_>
 template <typename U, std::enable_if_t<std::is_convertible_v<U, T>, bool>>
-matrix<T, layout_>::matrix(const detail::shape shape, const U &init) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const U &init) :
     shape_{ shape },
     padding_{ 0, 0 },
     data_(this->size(), static_cast<value_type>(init)) {
@@ -438,7 +438,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const U &init) :
 
 template <typename T, memory_layout layout_>
 template <typename U, std::enable_if_t<std::is_convertible_v<U, T>, bool>>
-matrix<T, layout_>::matrix(const detail::shape shape, const U &init, const detail::shape padding) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const U &init, const sycl_lsh::shape padding) :
     shape_{ shape },
     padding_{ padding },
     data_(this->size_padded(), static_cast<value_type>(0.0)) {
@@ -467,7 +467,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const U &init, const detai
 }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape, const std::vector<value_type> &data) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const std::vector<value_type> &data) :
     matrix{ shape } {
     if (this->size() != data.size()) {
         throw matrix_exception{ fmt::format("The number of entries in the matrix ({}) must be equal to the size of the data ({})!", this->size(), data.size()) };
@@ -478,7 +478,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const std::vector<value_ty
 }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape, const std::vector<value_type> &data, const detail::shape padding) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const std::vector<value_type> &data, const sycl_lsh::shape padding) :
     matrix{ shape, padding } {
     if (this->size() != data.size()) {
         throw matrix_exception{ fmt::format("The number of entries in the matrix ({}) must be equal to the size of the data ({})!", this->size(), data.size()) };
@@ -489,7 +489,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const std::vector<value_ty
 }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape, const_pointer data) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const_pointer data) :
     matrix{ shape } {
     if (data == nullptr && !this->empty()) {
         throw matrix_exception{ "The provided data pointer may not be a nullptr if the matrix size is greater than 0!" };
@@ -501,7 +501,7 @@ matrix<T, layout_>::matrix(const detail::shape shape, const_pointer data) :
 }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const detail::shape shape, const_pointer data, const detail::shape padding) :
+matrix<T, layout_>::matrix(const sycl_lsh::shape shape, const_pointer data, const sycl_lsh::shape padding) :
     matrix{ shape, padding } {
     if (data == nullptr && !this->empty()) {
         throw matrix_exception{ "The provided data pointer may not be a nullptr if the matrix size is greater than 0!" };
@@ -534,7 +534,7 @@ matrix<T, layout_>::matrix(const matrix<T, other_layout_> &other) :
 
 template <typename T, memory_layout layout_>
 template <memory_layout other_layout_>
-matrix<T, layout_>::matrix(const matrix<value_type, other_layout_> &other, const detail::shape padding) :
+matrix<T, layout_>::matrix(const matrix<value_type, other_layout_> &other, const sycl_lsh::shape padding) :
     matrix{ other.shape(), padding } {
     if (layout_ == other_layout_ && this->padding() == other.padding()) {
         // same layout and same padding -> simply memcpy underlying array
@@ -557,14 +557,14 @@ matrix<T, layout_>::matrix(const matrix<value_type, other_layout_> &other, const
 
 template <typename T, memory_layout layout_>
 matrix<T, layout_>::matrix(const std::vector<std::vector<value_type>> &data) :
-    matrix{ data, detail::shape{ 0, 0 } } { }
+    matrix{ data, sycl_lsh::shape{ 0, 0 } } { }
 
 template <typename T, memory_layout layout_>
-matrix<T, layout_>::matrix(const std::vector<std::vector<value_type>> &data, const detail::shape padding) :
+matrix<T, layout_>::matrix(const std::vector<std::vector<value_type>> &data, const sycl_lsh::shape padding) :
     padding_{ padding } {
     if (data.empty()) {
         // the provided 2D vector was empty -> set to empty matrix
-        shape_ = detail::shape{ 0, 0 };
+        shape_ = sycl_lsh::shape{ 0, 0 };
         data_ = std::vector<value_type>(this->size_padded(), value_type{});
     } else {
         if (!std::all_of(data.cbegin(), data.cend(), [&data](const std::vector<value_type> &row) { return row.size() == data.front().size(); })) {
@@ -575,7 +575,7 @@ matrix<T, layout_>::matrix(const std::vector<std::vector<value_type>> &data, con
         }
 
         // the provided 2D vector contains at least one element -> initialize matrix
-        shape_ = detail::shape{ data.size(), data.front().size() };
+        shape_ = sycl_lsh::shape{ data.size(), data.front().size() };
         data_ = std::vector<value_type>(this->size_padded(), value_type{});
 
         if constexpr (layout_ == memory_layout::aos) {

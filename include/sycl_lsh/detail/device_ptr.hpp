@@ -11,9 +11,9 @@
 #pragma once
 
 #include "sycl_lsh/detail/assert.hpp"          // SYCL_LSH_ASSERT
-#include "sycl_lsh/detail/shape.hpp"           // sycl_lsh::detail::shape
 #include "sycl_lsh/exceptions/exceptions.hpp"  // sycl_lsh::device_ptr_exception
 #include "sycl_lsh/matrix.hpp"                 // sycl_lsh::matrix, sycl_lsh::memory_layout
+#include "sycl_lsh/shape.hpp"                  // sycl_lsh::shape
 
 #include "sycl/sycl.hpp"
 
@@ -63,7 +63,7 @@ class device_ptr {
      * @param[in] shape the 2D size of the managed memory; size = shape.x * shape.y
      * @param[in] queue the SYCL queue to manage the device_ptr
      */
-    device_ptr(detail::shape shape, queue_type &queue);
+    device_ptr(sycl_lsh::shape shape, queue_type &queue);
     /**
      * @brief Construct a device_ptr for the device managed by @p queue with the provided @p shape including @p padding.
      * @details The managed memory size is: (shape.x + padding.x) * (shape.y + padding.y).
@@ -71,7 +71,7 @@ class device_ptr {
      * @param[in] padding the padding applied to the extents
      * @param[in] queue the SYCL queue to manage the device_ptr
      */
-    device_ptr(detail::shape shape, detail::shape padding, queue_type &queue);
+    device_ptr(sycl_lsh::shape shape, sycl_lsh::shape padding, queue_type &queue);
 
     /**
      * @brief Delete copy-constructor to make device_ptr a move only type.
@@ -149,7 +149,7 @@ class device_ptr {
      * @brief Get the number of elements in both dimensions in the wrapped device_ptr.
      * @return the number of elements in both directions (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape shape() const noexcept {
+    [[nodiscard]] sycl_lsh::shape shape() const noexcept {
         return shape_;
     }
 
@@ -166,7 +166,7 @@ class device_ptr {
      * @brief Get the number of padding entries in both dimensions in the wrapped device_ptr.
      * @return the number of padding entries in both directions (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape padding() const noexcept {
+    [[nodiscard]] sycl_lsh::shape padding() const noexcept {
         return padding_;
     }
 
@@ -182,8 +182,8 @@ class device_ptr {
      * @brief Get the number of values in both dimensions **including** padding in the wrapped device_ptr.
      * @return the number of elements in both directions (`[[nodiscard]]`)
      */
-    [[nodiscard]] detail::shape shape_padded() const noexcept {
-        return detail::shape{ shape_.x + padding_.x, shape_.y + padding_.y, shape_.z + padding_.z };
+    [[nodiscard]] sycl_lsh::shape shape_padded() const noexcept {
+        return sycl_lsh::shape{ shape_.x + padding_.x, shape_.y + padding_.y, shape_.z + padding_.z };
     }
 
     /**
@@ -314,23 +314,23 @@ class device_ptr {
     /// The device queue used to manage the device memory associated with this device pointer.
     queue_type *queue_{};
     /// The size of the managed memory.
-    detail::shape shape_;
+    sycl_lsh::shape shape_;
     /// The padding size of the managed memory.
-    detail::shape padding_;
+    sycl_lsh::shape padding_;
     /// The device pointer pointing to the managed memory.
     device_pointer_type data_{};
 };
 
 template <typename T>
 device_ptr<T>::device_ptr(const size_type size, queue_type &queue) :
-    device_ptr{ detail::shape{ size, 1, 1 }, detail::shape{ 0, 0, 0 }, queue } { }
+    device_ptr{ sycl_lsh::shape{ size, 1, 1 }, sycl_lsh::shape{ 0, 0, 0 }, queue } { }
 
 template <typename T>
-device_ptr<T>::device_ptr(const detail::shape shape, queue_type &queue) :
-    device_ptr{ shape, detail::shape{ 0, 0, 0 }, queue } { }
+device_ptr<T>::device_ptr(const sycl_lsh::shape shape, queue_type &queue) :
+    device_ptr{ shape, sycl_lsh::shape{ 0, 0, 0 }, queue } { }
 
 template <typename T>
-device_ptr<T>::device_ptr(const detail::shape shape, const detail::shape padding, queue_type &queue) :
+device_ptr<T>::device_ptr(const sycl_lsh::shape shape, const sycl_lsh::shape padding, queue_type &queue) :
     queue_{ &queue },
     shape_{ shape },
     padding_{ padding } {
@@ -345,8 +345,8 @@ device_ptr<T>::device_ptr(const detail::shape shape, const detail::shape padding
 template <typename T>
 device_ptr<T>::device_ptr(device_ptr &&other) noexcept :
     queue_{ std::exchange(other.queue_, nullptr) },
-    shape_{ std::exchange(other.shape_, detail::shape{}) },
-    padding_{ std::exchange(other.padding_, detail::shape{}) },
+    shape_{ std::exchange(other.shape_, sycl_lsh::shape{}) },
+    padding_{ std::exchange(other.padding_, sycl_lsh::shape{}) },
     data_{ std::exchange(other.data_, device_pointer_type{}) } { }
 
 template <typename T>
@@ -361,8 +361,8 @@ device_ptr<T> &device_ptr<T>::operator=(device_ptr &&other) noexcept {
     // guard against self-assignment
     if (this != std::addressof(other)) {
         queue_ = std::exchange(other.queue_, nullptr);
-        shape_ = std::exchange(other.shape_, detail::shape{});
-        padding_ = std::exchange(other.padding_, detail::shape{});
+        shape_ = std::exchange(other.shape_, sycl_lsh::shape{});
+        padding_ = std::exchange(other.padding_, sycl_lsh::shape{});
         data_ = std::exchange(other.data_, device_pointer_type{});
     }
     return *this;

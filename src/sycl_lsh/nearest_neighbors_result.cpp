@@ -8,7 +8,6 @@
 
 #include "sycl_lsh/constants.hpp"                           // sycl_lsh::index_type, sycl_lsh::real_type
 #include "sycl_lsh/data_set.hpp"                            // sycl_lsh::data_set
-#include "sycl_lsh/detail/shape.hpp"                        // sycl_lsh::detail::shape
 #include "sycl_lsh/exceptions/exceptions.hpp"               // sycl_lsh::exception
 #include "sycl_lsh/matrix.hpp"                              // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"                    // sycl_lsh::mpi::communicator
@@ -17,6 +16,7 @@
 #include "sycl_lsh/mpi/detail/math.hpp"                     // sycl_lsh::mpi::detail::sum
 #include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/profiler.hpp"                            // sycl_lsh::profiler
+#include "sycl_lsh/shape.hpp"                               // sycl_lsh::shape
 
 #include "fmt/format.h"  // fmt::format
 
