@@ -26,7 +26,7 @@ random_projections::random_projections(const locality_sensitive_hashing_options 
     device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, (attributes.dims + 1) }, queue } {
     std::vector<real_type> host_buffer(device_ptr_.size());
 
-    // create hash pool only on MPI master rank
+    // create hash pool only on the MPI main rank
     if (comm.is_main_rank()) {
 // create random generators
 #if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)

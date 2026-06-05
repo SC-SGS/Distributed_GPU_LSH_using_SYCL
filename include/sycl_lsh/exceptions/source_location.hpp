@@ -17,8 +17,8 @@
 namespace sycl_lsh {
 
 /**
- * @brief The sycl_lsh::source_location class represents certain information about the source code, such as file names, line numbers, or function names.
- * @details Based on [`std::source_location`](https://en.cppreference.com/w/cpp/utility/source_location).
+ * @brief The @ref sycl_lsh::source_location class represents certain information about the source code, such as file names, line numbers, or function names.
+ * @details Based on [std::source_location](https://en.cppreference.com/w/cpp/utility/source_location).
  */
 class source_location {
   public:

@@ -18,9 +18,7 @@
 #include "fmt/format.h"  // fmt::format
 #include "fmt/ranges.h"  // fmt::join
 
-#include <cstddef>      // std::size_t
-#include <iostream>     // std::clog
-#include <numeric>      // std::accumulate
+#include <iostream>     // std::clog, std::endl
 #include <string>       // std::string
 #include <string_view>  // std::string_view
 #include <utility>      // std::forward
@@ -31,7 +29,7 @@ namespace sycl_lsh::mpi::detail {
 /**
  * @brief Log the given message @p msg **only** on the specified MPI rank @p comm_rank.
  * @tparam Args the types of the placeholders
- * @param[in] comm the used MPI communicator
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] comm_rank the MPI rank to log on
  * @param[in] msg the message to log
  * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
@@ -51,7 +49,7 @@ void log(const communicator &comm, const int comm_rank, const std::string_view m
 /**
  * @brief Log the given message @p msg **only** on the MPI main rank.
  * @tparam Args the types of the placeholders
- * @param[in] comm the used MPI communicator
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] msg the message to log
  * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
  */
@@ -64,7 +62,7 @@ void log(const communicator &comm, const std::string_view msg, Args &&...args) {
 /**
  * @brief Log the given message @p msg **only** in the MPI main rank.
  * @tparam Args the types of the placeholders
- * @param[in] comm the used MPI communicator
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] msg the message to log
  * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
  */
@@ -76,9 +74,9 @@ void log_on_main(const communicator &comm, const std::string_view msg, Args &&..
 
 /**
  * @brief Log the given messages @p msg from all MPI ranks. Only the main rank does an actual command line output.
- * @details Gathers all messages on MPI rank 0 (master rank) to enable a deterministic output.
+ * @details Gathers all messages on MPI rank 0 (main rank) to enable a deterministic output.
  * @tparam Args the types of the placeholders
- * @param[in] comm the used MPI communicator
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @param[in] msg the message to log
  * @param[in] args the arguments to fill the [{fmt}](https://github.com/fmtlib/fmt) placeholders
  */
@@ -88,7 +86,7 @@ void log_from_all(const communicator &comm, const std::string_view msg, Args &&.
     const std::string msg_substituted = fmt::format(msg, std::forward<Args>(args)...);
     // gather the full string on the MPI main rank
     const std::vector<std::string> msg_parts = comm.gather(msg_substituted);
-    // print full msg on master rank
+    // print full msg on the MPI main rank
     if (comm.is_main_rank()) {
         std::clog << fmt::format("{}\n", fmt::join(msg_parts, "")) << std::endl;
     }

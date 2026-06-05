@@ -20,47 +20,6 @@
 
 namespace sycl_lsh::mpi::detail {
 
-// ---------------------------------------------------------------------------------------------------------- //
-//                                        constructors and destructor                                         //
-// ---------------------------------------------------------------------------------------------------------- //
-file::file(const std::string &file_name, const communicator &comm, const mode open_mode) {
-    // if we are in read mode, the file must already exist
-    if (open_mode == mode::read && !std::filesystem::exists(file_name)) {
-        throw file_exception{ fmt::format("Can't open file '{}'!", file_name) };
-    }
-
-    // open the file
-    const int err = MPI_File_open(comm, file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_);
-
-    // if we are in write mode and the file already exists, delete and reopen it
-    if (open_mode == mode::write && err != MPI_SUCCESS) {
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_delete(file_name.data(), MPI_INFO_NULL));
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_open(comm, file_name.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_));
-    }
-}
-
-file::file(file &&other) noexcept :
-    file_{ std::exchange(other.file_, MPI_FILE_NULL) } { }
-
-file::~file() {
-    if (file_ != MPI_FILE_NULL) {
-        MPI_File_close(&file_);
-    }
-}
-
-// ---------------------------------------------------------------------------------------------------------- //
-//                                            assignment operators                                            //
-// ---------------------------------------------------------------------------------------------------------- //
-file &file::operator=(file &&rhs) noexcept {
-    if (this != std::addressof(rhs)) {
-        if (file_ != MPI_FILE_NULL) {
-            MPI_File_close(&file_);
-        }
-        file_ = std::exchange(rhs.file_, MPI_FILE_NULL);
-    }
-    return *this;
-}
-
 std::ostream &operator<<(std::ostream &out, const file::mode mode) {
     switch (mode) {
         case file::mode::read:
@@ -85,6 +44,47 @@ std::istream &operator>>(std::istream &in, file::mode &mode) {
         in.setstate(std::ios::failbit);
     }
     return in;
+}
+
+// ---------------------------------------------------------------------------------------------------------- //
+//                                        constructors and destructor                                         //
+// ---------------------------------------------------------------------------------------------------------- //
+file::file(const std::string &filename, const communicator &comm, const mode open_mode) {
+    // if we are in read mode, the file must already exist
+    if (open_mode == mode::read && !std::filesystem::exists(filename)) {
+        throw file_exception{ fmt::format("Can't open file '{}'!", filename) };
+    }
+
+    // open the file
+    const int err = MPI_File_open(comm, filename.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_);
+
+    // if we are in write mode and the file already exists, delete and reopen it
+    if (open_mode == mode::write && err != MPI_SUCCESS) {
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_delete(filename.data(), MPI_INFO_NULL));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_open(comm, filename.data(), static_cast<std::underlying_type_t<mode>>(open_mode), MPI_INFO_NULL, &file_));
+    }
+}
+
+file::file(file &&other) noexcept :
+    file_{ std::exchange(other.file_, MPI_FILE_NULL) } { }
+
+file::~file() {
+    if (file_ != MPI_FILE_NULL) {
+        MPI_File_close(&file_);
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------------- //
+//                                            assignment operators                                            //
+// ---------------------------------------------------------------------------------------------------------- //
+file &file::operator=(file &&rhs) noexcept {
+    if (this != std::addressof(rhs)) {
+        if (file_ != MPI_FILE_NULL) {
+            MPI_File_close(&file_);
+        }
+        file_ = std::exchange(rhs.file_, MPI_FILE_NULL);
+    }
+    return *this;
 }
 
 }  // namespace sycl_lsh::mpi::detail

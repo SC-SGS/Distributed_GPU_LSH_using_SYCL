@@ -28,7 +28,7 @@ namespace sycl_lsh::detail {
 
 /**
  * @brief Function called by the `SYCL_LSH_ASSERT` macro. Checks the assertion condition. If the condition evaluates to `false`,
- *        prints the assertion condition together with additional information (e.g., `sycl_lsh::source_location` information) and aborts the program.
+ *        prints the assertion condition together with additional information (e.g., @ref sycl_lsh::source_location information) and aborts the execution.
  * @tparam Args the placeholder types
  * @param[in] cond the assertion condition, aborts the program if evaluated to `false`
  * @param[in] cond_str the assertion condition as string
@@ -70,7 +70,7 @@ void check_assertion(const bool cond, const std::string_view cond_str, const sou
 /**
  * @def SYCL_LSH_ASSERT
  * @brief Defines a custom `assert()` macro with potential additional parameters to the assertion message.
- * @details This macro is only defined if `SYCL_LSH_ENABLE_DEBUG` is set to `On` during [CMake's](https://cmake.org/) configuration step.
+ * @details This macro is only defined if `SYCL_LSH_ENABLE_DEBUG` is set to `ON` during [CMake's](https://cmake.org/) configuration step.
  */
 #if defined(SYCL_LSH_ASSERTS_ENABLED)
     #define SYCL_LSH_ASSERT(cond, msg, ...) sycl_lsh::detail::check_assertion((cond), (#cond), sycl_lsh::source_location::current(), (msg), ##__VA_ARGS__)

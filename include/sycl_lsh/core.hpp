@@ -11,7 +11,7 @@
 #define SYCL_LSH_CORE_HPP
 #pragma once
 
-// include all necessary library headers
+// include all necessary public library headers
 #include "sycl_lsh/constants.hpp"
 #include "sycl_lsh/data_set.hpp"
 #include "sycl_lsh/hash_function_types.hpp"

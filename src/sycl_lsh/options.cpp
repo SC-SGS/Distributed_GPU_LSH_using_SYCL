@@ -88,21 +88,21 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
         options.parse_positional({ "file", "knn" });
         result = options.parse(argc, argv);
     } catch (const std::exception &e) {
-        // output help message only on master MPI rank
+        // output help message only on the MPI main rank
         mpi::detail::log(comm, "{}\n{}\n", e.what(), options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
 
     // print help message and exit
     if (result.contains("help")) {
-        // output help message only on master MPI rank
+        // output help message only on the MPI main rank
         mpi::detail::log(comm, "{}\n", options.help());
         throw cmd_parser_exit{ EXIT_SUCCESS };
     }
 
     // check if the number of positional arguments is not too large
     if (!result.unmatched().empty()) {
-        // output error message only on master MPI rank
+        // output error message only on the MPI main rank
         mpi::detail::log(comm, "ERROR: only one positional options may be given, but {} (\"{}\") additional option(s) where provided!\n{}\n", result.unmatched().size(), fmt::join(result.unmatched(), " "), options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
@@ -110,14 +110,14 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     // parse command line variables
 
     if (!result.contains("knn")) {
-        // output error message only on master MPI rank
+        // output error message only on the MPI main rank
         mpi::detail::log(comm, "ERROR: missing nearest-neighbors number!\n\n{}\n", options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }
     n_neighbors = result["knn"].as<index_type>();
 
     if (!result.contains("file")) {
-        // output error message only on master MPI rank
+        // output error message only on the MPI main rank
         mpi::detail::log(comm, "ERROR: missing input file!\n\n{}\n", options.help());
         throw cmd_parser_exit{ EXIT_FAILURE };
     }

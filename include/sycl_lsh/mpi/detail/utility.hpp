@@ -14,7 +14,8 @@
 
 /**
  * @def SYCL_LSH_MPI_ERROR_CHECK
- * @brief Check the MPI error @p err. If @p err signals an error, throw a sycl_lsh::mpi_exception.
+ * @brief Check the MPI error @p err. If @p err signals an error, throw a @ref sycl_lsh::mpi_exception.
+ *
  * @throws sycl_lsh::mpi_exception if the error code signals a failure
  */
 #if defined(SYCL_LSH_ASSERTS_ENABLED)
@@ -26,8 +27,9 @@
 namespace sycl_lsh::mpi::detail {
 
 /**
- * @brief Checks whether @p err is equal to `MPI_SUCCESS`. If this is not the case, throws an exception.
+ * @brief Checks whether @p err is equal to MPI_SUCCESS. If this is not the case, throws an exception.
  * @param[in] err the error code to check
+ * @throws sycl_lsh::mpi_exception if the error code signals a failure
  */
 void mpi_error_check(int err);
 

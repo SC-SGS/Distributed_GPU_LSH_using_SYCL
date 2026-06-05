@@ -21,7 +21,7 @@
 namespace sycl_lsh::mpi::detail {
 
 /**
- * @brief Minimalistic wrapper around a MPI file.
+ * @brief Minimalistic wrapper around an MPI file.
  */
 class file {
   public:
@@ -35,19 +35,16 @@ class file {
         write = MPI_MODE_WRONLY | MPI_MODE_APPEND | MPI_MODE_CREATE | MPI_MODE_EXCL
     };
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                        constructors and destructor                                         //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::detail::file, i.e., open the file @p file_name in the mode @p open_mode.
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::file, i.e., open the file @p filename in the mode @p open_mode.
      * @details If the file should be opened in write mode and already exists, it gets deleted before the first write.
-     * @param[in] file_name the file to open
+     * @param[in] filename the file to open
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] open_mode the open mode (read or write)
      *
-     * @throws std::invalid_argument if the file @p file_name doesn't exist and the open mode is `read`
+     * @throws sycl_lsh::file_exception if the file @p filename doesn't exist and the open mode is `read`
      */
-    file(const std::string &file_name, const communicator &comm, mode open_mode);
+    file(const std::string &filename, const communicator &comm, mode open_mode);
     /**
      * @brief Delete the copy constructor.
      */
@@ -62,9 +59,6 @@ class file {
      */
     ~file();
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                            assignment operators                                            //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Delete the copy assignment operator.
      */
@@ -76,20 +70,11 @@ class file {
      */
     file &operator=(file &&rhs) noexcept;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                   getter                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Get the underlying MPI file.
      * @return the MPI file wrapped in this @ref sycl_lsh::mpi::detail::file object (`[[nodiscard]]`)
      */
-    [[nodiscard]] const MPI_File &get() const noexcept { return file_; }
-
-    /**
-     * @brief Get the underlying MPI file.
-     * @return the MPI file wrapped in this @ref sycl_lsh::mpi::detail::file object (`[[nodiscard]]`)
-     */
-    [[nodiscard]] MPI_File &get() noexcept { return file_; }
+    [[nodiscard]] operator MPI_File() const noexcept { return file_; }  // NOLINT: implicit conversion desired
 
   private:
     /// The wrapped MPI file.

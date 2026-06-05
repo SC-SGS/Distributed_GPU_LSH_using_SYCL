@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief A simple performance profile to track various metrics like options or runtimes.
+ * @brief A simple performance profiler to track various metrics like options or runtimes.
  */
 
 #ifndef SYCL_LSH_PROFILER_HPP
@@ -34,7 +34,7 @@ class profiler {
   public:
     /**
      * @brief Construct a new profiler using the @p profiling_type.
-     * @details The profiling types are:
+     * @details The @ref sycl_lsh::profiling_types are:
      *          - none: do not perform any profiling at all
      *          - runtimes: only profile runtimes (and some additional options like data_set sizes etc.)
      *          - hws: additionally to profiling runtimes, use the external hws library to also profile hardware characteristics
@@ -43,19 +43,19 @@ class profiler {
     explicit profiler(profiling_types profiling_type) noexcept;
 
     /**
-     * @brief Add all sycl_lsh::data_set::attributes @p attr to the @p group.
+     * @brief Add all @ref sycl_lsh::data_set::attributes @p attr to the @p group.
      * @param[in] group the group name
-     * @param[in] attr the sycl_lsh::data_set::attributes
+     * @param[in] attr the @ref sycl_lsh::data_set::attributes to store
      */
     void add_entry(const std::string &group, const data_set::attributes &attr);
     /**
-     * @brief Add all Locality Sensitive Hashing related options stored in @p opt as entries.
-     * @param[in] opt the options to store
+     * @brief Add all LSH related @ref sycl_lsh::locality_sensitive_hashing_options stored in @p opt as entries.
+     * @param[in] opt the @ref sycl_lsh::locality_sensitive_hashing_options to store
      */
     void add_entry(const locality_sensitive_hashing_options &opt);
     /**
-     * @brief Add all options stored in @p opt as entries.
-     * @param[in] opt the options to store
+     * @brief Add all @ref sycl_lsh::options stored in @p opt as entries.
+     * @param[in] opt the @ref sycl_lsh::options to store
      */
     void add_entry(const options &opt);
 
@@ -74,7 +74,7 @@ class profiler {
     }
 
     /**
-     * @brief Add a new hws event. has no effect if the profiling_type is not set to profiling_types::hws.
+     * @brief Add a new hws event. Has no effect if the profiling type is not set to @ref sycl_lsh::profiling_types::hws.
      * @param[in] name the event name
      */
     void add_event(const std::string &name) const;

@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief File parser for parsing plain binary data files.
+ * @brief File parser for parsing custom binary data files.
  */
 
 #ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_BINARY_PARSER_HPP
@@ -52,27 +52,21 @@ class binary_parser final : public file_parser<T> {
     // make base class members visible
     using base_type::comm_;
     using base_type::file_;
-    using base_type::file_name_;
+    using base_type::filename_;
     using base_type::mode_;
 
   public:
     /// The type of the data which should get parsed.
     using parsing_type = typename base_type::parsing_type;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                constructor                                                 //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Construct a new @ref sycl_lsh::mpi::detail::binary_parser object responsible for parsing the custom binary file format.
-     * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
+     * @param[in] filename the file to parse
+     * @param[in] mode the file open mode
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
-    binary_parser(const std::string &file_name, file::mode mode, const communicator &comm);
+    binary_parser(const std::string &filename, file::mode mode, const communicator &comm);
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                  parsing                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Parse the **total** number of data points in the file.
      * @details Reads the total size from the first line of the file. The type must be of @ref sycl_lsh::index_type.
@@ -88,9 +82,7 @@ class binary_parser final : public file_parser<T> {
     [[nodiscard]] index_type parse_dims() const override;
     /**
      * @brief Parse the content of the file.
-     * @details Fills the last elements of the buffer on the last MPI rank such that all MPI ranks have te same number of data points.\n
-     *          Throws a `sycl_lsh::file_parsing_exception` if the file size doesn't match the header information or the actually read values
-     *          diverge from the number of values which should theoretically be available.
+     * @details Fills the last elements of the buffer on the last MPI rank such that all MPI ranks have te same number of data points.
      * @return the parsed data (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::file_parsing_exception if the file has been opened in write mode
@@ -105,13 +97,14 @@ class binary_parser final : public file_parser<T> {
      * @param[in] dims the number of dimensions of each value
      * @param[in] buffer the data to write to the file
      *
-     * @note Throws a `sycl_lsh::file_parsing_exception` if the file has been opened in read mode.
+     * @throws sycl_lsh::file_parsing_exception if the file has been opened in read mode
      */
     void write_content(index_type total_size, index_type dims, const aos_matrix<parsing_type> &buffer) const override;
 
   private:
     /**
      * @brief Check if the file content is stored using the correct parsing_type.
+     *
      * @throws sycl_lsh::file_parsing_exception if the size of the parsing type does not match the size used to write the file data
      */
     void validate_parsing_type() const;
@@ -121,8 +114,8 @@ class binary_parser final : public file_parser<T> {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename T>
-binary_parser<T>::binary_parser(const std::string &file_name, const file::mode mode, const communicator &comm) :
-    file_parser<T>{ file_name, mode, comm } {
+binary_parser<T>::binary_parser(const std::string &filename, const file::mode mode, const communicator &comm) :
+    file_parser<T>{ filename, mode, comm } {
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -132,7 +125,7 @@ template <typename T>
 void binary_parser<T>::validate_parsing_type() const {
     // read first line containing the size of the stored parsing_type in bytes
     std::uint64_t real_type_size{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), 0, &real_type_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_, 0, &real_type_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
     if (real_type_size != sizeof(real_type)) {
         throw file_parsing_exception{ fmt::format("The data was stored using a {} Byte type but is now read using a {} Byte type which is not supported!", real_type_size, sizeof(parsing_type)) };
     }
@@ -142,7 +135,7 @@ template <typename T>
 index_type binary_parser<T>::parse_total_size() const {
     // read the second line containing the total_size
     std::uint64_t total_size{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), sizeof(std::uint64_t), &total_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_, sizeof(std::uint64_t), &total_size, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
     return static_cast<index_type>(total_size);
 }
 
@@ -150,7 +143,7 @@ template <typename T>
 index_type binary_parser<T>::parse_dims() const {
     // read the third line containing the number of dimensions
     std::uint64_t dims{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_.get(), 2 * sizeof(std::uint64_t), &dims, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_read_at(file_, 2 * sizeof(std::uint64_t), &dims, 1, detail::mpi_datatype<std::uint64_t>(), MPI_STATUS_IGNORE));
     return static_cast<index_type>(dims);
 }
 
@@ -177,10 +170,10 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
 
     // check for correct type
     MPI_Offset file_size{};
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_get_size(file_.get(), &file_size));  // get file size
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_get_size(file_, &file_size));  // get file size
     file_size -= header_offset;                                            // subtract header information (size and dims)
     if (static_cast<index_type>(file_size) != total_size * dims * sizeof(parsing_type)) {
-        throw file_parsing_exception{ fmt::format("Broken file '{}'! File size ({}) doesn't match header information ({} * {} * sizeof(parsing_type) = {})", file_name_, file_size, total_size, dims, total_size * dims * sizeof(parsing_type)) };
+        throw file_parsing_exception{ fmt::format("Broken file '{}'! File size ({}) doesn't match header information ({} * {} * sizeof(parsing_type) = {})", filename_, file_size, total_size, dims, total_size * dims * sizeof(parsing_type)) };
     }
 
     const int comm_size = comm_.size();
@@ -192,18 +185,18 @@ auto binary_parser<T>::parse_content() const -> aos_matrix<parsing_type> {
 
     // check if the provided buffer is big enough
     if (correct_rank_size * dims > buffer.size()) {
-        throw file_parsing_exception{ fmt::format("Trying to write {} values to '{}', but the size of the buffer is only {}!", correct_rank_size * dims, file_name_, buffer.size()) };
+        throw file_parsing_exception{ fmt::format("Trying to write {} values to '{}', but the size of the buffer is only {}!", correct_rank_size * dims, filename_, buffer.size()) };
     }
 
     // read data
     MPI_Status status;
-    MPI_File_read_at(file_.get(), rank_offset, buffer.data(), correct_rank_size * dims, detail::mpi_datatype<parsing_type>(), &status);
+    MPI_File_read_at(file_, rank_offset, buffer.data(), correct_rank_size * dims, detail::mpi_datatype<parsing_type>(), &status);
 
     // check whether the correct number of values were read
     int read_count{};
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Get_count(&status, detail::mpi_datatype<parsing_type>(), &read_count));
     if (static_cast<index_type>(read_count) != correct_rank_size * dims) {
-        throw file_parsing_exception{ fmt::format("Read the wrong number of values on rank {} from '{}'!. Expected {} values but read {} values.", comm_rank, file_name_, correct_rank_size * dims, read_count) };
+        throw file_parsing_exception{ fmt::format("Read the wrong number of values on rank {} from '{}'!. Expected {} values but read {} values.", comm_rank, filename_, correct_rank_size * dims, read_count) };
     }
 
     // fill missing data points ON THE LAST MPI RANK with dummy points
@@ -227,18 +220,18 @@ void binary_parser<T>::write_content(const index_type total_size, const index_ty
 
     // write header information
     if (comm_.is_main_rank()) {
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write(file_.get(), &total_size, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
-        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write(file_.get(), &dims, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write(file_, &total_size, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write(file_, &dims, 1, detail::mpi_datatype<index_type>(), MPI_STATUS_IGNORE));
     }
     comm_.barrier();
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_seek_shared(file_.get(), 0, MPI_SEEK_END));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_seek_shared(file_, 0, MPI_SEEK_END));
 
     // write actual content
     index_type correct_rank_size = buffer.size() / dims;
     if (comm_.rank() == comm_.size() - 1) {
         correct_rank_size = total_size - ((comm_.size() - 1) * correct_rank_size);
     }
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write_ordered(file_.get(), buffer.data(), correct_rank_size * dims, detail::mpi_datatype<parsing_type>(), MPI_STATUS_IGNORE));
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_File_write_ordered(file_, buffer.data(), correct_rank_size * dims, detail::mpi_datatype<parsing_type>(), MPI_STATUS_IGNORE));
 }
 
 }  // namespace sycl_lsh::mpi::detail

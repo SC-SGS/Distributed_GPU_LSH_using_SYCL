@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief File parser for parsing `.arff` data files.
+ * @brief File parser for parsing .arff data files.
  */
 
 #ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_ARFF_PARSER_HPP
@@ -35,35 +35,29 @@ class arff_parser final : public file_parser<T> {
     /// The type of the data which should get parsed.
     using parsing_type = typename base_type::parsing_type;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                constructor                                                 //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Construct a new @ref sycl_lsh::mpi::detail::arff_parser object responsible for parsing
      *        [.arff](https://www.cs.waikato.ac.nz/~ml/weka/arff.html) files.
-     * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
+     * @param[in] filename the file to parse
+     * @param[in] mode the file open mode
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      *
      * @throws sycl_lsh::exception since .arff files aren't currently supported.
      */
-    arff_parser(const std::string &file_name, file::mode mode, const communicator &comm);
+    arff_parser(const std::string &filename, file::mode mode, const communicator &comm);
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                  parsing                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Parse the **total** number of data points in the file.
      * @return the total number of data points (`[[nodiscard]]`)
      *
-     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     * @throws sycl_lsh::not_implemented since .arff files aren't currently supported.
      */
     [[nodiscard]] index_type parse_total_size() const override;
     /**
      * @brief Parse the number of dimensions of each data point in the file.
      * @return the number of dimensions (`[[nodiscard]]`)
      *
-     * @throws sycl_lsh::not_implemented since `.arff` files aren't currently supported.
+     * @throws sycl_lsh::not_implemented since .arff files aren't currently supported.
      */
     [[nodiscard]] index_type parse_dims() const override;
     /**
@@ -88,9 +82,9 @@ class arff_parser final : public file_parser<T> {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename T>
-arff_parser<T>::arff_parser(const std::string &file_name, const file::mode mode, const communicator &comm) :
-    file_parser<T>{ file_name, mode, comm } {
-    throw not_implemented_exception{ "Parsing an '.arff' file is currently no supported! Maybe run data_sets/convert_arff_to_binary.py first?" };
+arff_parser<T>::arff_parser(const std::string &filename, const file::mode mode, const communicator &comm) :
+    file_parser<T>{ filename, mode, comm } {
+    throw not_implemented_exception{ "Parsing an '.arff' file is currently no supported! Maybe run utility_scripts/convert_arff_to_binary.py first?" };
 }
 
 // ---------------------------------------------------------------------------------------------------------- //

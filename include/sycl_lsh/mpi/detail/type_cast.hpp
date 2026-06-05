@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Implements conversion functions from builtin types to their respective *MPI_Datatype* equivalents.
+ * @brief Implements conversion functions from builtin types to their respective MPI_Datatype equivalents.
  */
 
 #ifndef SYCL_LSH_MPI_DETAIL_TYPE_CAST_HPP
@@ -17,7 +17,7 @@
 
 /**
  * @def SYCL_LSH_CREATE_MPI_DATATYPE_MAPPING
- * @brief Defines a macro to create all possible conversion from a C++ type to a MPI_Datatype.
+ * @brief Defines a macro to create all possible conversion from a C++ type to an MPI_Datatype.
  * @param[in] cpp_type the C++ type
  * @param[in] mpi_type the corresponding MPI_Datatype
  */
@@ -29,8 +29,8 @@ namespace sycl_lsh::mpi::detail {
 
 /**
  * @brief Tries to convert the given C++ type to its corresponding MPI_Datatype.
- * @details The definition is marked as **deleted** if `T` isn't representable as [`MPI_Datatype`](https://www.mpi-forum.org/docs/mpi-2.2/mpi22-report/node44.htm) or an enum.
- * @tparam T the type to convert to a MPI_Datatype
+ * @details The definition is marked as **deleted** if `T` isn't representable as [MPI_Datatype](https://www.mpi-forum.org/docs/mpi-2.2/mpi22-report/node44.htm) or an enum.
+ * @tparam T the type to convert to an MPI_Datatype
  * @return the corresponding MPI_Datatype (`[[nodiscard]]`)
  */
 template <typename T, std::enable_if_t<!std::is_enum_v<T>, bool> = true>

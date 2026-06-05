@@ -31,14 +31,14 @@ struct [[nodiscard]] shape {
     shape() noexcept = default;
     /**
      * @brief Construct a shape of size @p x_p x @p y_p x @p 1.
-     * @details Explicit to prevent conversions from `{ 2, 2 }` to a `sycl_lsh::detail::shape`.
+     * @details Explicit to prevent conversions from `{ 2, 2 }` to a @ref sycl_lsh::detail::shape.
      * @param[in] x_p the shape in x-dimension
      * @param[in] y_p the shape in y-dimension
      */
     explicit shape(std::size_t x_p, std::size_t y_p) noexcept;
     /**
      * @brief Construct a shape of size @p x_p x @p y_p x @p z_p.
-     * @details Explicit to prevent conversions from `{ 2, 2, 2 }` to a `sycl_lsh::detail::shape`.
+     * @details Explicit to prevent conversions from `{ 2, 2, 2 }` to a @ref sycl_lsh::detail::shape.
      * @param[in] x_p the shape in x-dimension
      * @param[in] y_p the shape in y-dimension
      * @param[in] z_p the shape in z-dimension
@@ -102,14 +102,13 @@ void swap(shape &lhs, shape &rhs) noexcept;
 namespace std {
 
 /**
- * @brief Hashing struct specialization in the `std` namespace for a shape.
- * @details Necessary to be able to use a shape, e.g., in a `std::unordered_map`.
+ * @brief Hashing struct specialization in the `std` namespace for a @ref sycl_lsh::detail::shape.
+ * @details Necessary to be able to use a shape, e.g., in a std::unordered_map.
  */
 template <>
 struct hash<sycl_lsh::detail::shape> {
     /**
      * @brief Overload the function call operator for a default_value.
-     * @details Based on Boost's hash_combine for hashing std::tuple<T, U, V>.
      * @param[in] s the shape to hash
      * @return the hash value of @p s
      */

@@ -47,10 +47,10 @@ constexpr bool has_only_named_args_v = !igor::has_unnamed_arguments<Args...>();
 }  // namespace detail
 
 /**
- * @brief A small wrapper struct encapsulating all options that control the locality sensitive hashing behavior.
+ * @brief A small wrapper struct encapsulating all options that control the Locality Sensitive Hashing behavior.
  */
 struct locality_sensitive_hashing_options {
-    /// The sued hash function type.
+    /// The used @ref sycl_lsh::hash_function_type.
     hash_function_type hash_function = hash_function_type::random_projections;
     /// The number of hash functions in the hash pool.
     index_type hash_pool_size{};
@@ -60,9 +60,9 @@ struct locality_sensitive_hashing_options {
     index_type num_hash_tables{};
     /// The size of each hash table.
     hash_value_type hash_table_size{};
-    /// The segment size for the random projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
+    /// The segment size for the @ref sycl_lsh::detail::hashing::random_projections hash functions: \f$h_{a, b} = \frac{a \cdot x + b}{w}\f$.
     real_type w{};
-    /// The number of cut-off points for the entropy-based hash functions.
+    /// The number of cut-off points for the @ref sycl_lsh::detail::hashing::entropy_based hash functions.
     index_type num_cut_off_points{};
 };
 
@@ -90,7 +90,7 @@ class options {
   public:
     /**
      * @brief Construct a @ref sycl_lsh::options class from the provided command line arguments.
-     * @param[in] comm the used MPI communicator
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] argc the number of command line arguments
      * @param[in] argv the provided command line arguments
      */
@@ -105,7 +105,7 @@ class options {
 
     /// The type of the used profiling.
     profiling_types profiling_type{};
-    /// The output file to save the profiling information to. Has no effect if profiling_type is set to none.
+    /// The output file to save the profiling information to. Has no effect if @ref sycl_lsh::options::profiling_type is set to @ref sycl_lsh::profiling_types::none .
     std::optional<std::string> profiling_file{};
 
     /// The file to which the calculated nearest-neighbors should be saved to.

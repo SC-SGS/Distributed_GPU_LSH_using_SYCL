@@ -16,12 +16,12 @@ namespace sycl_lsh::mpi {
 using custom_main_ptr = int (*)(int &, char **&);
 
 /**
- * @brief Initializes and finalizes the MPI environment with the required level of thread support (*MPI_THREAD_SERIALIZED*)
+ * @brief Initializes and finalizes the MPI environment with the required level of thread support (MPI_THREAD_SERIALIZED)
  *        and calls the custom main function denoted by @p func.
  * @param[in] argc the number of command line arguments
  * @param[in] argv the command line arguments
  * @param[in] func the custom main function to call
- * @return the return code of @p func or [*EXIT_FAILURE*](https://en.cppreference.com/w/cpp/utility/program/EXIT_status) if the
+ * @return the return code of @p func or [EXIT_FAILURE](https://en.cppreference.com/w/cpp/utility/program/EXIT_status) if the
  *         required level of thread support couldn't be satisfied
  */
 int main(int &argc, char **&argv, custom_main_ptr func);

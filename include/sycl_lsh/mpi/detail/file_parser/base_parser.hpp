@@ -34,24 +34,18 @@ class file_parser {
     /// The type of the data which should get parsed.
     using parsing_type = T;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                         constructor and destructor                                         //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
-     * @brief Construct a new @ref sycl_lsh::mpi::detail::file_parser object and opens the file @p file_name.
-     * @param[in] file_name the file to parse
-     * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
+     * @brief Construct a new @ref sycl_lsh::mpi::detail::file_parser object and opens the file @p filename.
+     * @param[in] filename the file to parse
+     * @param[in] mode the file open mode
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      */
-    file_parser(const std::string &file_name, file::mode mode, const communicator &comm);
+    file_parser(const std::string &filename, file::mode mode, const communicator &comm);
     /**
      * @brief Virtual destructor to enable proper inheritance.
      */
     virtual ~file_parser() = default;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                                  parsing                                                   //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Parse the **total** number of data points in the file.
      * @return the total number of data points (`[[nodiscard]]`)
@@ -88,13 +82,13 @@ class file_parser {
     virtual void write_content(index_type total_size, index_type dims, const aos_matrix<parsing_type> &buffer) const = 0;
 
   protected:
-    /// The used MPI communicator.
+    /// The used @ref sycl_lsh::mpi::communicator.
     communicator comm_;
     /// The file name. Mainly used for better error message.
-    std::string file_name_;
-    /// The used MPI file wrapper.
+    std::string filename_;
+    /// The used @ref sycl_lsh::mpi::detail::file wrapper.
     file file_;
-    /// The file access mode (read, write, read-write).
+    /// The file access mode (read, or write).
     file::mode mode_;
 };
 
@@ -102,10 +96,10 @@ class file_parser {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename T>
-file_parser<T>::file_parser(const std::string &file_name, const file::mode mode, const communicator &comm) :
+file_parser<T>::file_parser(const std::string &filename, const file::mode mode, const communicator &comm) :
     comm_{ comm },
-    file_name_{ file_name },
-    file_{ file_name, comm, mode },
+    filename_{ filename },
+    file_{ filename, comm, mode },
     mode_{ mode } { }
 
 // ---------------------------------------------------------------------------------------------------------- //

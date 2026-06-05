@@ -46,7 +46,7 @@ class hash_tables_base {
     /**
      * @brief Calculate the nearest-neighbors using **Locality Sensitive Hashing**.
      * @param[in] n_neighbors the number of nearest-neighbors to search for
-     * @param[in,out] query_data the data to calculate the nearest-neighbors for
+     * @param[in,out] query_data the @ref sycl_lsh::data_set to calculate the nearest-neighbors for
      * @param[in,out] indices the calculated nearest-neighbor indices
      * @param[in,out] distances the calculated nearest-neighbor distances
      */
@@ -54,16 +54,17 @@ class hash_tables_base {
 };
 
 /**
- * @brief Class which represents the hash tables used in the LSH algorithm. Performs the actual calculation of the k-nearest-neighbors.
- * @tparam HashFunction the type of the used hash function: random_projections, entropy_base, or mixed_hash_functions.
+ * @brief Class which represents the hash tables used in the LSH algorithm. Performs the actual calculation of the k nearest-neighbors.
+ * @tparam HashFunction the type of the used hash function: @ref sycl_lsh::detail::hashing::random_projections,
+ *                      @ref sycl_lsh::detail::hashing::entropy_based, or @ref sycl_lsh::detail::hashing::mixed_hash_functions.
  */
 template <typename HashFunction>
 class hash_tables : public hash_tables_base {
   public:
     /**
      * @brief Constructs a new @ref sycl_lsh::detail::hashing::hash_tables object initializing the LSH hash tables.
-     * @param[in] options the used LSH options
-     * @param[in] data the used @ref sycl_lsh::data_set representing the used data set
+     * @param[in] options the used @ref sycl_lsh::locality_sensitive_hashing_options
+     * @param[in] data the used @ref sycl_lsh::data_set representing the used data
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] profiler the performance profiler used to log runtime information, if requested
@@ -71,9 +72,9 @@ class hash_tables : public hash_tables_base {
     hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm, std::shared_ptr<profiler> profiler);
 
     /**
-     * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
+     * @brief Calculate the k nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
      * @param[in] k the number of nearest-neighbors to search for
-     * @param[in,out] query_data the data to calculate the nearest-neighbors for
+     * @param[in,out] query_data the @ref sycl_lsh::data_set to calculate the nearest-neighbors for
      * @param[in,out] indices the calculated nearest-neighbor indices
      * @param[in,out] distances the calculated nearest-neighbor distances
      */
@@ -81,10 +82,10 @@ class hash_tables : public hash_tables_base {
 
   private:
     /**
-     * @brief Performs the k-nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors @p knns.
+     * @brief Performs the k nearest-neighbor search given the data set @p data_buffer and already calculate nearest-neighbors.
      * @param[in] round the current round
      * @param[in] k the number of nearest neighbors to search for
-     * @param[in] attr the data attributes
+     * @param[in] attr the @ref sycl_lsh::data_set::attributes of the query @ref sycl_lsh::data_set
      * @param[in] received_data_ptr the data to perform the nearest-neighbors search on
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
@@ -93,7 +94,7 @@ class hash_tables : public hash_tables_base {
     [[nodiscard]] std::chrono::milliseconds search_nearest_neighbors_round(int round, index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
-     * @param[in] attr the data attributes
+     * @param[in] attr the @ref sycl_lsh::data_set::attributes of the query @ref sycl_lsh::data_set
      * @param[in,out] hash_values_count_ptr the number of data points per hash bucket
      */
     void count_hash_values(data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr);
@@ -104,19 +105,19 @@ class hash_tables : public hash_tables_base {
     void calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr);
     /**
      * @brief Fill each hash table based on the previously calculated offsets.
-     * @param[in] attr the data attributes
+     * @param[in] attr the @ref sycl_lsh::data_set::attributes of the query @ref sycl_lsh::data_set
      */
     void fill_hash_tables(data_set::attributes attr);
 
     /// The associated SYCL queue representing the device to run on.
     mutable sycl::queue queue_;
-    /// The associated MPI communicator.
+    /// The associated @ref sycl_lsh::mpi::communicator.
     mpi::communicator comm_;
 
     /// The SYCL device buffer for the data that is owned by this MPI rank.
     device_ptr<real_type> owning_data_ptr_;
 
-    /// The used options.
+    /// The used LSH hashing related @ref sycl_lsh::locality_sensitive_hashing_options.
     locality_sensitive_hashing_options lsh_options_;
     /// The used has functions.
     std::unique_ptr<HashFunction> hash_functions_;
@@ -125,7 +126,7 @@ class hash_tables : public hash_tables_base {
     /// The SYCL device buffer for the offsets.
     device_ptr<index_type> offsets_ptr_;
 
-    /// The optional performance profiler.
+    /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };
 };
 

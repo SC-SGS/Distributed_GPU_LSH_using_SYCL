@@ -48,24 +48,24 @@ class data_set {
      * @brief Small helper struct encapsulating all data set attributes.
      */
     struct attributes {
-        /// The **total** number of data points of the used data set.
+        /// The **total** number of data points of the used @ref sycl_lsh::data_set.
         index_type total_size{ 0 };
         /// The number of data points on **the current** MPI rank.
         index_type rank_size{ 0 };
-        /// The number of dimensions of each data point of the used data set.
+        /// The number of dimensions of each data point of the used @ref sycl_lsh::data_set.
         index_type dims{ 0 };
     };
 
     /**
-     * @brief Default construct an empty data set.
+     * @brief Default construct an empty @ref sycl_lsh::data_set.
      */
     data_set() = default;
 
     /**
-     * @brief Construct a new data_set from @p filename using the @p file_parser type.
+     * @brief Construct a new @ref sycl_lsh::data_set from @p filename using the @p file_parser type.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] filename the file to parse
-     * @param[in] file_parser the file parser type
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
      * @param[in] named_args optional additional named arguments (sycl_lsh::profiler)
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
@@ -84,8 +84,8 @@ class data_set {
     }
 
     /**
-     * @brief Construct a new data_set from @p filename using the @p file_parser type.
-     * @details Uses the binary file parser by default.
+     * @brief Construct a new @ref sycl_lsh::data_set from @p filename using the @p file_parser type.
+     * @details Uses the @ref sycl_lsh::mpi::detail::binary_parser by default.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] filename the file to parse
      * @param[in] named_args optional additional named arguments (sycl_lsh::profiler)
@@ -95,14 +95,14 @@ class data_set {
         data_set{ comm, filename, mpi::file_parser_type::binary, std::forward<NamedArgs>(named_args)... } { }
 
     /**
-     * @brief Return the data points in this data set.
+     * @brief Return the data points in this @ref sycl_lsh::data_set.
      * @return the data points (`[[nodiscard]]`)
      */
     [[nodiscard]] const aos_matrix<real_type> &data() const { return *data_ptr_; }
 
     /**
-     * @brief Return the data attributes of this data set.
-     * @return the data set attributes (`[[nodiscard]]`)
+     * @brief Return the data attributes of this @ref sycl_lsh::data_set.
+     * @return the @ref sycl_lsh::data_set::attributes (`[[nodiscard]]`)
      */
     [[nodiscard]] attributes get_attributes() const noexcept { return attributes_; }
 
@@ -111,24 +111,24 @@ class data_set {
      * @brief Initialize the data from @p filename using the @p file_parser type.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] filename the file to parse
-     * @param[in] file_parser the file parser type
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
      */
     void init(const mpi::communicator &comm, const std::string &filename, mpi::file_parser_type file_parser);
 
     /**
-     * @brief Return the data points in this data set in a mutable way.
+     * @brief Return the data points in this @ref sycl_lsh::data_set in a mutable way.
      * @attention Must be used with caution!
      * @return the data points (`[[nodiscard]]`)
      */
     [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
-    /// The associated data attributes.
+    /// The associated @ref sycl_lsh::data_set::attributes.
     attributes attributes_{};
 
-    /// The host buffer represented as a matrix.
+    /// The host buffer represented as a @ref sycl_lsh::aos_matrix.
     std::shared_ptr<aos_matrix<real_type>> data_ptr_{ nullptr };
 
-    /// The optional performance profiler.
+    /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };
 };
 

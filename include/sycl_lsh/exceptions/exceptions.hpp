@@ -20,13 +20,13 @@
 namespace sycl_lsh {
 
 /**
- * @brief Base class for all custom exception types. Forwards its message to [`std::runtime_error`](https://en.cppreference.com/w/cpp/error/runtime_error)
+ * @brief Base class for all custom exception types. Forwards its message to [std::runtime_error](https://en.cppreference.com/w/cpp/error/runtime_error)
  *        and saves the exception name and the call side source location information.
  */
 class exception : public std::runtime_error {
   public:
     /**
-     * @brief Construct a new exception forwarding the exception message to [`std::runtime_error`](https://en.cppreference.com/w/cpp/error/runtime_error).
+     * @brief Construct a new exception forwarding the exception message to [std::runtime_error](https://en.cppreference.com/w/cpp/error/runtime_error).
      * @param[in] msg the exception's `what()` message
      * @param[in] class_name the name of the thrown exception class
      * @param[in] loc the exception's call side information
@@ -60,7 +60,7 @@ class exception : public std::runtime_error {
 class cmd_parser_exit : public exception {
   public:
     /**
-     * @brief Construct a new exception forwarding the exit code and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exit code and source location to @ref sycl_lsh::exception .
      * @param[in] exit_code the exit code
      * @param[in] loc the exception's call side information
      */
@@ -83,7 +83,7 @@ class cmd_parser_exit : public exception {
 class not_implemented_exception : public exception {
   public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -96,7 +96,7 @@ class not_implemented_exception : public exception {
 class mpi_exception : public exception {
   public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -109,7 +109,7 @@ class mpi_exception : public exception {
 class file_exception : public exception {
   public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -122,7 +122,7 @@ class file_exception : public exception {
 class file_parsing_exception : public exception {
   public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -133,9 +133,9 @@ class file_parsing_exception : public exception {
  * @brief Exception type thrown if something went wrong when using the device_ptr wrapper.
  */
 class device_ptr_exception : public exception {
-public:
+  public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -146,9 +146,9 @@ public:
  * @brief Exception type thrown if something went wrong when using the matrix class.
  */
 class matrix_exception : public exception {
-public:
+  public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */
@@ -159,9 +159,9 @@ public:
  * @brief Exception type thrown if any of the Locality Sensitive Hashing related options is invalid.
  */
 class invalid_lsh_option_exception : public exception {
-public:
+  public:
     /**
-     * @brief Construct a new exception forwarding the exception message and source location to `sycl_lsh::exception`.
+     * @brief Construct a new exception forwarding the exception message and source location to @ref sycl_lsh::exception .
      * @param[in] msg the exception's `what()` message
      * @param[in] loc the exception's call side information
      */

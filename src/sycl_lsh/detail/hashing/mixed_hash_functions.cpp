@@ -32,7 +32,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     // CREATE RANDOM PROJECTIONS HASH FUNCTIONS
     //
 
-    // create hash pool only on MPI master rank
+    // create hash pool only on the MPI main rank
     if (comm.is_main_rank()) {
 // create random generators
 #if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)

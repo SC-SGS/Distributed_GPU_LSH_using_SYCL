@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Implements the `hash_combine()` function for different hash value type sizes.
+ * @brief Implements the @ref sycl_lsh::detail::hashing::hash_combine() function for different hash value type sizes.
  */
 
 #ifndef SYCL_LSH_DETAIL_HASHING_HASH_COMBINE_HPP
@@ -15,7 +15,7 @@
 namespace sycl_lsh::detail::hashing {
 
 /**
- * @brief Combine two hash values into a new one. Base on boost::hash_combine.
+ * @brief Combine two std::uint32_t hash values into a new one. Base on boost::hash_combine.
  * @param[in] seed the seed
  * @param[in] val the hash value
  * @return the combined hash value (`[[nodiscard]]`)
@@ -32,7 +32,7 @@ namespace sycl_lsh::detail::hashing {
 }
 
 /**
- * @brief Combine two hash values into a new one. Base on boost::hash_combine.
+ * @brief Combine two std::uint64_t hash values into a new one. Base on boost::hash_combine.
  * @param[in] seed the seed
  * @param[in] val the hash value
  * @return the combined hash value (`[[nodiscard]]`)

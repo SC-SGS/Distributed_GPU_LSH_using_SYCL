@@ -23,7 +23,7 @@
 #include <type_traits>   // std::enable_if_t, std::is_arithmetic_v, std::is_same_v
 
 /**
- * @brief Shorthand macro for an easier [`std::enable_if`](https://en.cppreference.com/w/cpp/types/enable_if).
+ * @brief Shorthand macro for an easier [std::enable_if_t](https://en.cppreference.com/w/cpp/types/enable_if).
  */
 #define SYCL_LSH_REQUIRES(...) std::enable_if_t<(__VA_ARGS__), bool> = true
 
@@ -36,14 +36,14 @@ template <typename>
 constexpr bool always_false_v = false;
 
 /**
- * @brief Type-dependent expression that always evaluates to `false`.
+ * @brief Value-dependent expression that always evaluates to `false`.
  */
 template <auto>
 constexpr bool always_false_non_type_v = false;
 
 /**
  * @brief Invokes undefined behavior. Used to mark code paths that may never be reachable.
- * @details See: C++23 [`std::unreachable`](https://en.cppreference.com/w/cpp/utility/unreachable)
+ * @details See: C++23 [std::unreachable](https://en.cppreference.com/w/cpp/utility/unreachable)
  */
 [[noreturn]] inline void unreachable() {
     // Uses compiler specific extensions if possible.
@@ -79,7 +79,7 @@ using atomic_op = sycl::atomic_ref<T, sycl::memory_order::relaxed, sycl::memory_
 
 /**
  * @brief Attempt to convert the value represented by the
- *        [`std::string`](https://en.cppreference.com/w/cpp/string/basic_string) @p str to a value if type `T`.
+ *        [std::string](https://en.cppreference.com/w/cpp/string/basic_string) @p str to a value if type `T`.
  * @tparam T the type to which convert the given string
  * @param[in] str the string to convert
  * @return the value if type `T` represented by @p str (`[[nodiscard]]`)

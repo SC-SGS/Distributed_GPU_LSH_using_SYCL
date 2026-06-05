@@ -26,9 +26,6 @@ namespace sycl_lsh::mpi {
  */
 class communicator {
   public:
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                        constructors and destructor                                         //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Construct a new @ref sycl_lsh::mpi::communicator wrapping MPI_COMM_WORLD.
      */
@@ -40,9 +37,6 @@ class communicator {
      */
     explicit communicator(MPI_Comm comm) noexcept;
 
-    // ---------------------------------------------------------------------------------------------------------- //
-    //                                         MPI communicator functions                                         //
-    // ---------------------------------------------------------------------------------------------------------- //
     /**
      * @brief Returns the size of the MPI communicator.
      * @return the communicator size (`[[nodiscard]]`)
@@ -74,13 +68,13 @@ class communicator {
      * @brief Add implicit conversion operator back to a native MPI communicator.
      * @return The wrapped MPI communicator (`[[nodiscard]]`)
      */
-    [[nodiscard]] operator MPI_Comm() const { return comm_; }  // NOLINT: implicit conversion desired
+    [[nodiscard]] operator MPI_Comm() const noexcept { return comm_; }  // NOLINT: implicit conversion desired
 
     /**
      * @brief Send-receive the @p data in a round-robin scheme, i.e., rank i sends it data to rank i + 1 and receives the data from rank i - 1.
      * @tparam T the type of the data to exchange
      * @tparam layout the matrix's memory layout
-     * @param[in,out] data the sycl_lsh::matrix wrapping the data to exchange
+     * @param[in,out] data the @ref sycl_lsh::matrix wrapping the data to exchange
      */
     template <typename T, memory_layout layout>
     void send_receive_round_robin(matrix<T, layout> &data) const {
@@ -94,10 +88,10 @@ class communicator {
     }
 
     /**
-     * @brief Gather the @p value from each MPI rank on the `communicator::main_rank()`.
+     * @brief Gather the @p value from each MPI rank on the @ref sycl_lsh::mpi::communicator::main_rank().
      * @tparam T the type of the values to gather
      * @param[in] value the value to gather at the main MPI rank
-     * @return a `std::vector` containing all gathered values (`[[nodiscard]]`)
+     * @return a std::vector containing all gathered values (`[[nodiscard]]`)
      */
     template <typename T>
     [[nodiscard]] std::vector<T> gather(T value) const {
@@ -112,9 +106,9 @@ class communicator {
     }
 
     /**
-     * @brief Gather the @p str from all MPI ranks in this communicator and return it on the master rank only!
-     * @param[in] str the string to retrieve on the MPI master rank from each rank
-     * @return the vector of strings from each MPI rank (`[[nodiscard]]`)
+     * @brief Gather the @p str from all MPI ranks in this communicator and return it on the main rank only!
+     * @param[in] str the string to retrieve on the MPI main rank from each rank
+     * @return the std::vector of strings from each MPI rank (`[[nodiscard]]`)
      */
     [[nodiscard]] std::vector<std::string> gather(const std::string &str) const;
 

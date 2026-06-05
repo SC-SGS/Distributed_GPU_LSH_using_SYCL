@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Implements a nearest-neighbors estimator using locality sensitive hashing.
+ * @brief Implements a nearest-neighbors estimator using Locality Sensitive Hashing (LSH).
  */
 
 #ifndef SYCL_LSH_NEAREST_NEIGHBORS_HPP
@@ -39,7 +39,7 @@ class nearest_neighbors {
      * @param[in] queue the SYCL queue containing the device used to perform the nearest-neighbors search
      * @param[in] named_args the optional named arguments
      *
-     * @throws sycl_lsh::exception if the number of nearest-neighbors smaller than 1
+     * @throws sycl_lsh::exception if the number of nearest-neighbors is smaller than 1
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
     nearest_neighbors(const mpi::communicator comm, sycl::queue queue, NamedArgs &&...named_args) :
@@ -75,7 +75,7 @@ class nearest_neighbors {
     }
 
     /**
-     * @brief Fit the nearest neighbors estimator from the training dataset.
+     * @brief Fit the nearest neighbors estimator from the training @ref sycl_lsh::data_set.
      * @param[in] X the training data
      *
      * @throws sycl_lsh::exception if the data set @p X is empty
@@ -84,14 +84,14 @@ class nearest_neighbors {
 
     /**
      * @brief Find the nearest-neighbors of a point using the training data. Returns indices of and distances to the neighbors of each point.
-     * @details Calculates the nearest-neighbors for the data set that was also used for the call to fit().
+     * @details Calculates the nearest-neighbors for the data set that was also used for the call to @ref sycl_lsh::nearest_neighbors::fit().
      * @tparam NamedArgs the type of optional named arguments
      * @param[in] named_args the optional named arguments
      * @return the indices of and distances to the neighbors of each point (`[[nodiscard]]`)
      *
-     * @throws sycl_lsh::exception if fit() hasn't been called yet
-     * @throws sycl_lsh::exception if the data set @p X is empty
-     * @throws sycl_lsh::exception if the used fit data set and @p X have different number of dimensions
+     * @throws sycl_lsh::exception if @ref sycl_lsh::nearest_neighbors::fit() hasn't been called yet
+     * @throws sycl_lsh::exception if the @ref sycl_lsh::data_set @p X is empty
+     * @throws sycl_lsh::exception if the used @ref sycl_lsh::nearest_neighbors::fit() @ref sycl_lsh::data_set and @p X have different number of dimensions
      * @throws sycl_lsh::exception if @p k is smaller than `1` or larger than the data set's rank_size
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
@@ -102,13 +102,13 @@ class nearest_neighbors {
     /**
      * @brief Find the nearest-neighbors of all points in @p X Returns indices of and distances to the neighbors of each point.
      * @tparam NamedArgs the type of optional named arguments
-     * @param[in] X the data set to calculate the nearest-neighbors for
+     * @param[in] X the @ref sycl_lsh::data_set to calculate the nearest-neighbors for
      * @param[in] named_args the optional named arguments
      * @return the indices of and distances to the neighbors of each point in @p X (`[[nodiscard]]`)
      *
-     * @throws sycl_lsh::exception if fit() hasn't been called yet
-     * @throws sycl_lsh::exception if the data set @p X is empty
-     * @throws sycl_lsh::exception if the used fit data set and @p X have different number of dimensions
+     * @throws sycl_lsh::exception if @ref sycl_lsh::nearest_neighbors::fit() hasn't been called yet
+     * @throws sycl_lsh::exception if the @ref sycl_lsh::data_set @p X is empty
+     * @throws sycl_lsh::exception if the used @ref sycl_lsh::nearest_neighbors::fit() @ref sycl_lsh::data_set and @p X have different number of dimensions
      * @throws sycl_lsh::exception if @p k is smaller than `1` or larger than the data set's rank_size
      */
     template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
@@ -139,14 +139,14 @@ class nearest_neighbors {
   private:
     /**
      * @brief Find the nearest-neighbors of a point using the training data. Returns indices of and distances to the neighbors of each point.
-     * @param[in] X the data set to calculate the nearest-neighbors for
+     * @param[in] X the @ref sycl_lsh::data_set to calculate the nearest-neighbors for
      * @param[in] used_n_neighbors the number of nearest-neighbors to calculate
      * @param[in] return_distances whether the nearest-neighbor distances should be returned
      * @return the indices of and distances to the neighbors of each point (`[[nodiscard]]`)
      */
     [[nodiscard]] nearest_neighbors_result kneighbors_impl(data_set X, index_type used_n_neighbors, bool return_distances) const;
 
-    /// The associated MPI communicator.
+    /// The associated @ref sycl_lsh::mpi::communicator.
     mpi::communicator comm_;
     /// The SYCL queue including the associated device used to perform the nearest-neighbors search.
     sycl::queue queue_;
@@ -154,15 +154,15 @@ class nearest_neighbors {
     /// The number of nearest-neighbors to calculate.
     index_type n_neighbors_{ 5 };
 
-    /// The data used in the call to fit.
+    /// The @ref sycl_lsh::data_set used in the call to @ref sycl_lsh::nearest_neighbors::fit().
     data_set data_{};
 
-    /// The options controlling the locality sensitive hashing behavior.
+    /// The @ref sycl_lsh::locality_sensitive_hashing_options controlling the locality sensitive hashing behavior.
     locality_sensitive_hashing_options lsh_options_{};
-    /// The hash tables used in the locality sensitive hashing algorithm.
+    /// The @ref sycl_lsh:detail::hashing::hash_tables: used in the locality sensitive hashing algorithm.
     std::unique_ptr<detail::hashing::hash_tables_base> hash_tables_{ nullptr };
 
-    /// The optional performance profiler.
+    /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };
 };
 

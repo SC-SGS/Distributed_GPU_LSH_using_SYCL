@@ -3,7 +3,7 @@
  * @author Marcel Breyer
  * @date 2020-today
  *
- * @brief Factory function to create a specific file parser based on the provided command line argument.
+ * @brief Factory function to create a specific file parser.
  */
 
 #ifndef SYCL_LSH_MPI_DETAIL_FILE_PARSER_FILE_PARSER_HPP
@@ -13,7 +13,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"                      // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/file_parser/arff_parser.hpp"    // sycl_lsh::mpi::detail::arff_parser
 #include "sycl_lsh/mpi/detail/file_parser/base_parser.hpp"    // sycl_lsh::mpi::detail::file_parser
-#include "sycl_lsh/mpi/detail/file_parser/binary_parser.hpp"  // sycl_lsh::mpi::detail::arff_parser
+#include "sycl_lsh/mpi/detail/file_parser/binary_parser.hpp"  // sycl_lsh::mpi::detail::binary_parser
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"           // sycl_lsh::mpi::detail::file::mode
 #include "sycl_lsh/mpi/file_parser_types.hpp"                 // sycl_lsh::mpi::file_parser_type
 
@@ -22,11 +22,11 @@
 namespace sycl_lsh::mpi::detail {
 
 /**
- * @brief Creates a new file parser based on the file parser type defined during the command line invocation.
+ * @brief Creates a new file parser.
  * @tparam parsing_type the type to parse
  * @param[in] filename the name of the file
  * @param[in] file_parser the type of the file parser to use
- * @param[in] mode the file open mode (@ref sycl_lsh::mpi::detail::file::mode::read or @ref sycl_lsh::mpi::detail::file::mode::write)
+ * @param[in] mode the file open mode
  * @param[in] comm the used @ref sycl_lsh::mpi::communicator
  * @return a file parser with the requested type (`[[nodiscard]]`)
  */

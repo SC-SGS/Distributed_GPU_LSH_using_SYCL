@@ -54,7 +54,7 @@ class nearest_neighbors_result {
     /**
      * @brief Return the indices of the point @p idx on this MPI rank.
      * @details Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
-     *         value of sycl_lsh::nearest_neighbor_results::indices may be more performant.
+     *         value of @ref sycl_lsh::nearest_neighbors_result::indices() may be more performant.
      * @param[in] idx the index of the point
      * @return the calculated nearest-neighbor indices of point @p idx (`[[nodiscard`]])
      *
@@ -71,7 +71,7 @@ class nearest_neighbors_result {
     /**
      * @brief Return the distances of the point @p idx on this MPI rank if reporting them was enabled.
      * @details Performs a dynamic memory allocation. Therefore, iterating over the columns in row @p idx in the return
-     *         value of sycl_lsh::nearest_neighbor_results::distances may be more performant.
+     *         value of @ref sycl_lsh::nearest_neighbors_result::distances() may be more performant.
      * @param[in] idx the index of the point
      * @return the calculated nearest-neighbor distances of point @p idx (`[[nodiscard`]])
      *
@@ -81,16 +81,16 @@ class nearest_neighbors_result {
     [[nodiscard]] std::vector<real_type> distances(std::size_t idx) const;
 
     /**
-     * @brief Save the calculated indices from ALL MPI ranks to the @p filename.
+     * @brief Save the calculated indices from **all** MPI ranks to the @p filename.
      * @param[in] filename the filename to write the indices to
-     * @param[in] file_parser the file parser type
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
      */
     void save_indices(const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary) const;
 
     /**
-     * @brief Save the calculated distances from ALL MPI ranks to the @p filename if reporting them was enabled.
+     * @brief Save the calculated distances from **all** MPI ranks to the @p filename if reporting them was enabled.
      * @param[in] filename the filename to write the distances to
-     * @param[in] file_parser the file parser type
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
      *
      * @throws sycl_lsh::exception if distances reporting was not enabled
      */
@@ -107,7 +107,7 @@ class nearest_neighbors_result {
     /**
      * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
      * @param[in] filename the filename storing the correct indices
-     * @param[in] file_parser the file parser type
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
      * @return the resulting recall (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::exception if the shape of the indices read from @p filename does not match with the shape of the calculated ones
@@ -117,7 +117,7 @@ class nearest_neighbors_result {
     /**
      * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
      * @param[in] correct_distances the correct nearest-neighbor distances
-     * @return a `std::tuple` containing the resulting error ratio, the number of points for which no k nearest-neighbors could be
+     * @return a std::tuple containing the resulting error ratio, the number of points for which no k nearest-neighbors could be
      *         found and the total number of nearest-neighbors that couldn't be found (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::exception if the shape of the @p correct_distances does not match with the shape of the calculated ones
@@ -127,8 +127,8 @@ class nearest_neighbors_result {
     /**
      * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
      * @param[in] filename the filename storing the correct distances
-     * @param[in] file_parser the file parser type
-     * @return a `std::tuple` containing the resulting error ratio, the number of points for which no k nearest-neighbors could be
+     * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
+     * @return a std::tuple containing the resulting error ratio, the number of points for which no k nearest-neighbors could be
      *         found and the total number of nearest-neighbors that couldn't be found (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::exception if the shape of the distances read from @p filename does not match with the shape of the calculated ones
@@ -140,33 +140,33 @@ class nearest_neighbors_result {
     /**
      * @brief Create a new nearest-neighbor result by only providing the calculated indices.
      * @param[in] comm the associated @ref sycl_lsh::mpi::communicator
-     * @param[in] data the queried data set
+     * @param[in] data the queried @ref sycl_lsh::data_set
      * @param[in] indices the calculated nearest-neighbor indices
-     * @param[in] profiler the performance profiler
+     * @param[in] profiler the optional @ref sycl_lsh::profiler
      */
     explicit nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, std::shared_ptr<profiler> profiler);
     /**
      * @brief Create a new nearest-neighbor result by providing the calculated indices and distances.
      * @param[in] comm the associated @ref sycl_lsh::mpi::communicator
-     * @param[in] data the queried data set
+     * @param[in] data the queried @ref sycl_lsh::data_set
      * @param[in] indices the calculated nearest-neighbor indices
      * @param[in] distances the calculated nearest-neighbor distances
-     * @param[in] profiler the performance profiler
+     * @param[in] profiler the optional @ref sycl_lsh::profiler
      */
     nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances, std::shared_ptr<profiler> profiler);
 
-    /// THe associated MPI communicator.
+    /// THe associated @ref sycl_lsh::mpi::communicator.
     mpi::communicator comm_;
 
-    /// The data set for which the nearest-neighbors were calculated.
+    /// The @ref sycl_lsh::data_set for which the nearest-neighbors were calculated.
     data_set data_;
 
-    /// Indices of the nearest points in the population matrix.
+    /// Indices of the nearest points in the population @ref sycl_lsh::aos_matrix.
     aos_matrix<index_type> indices_;
-    /// Matrix representing the lengths to nearest-neighbors points, only present if return_distance was set to true.
+    /// The @ref sycl_lsh::aos_matrix representing the lengths to nearest-neighbors points, only present if return_distance was set to true.
     std::optional<aos_matrix<real_type>> distances_;
 
-    /// The optional performance profiler.
+    /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };
 };
 
