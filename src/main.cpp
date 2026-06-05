@@ -27,11 +27,11 @@ int custom_main(int &argc, char **&argv) {
 
     // create MPI communicator
     const sycl_lsh::mpi::communicator comm{};
-    sycl_lsh::mpi::detail::log(comm, "Using {} MPI rank(s) for the nearest-neighbor calculation.\n\n", comm.size());
 
     try {
         // parse options and print
         const sycl_lsh::options opt(comm, argc, argv);
+        sycl_lsh::mpi::detail::log(comm, "Using {} MPI rank(s) for the nearest-neighbor calculation.\n\n", comm.size());
         sycl_lsh::mpi::detail::log(comm, "{}\n", opt);
 
         // create a profiler
