@@ -11,16 +11,21 @@
 #pragma once
 
 #include "sycl_lsh/constants.hpp"         // sycl_lsh::real_type
+#include "sycl_lsh/detail/utility.hpp"    // SYCL_LSH_REQUIRES
 #include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
-#include "sycl_lsh/options.hpp"           // sycl_lsh::options
+#include "sycl_lsh/options.hpp"           // sycl_lsh::options, sycl_lsh::detail::has_only_named_args_v
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
+#include "igor/igor.hpp"  // igor::parser
 
 #include <iosfwd>  // std::ostream forward declaration
 #include <string>  // std::string
 
 namespace sycl_lsh {
+
+// forward declare profiler class (to break circular dependency)
+class profiler;
 
 namespace detail::hashing {
 
@@ -55,13 +60,39 @@ class data_set {
      * @brief Default construct an empty data set.
      */
     data_set() = default;
+
     /**
      * @brief Construct a new data_set from @p filename using the @p file_parser type.
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] filename the file to parse
      * @param[in] file_parser the file parser type
+     * @param[in] named_args optional additional named arguments (sycl_lsh::profiler)
      */
-    data_set(const mpi::communicator &comm, const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary);
+    template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
+    data_set(const mpi::communicator &comm, const std::string &filename, const mpi::file_parser_type file_parser, NamedArgs &&...named_args) {
+        // check igor parameter
+        const igor::parser parser{ std::forward<NamedArgs>(named_args)... };
+
+        // check whether a performance profiler has been provided
+        if constexpr (parser.has(sycl_lsh::perf_profiler)) {
+            // update the profiler
+            profiler_ = static_cast<decltype(profiler_)>(parser(sycl_lsh::perf_profiler));
+        }
+
+        // initialize data
+        this->init(comm, filename, file_parser);
+    }
+
+    /**
+     * @brief Construct a new data_set from @p filename using the @p file_parser type.
+     * @detail Uses the binary file parser by default.
+     * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] filename the file to parse
+     * @param[in] named_args optional additional named arguments (sycl_lsh::profiler)
+     */
+    template <typename... NamedArgs, SYCL_LSH_REQUIRES(detail::has_only_named_args_v<NamedArgs...>)>
+    data_set(const mpi::communicator &comm, const std::string &filename, NamedArgs &&...named_args) :
+        data_set{ comm, filename, mpi::file_parser_type::binary, std::forward<NamedArgs>(named_args)... } { }
 
     /**
      * @brief Return the data points in this data set.
@@ -76,6 +107,9 @@ class data_set {
     [[nodiscard]] attributes get_attributes() const noexcept { return attributes_; }
 
   private:
+    // initialize the internal data; necessary to be able to do it in the cpp file (constructors are templated)
+    void init(const mpi::communicator &comm, const std::string &filename, mpi::file_parser_type file_parser);
+
     // Modifying getter. Only used in the hash_tables class for the send_receive_round_robin implementation.
     [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
@@ -84,6 +118,9 @@ class data_set {
 
     /// The host buffer represented as a matrix.
     std::shared_ptr<aos_matrix<real_type>> data_ptr_{ nullptr };
+
+    /// The optional performance profiler.
+    std::shared_ptr<profiler> profiler_{ nullptr };
 };
 
 /**

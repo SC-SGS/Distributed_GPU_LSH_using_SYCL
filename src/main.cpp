@@ -23,16 +23,25 @@ int custom_main(int &argc, char **&argv) {
     const sycl_lsh::mpi::communicator comm{};
     sycl_lsh::mpi::detail::log(comm, "Using {} MPI rank(s) for the nearest-neighbor calculation.\n\n", comm.size());
 
+#if defined(SYCL_LSH_BENCHMARK_ENABLED)
+    auto profiler = std::make_shared<sycl_lsh::profiler>();
+#else
+    std::shared_ptr<sycl_lsh::profiler> profiler{ nullptr };
+#endif
+
     try {
         // parse options and print
         const sycl_lsh::options opt(comm, argc, argv);
         sycl_lsh::mpi::detail::log(comm, "{}\n", opt);
+        if (profiler != nullptr) {
+            profiler->add_entry(opt);
+        }
 
         // parse data and print data attributes
-        sycl_lsh::data_set data{ comm, opt.data_file };
+        sycl_lsh::data_set data{ comm, opt.data_file, sycl_lsh::perf_profiler = profiler };
 
         // create a nearest-neighbors object performing the unsupervised learning task
-        sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options };
+        sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options, sycl_lsh::perf_profiler = profiler };
 
         // fit the data
         nn.fit(data);
@@ -62,6 +71,11 @@ int custom_main(int &argc, char **&argv) {
                 sycl_lsh::mpi::detail::log(comm, "error ratio: {:.4f} (for {} points a total of {} nearest-neighbors couldn't be found)\n", error_ratio, num_points, num_knn_not_found);
             }
         }
+
+        if (profiler != nullptr) {
+            profiler->dump(std::cout);
+        }
+
     } catch (const sycl_lsh::cmd_parser_exit &e) {
         return e.exit_code();
     } catch (const sycl_lsh::exception &e) {

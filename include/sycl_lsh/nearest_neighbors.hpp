@@ -17,6 +17,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"            // sycl_lsh::mpi::communicator
 #include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::detail::{has_only_named_args_v, sanity_check_locality_sensitive_hashing_options}
+#include "sycl_lsh/profiler.hpp"                    // sycl_lsh::profiler
 
 #include "igor/igor.hpp"  // igor::parser
 
@@ -59,6 +60,12 @@ class nearest_neighbors {
             lsh_options_ = static_cast<decltype(lsh_options_)>(parser(sycl_lsh::lsh_options));
             // perform some sanity checks
             detail::sanity_check_locality_sensitive_hashing_options(lsh_options_);
+        }
+
+        // check whether a performance profiler has been provided
+        if constexpr (parser.has(sycl_lsh::perf_profiler)) {
+            // update the profiler
+            profiler_ = static_cast<decltype(profiler_)>(parser(sycl_lsh::perf_profiler));
         }
 
         // perform some sanity checks
@@ -148,6 +155,9 @@ class nearest_neighbors {
     locality_sensitive_hashing_options lsh_options_{};
     /// The hash tables used in the locality sensitive hashing algorithm.
     std::unique_ptr<detail::hashing::hash_tables_base> hash_tables_{ nullptr };
+
+    /// The optional performance profiler.
+    std::shared_ptr<profiler> profiler_{ nullptr };
 };
 
 }  // namespace sycl_lsh

@@ -49,6 +49,7 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors_result.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiler.cpp
 )
 
 # create library
@@ -108,6 +109,9 @@ target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC
 
 # add math defines to library
 target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE _USE_MATH_DEFINES)
+
+# add additional compile definition(s)
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
 
 ########################################################################################################################
 #                                                   add SYCL support                                                   #
@@ -207,6 +211,7 @@ if (SYCL_LSH_TARGET_ARCH STREQUAL "spir64_x86_64")
     else ()
         message(FATAL_ERROR "Unrecognized CPU target architecture \"${SYCL_LSH_CPU_VECTORIZATION_TARGET}\". Allowed values are: avx512, avx2, avx, sse.")
     endif ()
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_CPU_VECTORIZATION_TARGET="${SYCL_LSH_CPU_VECTORIZATION_TARGET}")
 endif ()
 
 ########################################################################################################################
@@ -319,6 +324,7 @@ else ()
 
     list(FIND SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL_LSH_TIMER_IDX})
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER_NAME="${SYCL_LSH_TIMER}")
 endif ()
 
 # add custom assertions
@@ -348,7 +354,8 @@ endif ()
 set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
 if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
     message(STATUS "Enabled benchmarking using the file: \"${SYCL_LSH_BENCHMARK}\"")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK_ENABLED)
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK_FILE="${SYCL_LSH_BENCHMARK}")
 endif ()
 
 ########################################################################################################################

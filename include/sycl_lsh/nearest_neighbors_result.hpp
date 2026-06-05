@@ -15,6 +15,7 @@
 #include "sycl_lsh/matrix.hpp"                 // sycl_lsh::aos_matrix
 #include "sycl_lsh/mpi/communicator.hpp"       // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser_type
+#include "sycl_lsh/profiler.hpp"               // sycl_lsh::profiler
 
 #include <cstddef>   // std::size_t
 #include <optional>  // std::optional
@@ -137,9 +138,9 @@ class nearest_neighbors_result {
 
   private:
     // Create a new nearest-neighbor result by only providing the calculated indices.
-    explicit nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices);
+    explicit nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, std::shared_ptr<profiler> profiler);
     // Create a new nearest-neighbor result by providing the calculated indices and distances.
-    nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances);
+    nearest_neighbors_result(mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances, std::shared_ptr<profiler> profiler);
 
     /// THe associated MPI communicator.
     mpi::communicator comm_;
@@ -151,6 +152,9 @@ class nearest_neighbors_result {
     aos_matrix<index_type> indices_;
     /// Matrix representing the lengths to nearest-neighbors points, only present if return_distance was set to true.
     std::optional<aos_matrix<real_type>> distances_;
+
+    /// The optional performance profiler.
+    std::shared_ptr<profiler> profiler_{ nullptr };
 };
 
 }  // namespace sycl_lsh

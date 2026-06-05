@@ -23,6 +23,7 @@
 #include "sycl_lsh/nearest_neighbors.hpp"
 #include "sycl_lsh/nearest_neighbors_result.hpp"
 #include "sycl_lsh/options.hpp"
+#include "sycl_lsh/profiler.hpp"
 
 /// The main namespace. Nearly all functions are located in this namespace.
 namespace sycl_lsh { }

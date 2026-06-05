@@ -31,6 +31,7 @@ namespace sycl_lsh {
 IGOR_MAKE_NAMED_ARGUMENT(lsh_options);
 IGOR_MAKE_NAMED_ARGUMENT(n_neighbors);
 IGOR_MAKE_NAMED_ARGUMENT(return_distance);
+IGOR_MAKE_NAMED_ARGUMENT(perf_profiler);
 
 /// @endcond
 

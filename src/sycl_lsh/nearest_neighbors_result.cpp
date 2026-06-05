@@ -15,6 +15,8 @@
 #include "sycl_lsh/mpi/detail/file_parser/file.hpp"         // sycl_lsh::mpi::detail::file
 #include "sycl_lsh/mpi/detail/file_parser/file_parser.hpp"  // sycl_lsh::mpi::detail::file_parser
 #include "sycl_lsh/mpi/detail/math.hpp"                     // sycl_lsh::mpi::detail::sum
+#include "sycl_lsh/mpi/detail/timer.hpp"                    // sycl_lsh::mpi::detail::timer
+#include "sycl_lsh/profiler.hpp"                            // sycl_lsh::profiler
 
 #include "fmt/format.h"  // fmt::format
 
@@ -29,17 +31,19 @@
 
 namespace sycl_lsh {
 
-nearest_neighbors_result::nearest_neighbors_result(const mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices) :
+nearest_neighbors_result::nearest_neighbors_result(const mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, std::shared_ptr<profiler> profiler) :
     comm_{ comm },
     data_{ std::move(data) },
     indices_{ std::move(indices) },
-    distances_{ std::nullopt } { }
+    distances_{ std::nullopt },
+    profiler_{ std::move(profiler) } { }
 
-nearest_neighbors_result::nearest_neighbors_result(const mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances) :
+nearest_neighbors_result::nearest_neighbors_result(const mpi::communicator comm, data_set data, aos_matrix<index_type> &&indices, aos_matrix<real_type> &&distances, std::shared_ptr<profiler> profiler) :
     comm_{ comm },
     data_{ std::move(data) },
     indices_{ std::move(indices) },
-    distances_{ std::move(distances) } { }
+    distances_{ std::move(distances) },
+    profiler_{ std::move(profiler) } { }
 
 std::vector<index_type> nearest_neighbors_result::indices(const std::size_t idx) const {
     if (idx >= indices_.num_rows()) {
@@ -67,16 +71,34 @@ std::vector<real_type> nearest_neighbors_result::distances(const std::size_t idx
 }
 
 void nearest_neighbors_result::save_indices(const std::string &filename, const mpi::file_parser_type file_parser) const {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     const auto file_writer = mpi::detail::make_file_parser<index_type>(filename, file_parser, mpi::detail::file::mode::write, comm_);
     file_writer->write_content(data_.get_attributes().total_size, indices_.num_cols(), indices_);
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("save_indices", "total_runtime", mpi_timer.elapsed());
+        profiler_->add_entry("save_indices", "file_parser", file_parser);
+        profiler_->add_entry("save_indices", data_.get_attributes());
+    }
 }
 
 void nearest_neighbors_result::save_distances(const std::string &filename, const mpi::file_parser_type file_parser) const {
     if (!this->has_distances()) {
         throw exception{ "Distances not requested using \"return_distance\". Therefore, they can't be saved!" };
     }
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     const auto file_writer = mpi::detail::make_file_parser<real_type>(filename, file_parser, mpi::detail::file::mode::write, comm_);
     file_writer->write_content(data_.get_attributes().total_size, distances_->num_cols(), distances_.value());
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("save_distances", "total_runtime", mpi_timer.elapsed());
+        profiler_->add_entry("save_distances", "file_parser", file_parser);
+        profiler_->add_entry("save_distances", data_.get_attributes());
+    }
 }
 
 real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct_indices) const {
@@ -84,6 +106,7 @@ real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct
     if (indices_.shape() != correct_indices.shape()) {
         throw exception{ fmt::format("The index sizes missmatch!: {} != {}", indices_.shape(), correct_indices.shape()) };
     }
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     index_type count = 0;
     for (index_type point = 0; point < indices_.num_rows(); ++point) {
@@ -104,6 +127,14 @@ real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct
     // gather the results from all MPI ranks
     const std::size_t total_size = mpi::detail::sum(indices_.num_rows(), comm_);
     const real_type res = (static_cast<real_type>(mpi::detail::sum(count, comm_)) / static_cast<real_type>(total_size * indices_.num_cols())) * real_type{ 100.0 };
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("recall", "recall", res);
+        profiler_->add_entry("recall", "total_runtime", mpi_timer.elapsed());
+        profiler_->add_entry("recall", data_.get_attributes());
+    }
+
     return res;
 }
 
@@ -122,6 +153,7 @@ std::tuple<real_type, index_type, index_type> nearest_neighbors_result::error_ra
     if (distances_->shape() != correct_distances.shape()) {
         throw exception{ fmt::format("The index sizes missmatch!: {} != {}", distances_->shape(), correct_distances.shape()) };
     }
+    const mpi::detail::timer mpi_timer{ comm_ };
 
     // calculate error ratio
     index_type num_points_not_found = 0;
@@ -176,6 +208,16 @@ std::tuple<real_type, index_type, index_type> nearest_neighbors_result::error_ra
     const real_type avg_mean_error_ratio = mpi::detail::sum(mean_error_ratio, comm_) / static_cast<real_type>(mpi::detail::sum(mean_error_count, comm_));
     const index_type total_num_points_not_found = mpi::detail::sum(num_points_not_found, comm_);
     const index_type total_num_knn_not_found = mpi::detail::sum(num_knn_not_found, comm_);
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("error_ratio", "avg_mean_error_ratio", avg_mean_error_ratio);
+        profiler_->add_entry("error_ratio", "total_num_points_not_found", total_num_points_not_found);
+        profiler_->add_entry("error_ratio", "total_num_knn_not_found", total_num_knn_not_found);
+        profiler_->add_entry("error_ratio", "total_runtime", mpi_timer.elapsed());
+        profiler_->add_entry("error_ratio", data_.get_attributes());
+    }
+
     return std::make_tuple(avg_mean_error_ratio, total_num_points_not_found, total_num_knn_not_found);
 }
 

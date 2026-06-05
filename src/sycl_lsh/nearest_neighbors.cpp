@@ -15,6 +15,7 @@
 #include "sycl_lsh/mpi/detail/timer.hpp"            // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/nearest_neighbors_result.hpp"    // sycl_lsh::nearest_neighbors_result
 #include "sycl_lsh/options.hpp"                     // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiler.hpp"                    // sycl_lsh::profiler
 
 #include "fmt/format.h"  // fmt::format
 
@@ -38,17 +39,24 @@ void nearest_neighbors::fit(data_set X) {
     using namespace detail::hashing;
     switch (lsh_options_.hash_function) {
         case hash_function_type::random_projections:
-            hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_);
+            hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_, profiler_);
             break;
         case hash_function_type::entropy_based:
-            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(lsh_options_, data_, queue_, comm_);
+            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(lsh_options_, data_, queue_, comm_, profiler_);
             break;
         case hash_function_type::mixed_hash_functions:
-            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(lsh_options_, data_, queue_, comm_);
+            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(lsh_options_, data_, queue_, comm_, profiler_);
             break;
     }
 
-    mpi::detail::log(comm_, "Fit the nearest-neighbors estimator in {}.\n\n", mpi_timer.elapsed());
+    const auto runtime = mpi_timer.elapsed();
+    mpi::detail::log(comm_, "Fit the nearest-neighbors estimator in {}.\n\n", runtime);
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("fit", "total_runtime", runtime);
+        profiler_->add_entry("fit", data_.get_attributes());
+    }
 }
 
 nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const {
@@ -106,12 +114,21 @@ nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const in
         }
     }
 
-    mpi::detail::log(comm_, "Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, mpi_timer.elapsed());
+    const auto runtime = mpi_timer.elapsed();
+    mpi::detail::log(comm_, "Calculated {} nearest-neighbors in {}.\n\n", used_n_neighbors, runtime);
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("nearest_neighbors", "total_runtime", runtime);
+        profiler_->add_entry("nearest_neighbors", "return_distance", return_distances);
+        profiler_->add_entry("nearest_neighbors", "n_neighbors", used_n_neighbors);
+        profiler_->add_entry("nearest_neighbors", X.get_attributes());
+    }
 
     if (return_distances) {
-        return nearest_neighbors_result{ comm_, std::move(X), std::move(indices), std::move(distances) };
+        return nearest_neighbors_result{ comm_, std::move(X), std::move(indices), std::move(distances), profiler_ };
     }
-    return nearest_neighbors_result{ comm_, std::move(X), std::move(indices) };
+    return nearest_neighbors_result{ comm_, std::move(X), std::move(indices), profiler_ };
 }
 
 }  // namespace sycl_lsh

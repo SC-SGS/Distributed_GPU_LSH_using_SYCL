@@ -19,8 +19,12 @@
 #include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
 #include "sycl_lsh/mpi/detail/timer.hpp"                     // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiler.hpp"                             // sycl_lsh::profiler
 
 #include "sycl/sycl.hpp"  // sycl::queue
+
+#include "fmt/format.h"  // fmt::format
+#include "fmt/ranges.h"  // fmt::join
 
 #include <algorithm>  // std::min
 #include <array>      // std::array
@@ -62,8 +66,9 @@ class hash_tables : public hash_tables_base {
      * @param[in] data the used @ref sycl_lsh::data representing the used data set
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+     * @param[in] profiler the performance profiler used to log runtime information, if requested
      */
-    hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm);
+    hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm, std::shared_ptr<profiler> profiler);
 
     /**
      * @brief Calculate the k-nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
@@ -82,8 +87,9 @@ class hash_tables : public hash_tables_base {
      * @param[in] received_data_ptr the data to perform the nearest-neighbors search on
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
+     * @return the kernel execution time in milliseconds (`[[nodiscard]]`)
      */
-    void search_nearest_neighbors_round(index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const;
+    [[nodiscard]] std::chrono::milliseconds search_nearest_neighbors_round(index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in] attr the data attributes
@@ -117,30 +123,48 @@ class hash_tables : public hash_tables_base {
     device_ptr<index_type> hash_tables_ptr_;
     /// The SYCL device buffer for the offsets.
     device_ptr<index_type> offsets_ptr_;
+
+    /// The optional performance profiler.
+    std::shared_ptr<profiler> profiler_{ nullptr };
 };
 
 // ---------------------------------------------------------------------------------------------------------- //
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
-hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm) :
+hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm, std::shared_ptr<profiler> profiler) :
     queue_{ std::move(queue) },
     comm_{ comm },
     owning_data_ptr_{ data.data().shape(), queue_ },
     lsh_options_{ options },
     hash_functions_{ nullptr },
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
-    offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ } {
-    // log used devices
+    offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ },
+    profiler_{ std::move(profiler) } {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
+    // log used devices from all MPI ranks
+    const std::vector<std::string> device_names = comm_.gather(fmt::format(queue_.get_device().get_info<sycl::info::device::name>()));
     mpi::detail::log(comm_, "Using the following device(s) for the nearest-neighbor calculation:\n");
-    mpi::detail::log_from_all(comm_, "  - [{}, {}]\n", comm_.rank(), queue_.get_device().get_info<sycl::info::device::name>());
+    for (std::size_t i = 0; i < device_names.size(); ++i) {
+        mpi::detail::log(comm_, "  - [{}, {}]\n", i, device_names[i]);
+    }
     mpi::detail::log(comm_, "\n");
 
     // copy the owning data to the device
     owning_data_ptr_.copy_to_device(data.data());
 
-    // create the hash functions (cannot be done earlier since we first need the data on the device)
-    hash_functions_ = std::make_unique<HashFunction>(lsh_options_, owning_data_ptr_, data.get_attributes(), queue_, comm);
+    {
+        const mpi::detail::timer mpi_timer_hash_functions{ comm_ };
+
+        // create the hash functions (cannot be done earlier since we first need the data on the device)
+        hash_functions_ = std::make_unique<HashFunction>(lsh_options_, owning_data_ptr_, data.get_attributes(), queue_, comm);
+
+        // add entry if available
+        if (profiler_ != nullptr) {
+            profiler_->add_entry("fit", "hash_function_create", mpi_timer_hash_functions.elapsed());
+        }
+    }
 
     {
         // create temporary buffer to count the occurrence of each hash value
@@ -154,10 +178,18 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
 
     // fill the hash tables based on the previously calculated offsets
     this->fill_hash_tables(data.get_attributes());
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("fit", "hash_table_create", mpi_timer.elapsed());
+        profiler_->add_entry("backend", "device", device_names);
+    }
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::count_hash_values(const data_set::attributes attr, device_ptr<index_type> &hash_values_count_ptr) {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         index_type *hash_values_count = hash_values_count_ptr.get();
@@ -181,10 +213,17 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
 
     // wait until the kernel finished
     queue_.wait_and_throw();
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("fit", "count_hash_values", mpi_timer.elapsed());
+    }
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &hash_values_count_ptr) {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         const index_type *hash_values_count = hash_values_count_ptr.get();
@@ -211,10 +250,17 @@ void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &
 
     // wait until the kernel finished
     queue_.wait_and_throw();
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("fit", "calculate_offsets", mpi_timer.elapsed());
+    }
 }
 
 template <typename HashFunction>
 void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr) {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         const real_type *data = owning_data_ptr_.get();
@@ -263,6 +309,11 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
 
     // wait until the kernel finished
     queue_.wait_and_throw();
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("fit", "fill_hash_tables", mpi_timer.elapsed());
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------- //
@@ -271,6 +322,10 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
 template <typename HashFunction>
 void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, data_set &query_data, aos_matrix<index_type> &indices, aos_matrix<real_type> &distances) const {
     device_ptr<real_type> query_data_ptr{ query_data.data().shape(), queue_ };
+
+    // create a vector containing all round runtimes
+    std::vector<std::chrono::milliseconds> round_runtimes{};
+    std::vector<std::chrono::milliseconds> round_kernel_runtimes{};
 
     device_ptr<index_type> knn_ptr{ indices.shape(), queue_ };
     device_ptr<real_type> knn_dist_ptr{ distances.shape(), queue_ };
@@ -293,7 +348,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         knn_dist_ptr.copy_to_device(distances);
 
         // calculate k-nearest-neighbors on current MPI rank
-        this->search_nearest_neighbors_round(k, query_data.get_attributes(), query_data_ptr, knn_ptr, knn_dist_ptr);
+        round_kernel_runtimes.push_back(this->search_nearest_neighbors_round(k, query_data.get_attributes(), query_data_ptr, knn_ptr, knn_dist_ptr));
 
         // copy the knn data back to the host
         knn_ptr.copy_to_host(indices);
@@ -306,12 +361,23 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         mpi_thread.join();
         comm_.barrier();
 
-        mpi::detail::log(comm_, "finished in {}.\n", mpi_round_timer.elapsed());
+        const auto runtime = mpi_round_timer.elapsed();
+        mpi::detail::log(comm_, "finished in {}.\n", runtime);
+        round_runtimes.push_back(runtime);
+    }
+
+    // add entry if available
+    if (profiler_ != nullptr) {
+        profiler_->add_entry("nearest_neighbors", "num_rounds", comm_.size());
+        profiler_->add_entry("nearest_neighbors", "rounds", round_runtimes);
+        profiler_->add_entry("nearest_neighbors", "kernel_rounds", round_kernel_runtimes);
     }
 }
 
 template <typename HashFunction>
-void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const {
+std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const {
+    const mpi::detail::timer mpi_timer{ comm_ };
+
     // TODO 2020-10-07 15:52 marcel: check if correct and useful
     const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
     const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
@@ -432,6 +498,8 @@ void hash_tables<HashFunction>::search_nearest_neighbors_round(const index_type 
 
     // wait until all k-nearest-neighbors were calculated on the current MPI rank
     queue_.wait_and_throw();
+
+    return mpi_timer.elapsed();
 }
 
 }  // namespace sycl_lsh::detail::hashing
