@@ -354,7 +354,7 @@ endif ()
 ########################################################################################################################
 #                                               enable hardware sampling                                               #
 ########################################################################################################################
-list(APPEND CMAKE_MESSAGE_INDENT "hws:  ") #  TODO: implement on the C++ side!
+list(APPEND CMAKE_MESSAGE_INDENT "hws:  ")
 
 # option for the used sampling interval
 set(SYCL_LSH_HARDWARE_SAMPLING_INTERVAL "100" CACHE STRING "The interval in milliseconds in which the hardware information (like clock frequency or power draw) are queried.")

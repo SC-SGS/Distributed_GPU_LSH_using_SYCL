@@ -17,6 +17,7 @@
 #include "fmt/chrono.h"  // format std::chrono types
 #include "fmt/format.h"  // fmt::format
 #include "fmt/std.h"     // format std:: types
+#include "hws/core.hpp"  // hws::system_hardware_sampler
 
 #include <iosfwd>       // std::ostream forward declaration
 #include <map>          // std::map
@@ -103,6 +104,9 @@ class profiler {
 
     /// All profiling entries currently gathered.
     std::map<std::string, std::map<std::string, std::string>> entries_;
+
+    /// The hws system-wide hardware sampler.
+    std::unique_ptr<hws::system_hardware_sampler> hardware_sampler_;
 };
 
 }  // namespace sycl_lsh

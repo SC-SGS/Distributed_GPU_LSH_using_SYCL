@@ -12,10 +12,51 @@
 #include "sycl_lsh/options.hpp"                      // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
 #include "sycl_lsh/profiling_types.hpp"              // sycl_lsh::profiling_types
 
+#include "fmt/chrono.h"  // fmt::gmtime
+#include "fmt/format.h"  // fmt::format
+#include "hws/core.hpp"  // hws::system_hardware_sampler
+
+#include <cstddef>      // std::size_t
+#include <ctime>        // std::time
+#include <ostream>      // std::ostream, std::ofstream, std::endl
+#include <string>       // std::string
+#include <string_view>  // std::string_view
+
+namespace {
+
+/**
+ * @brief Indent each newline with @p indentation.
+ * @param[in] str the string to indent
+ * @param[in] indentation the indentation
+ * @return the new string with the correct indentation (`[[nodiscard]]`)
+ */
+[[nodiscard]] std::string indent_newlines(const std::string &str, const std::string_view indentation = "  ") {
+    std::string result;
+    std::size_t pos = 0;
+    std::size_t prev = 0;
+    result += indentation;
+    while ((pos = str.find('\n', prev)) != std::string::npos) {
+        result += str.substr(prev, pos - prev + 1);  // include the '\n'
+        result += indentation;
+        prev = pos + 1;
+    }
+    result += str.substr(prev);  // last line (no trailing '\n')
+    return result;
+}
+
+}  // namespace
+
 namespace sycl_lsh {
 
 profiler::profiler(const profiling_types profiling_type) noexcept :
-    profiling_type_{ profiling_type } { }
+    profiling_type_{ profiling_type } {
+    // initialize the hws hardware sampler only if requested
+    if (profiling_type_ == profiling_types::hws) {
+        using namespace std::chrono_literals;
+        hardware_sampler_ = std::make_unique<hws::system_hardware_sampler>(SYCL_LSH_HARDWARE_SAMPLING_INTERVAL);
+        hardware_sampler_->start_sampling();
+    }
+}
 
 void profiler::add_entry(const std::string &group, const data_set::attributes &attr) {
     this->add_entry(group, "total_size", attr.total_size);
@@ -63,6 +104,11 @@ void profiler::dump(const std::string &filename) {
 void profiler::dump(std::ostream &out) {
     // if the profiling type is none, nothing to be done
     if (profiling_type_ != profiling_types::none) {
+        // stop the hardware sampling if possible
+        if (hardware_sampler_ != nullptr) {
+            hardware_sampler_->stop_sampling();
+        }
+
         // copy the internal entries such that adding the metadata does not change them
         auto entries{ entries_ };
 
@@ -102,6 +148,14 @@ void profiler::dump(std::ostream &out) {
                 out << "  " << name << ": " << value << '\n';
             }
             out << '\n';
+        }
+        // if available, add the hardware samples at the end
+        if (hardware_sampler_ != nullptr) {
+            for (const auto &sampler : hardware_sampler_->samplers()) {
+                out << sampler->device_identification() << ":\n";
+                out << indent_newlines(hardware_sampler_->as_yaml_string());
+                out << '\n';
+            }
         }
         out << std::endl;
     }
