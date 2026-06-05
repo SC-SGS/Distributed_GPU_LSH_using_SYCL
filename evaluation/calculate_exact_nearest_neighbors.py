@@ -64,13 +64,9 @@ if __name__ == "__main__":
     print(f"Loaded {points.shape[0]} points with {points.shape[1]} dims from '{args.input_file}'")
 
     # k+1 because results include each point itself
-    k_nearest_neighbors = NearestNeighbors(n_neighbors=args.knn + 1, algorithm="brute", metric="euclidean")
+    k_nearest_neighbors = NearestNeighbors(n_neighbors=args.knn, algorithm="brute", metric="euclidean")
     k_nearest_neighbors.fit(points)
-    nn_distances, nn_ids = k_nearest_neighbors.kneighbors(points)
-
-    # strip the first column (each point matched to itself)
-    nn_distances = nn_distances[:, 1:]
-    nn_ids = nn_ids[:, 1:]
+    nn_distances, nn_ids = k_nearest_neighbors.kneighbors()
 
     # save the nearest-neighbor IDs
     save_indices(args.knn_indices_file, nn_ids)
