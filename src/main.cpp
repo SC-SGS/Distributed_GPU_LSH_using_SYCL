@@ -9,6 +9,12 @@
 #include "sycl_lsh/core.hpp"
 #include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
 
+#include "sycl/sycl.hpp"  // sycl::queue, sycl::cpu_selector_v, sycl::gpu_selector_v
+
+#include <exception>  // std::exception
+#include <iostream>   // std::clog
+#include <memory>     // std::make_shared, std::shared_ptr
+
 int custom_main(int &argc, char **&argv) {
 // create a SYCL queue
 #if defined(SYCL_LSH_USE_CPU)
@@ -23,19 +29,14 @@ int custom_main(int &argc, char **&argv) {
     const sycl_lsh::mpi::communicator comm{};
     sycl_lsh::mpi::detail::log(comm, "Using {} MPI rank(s) for the nearest-neighbor calculation.\n\n", comm.size());
 
-#if defined(SYCL_LSH_BENCHMARK_ENABLED)
-    auto profiler = std::make_shared<sycl_lsh::profiler>();
-#else
-    std::shared_ptr<sycl_lsh::profiler> profiler{ nullptr };
-#endif
-
     try {
         // parse options and print
         const sycl_lsh::options opt(comm, argc, argv);
         sycl_lsh::mpi::detail::log(comm, "{}\n", opt);
-        if (profiler != nullptr) {
-            profiler->add_entry(opt);
-        }
+
+        // create a profiler
+        auto profiler = std::make_shared<sycl_lsh::profiler>(opt.profiling_type);
+        profiler->add_entry(opt);
 
         // parse data and print data attributes
         sycl_lsh::data_set data{ comm, opt.data_file, sycl_lsh::perf_profiler = profiler };
@@ -72,10 +73,13 @@ int custom_main(int &argc, char **&argv) {
             }
         }
 
-        if (profiler != nullptr) {
-            profiler->dump(std::cout);
+        if (opt.profiling_file.has_value()) {
+            // if a file was given, output the profiling results to it
+            profiler->dump(opt.profiling_file.value());
+        } else if (comm.is_main_rank()) {
+            // otherwise, dump it to std::clog if we are on the MPI master rank
+            profiler->dump(std::clog);
         }
-
     } catch (const sycl_lsh::cmd_parser_exit &e) {
         return e.exit_code();
     } catch (const sycl_lsh::exception &e) {

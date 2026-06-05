@@ -62,13 +62,15 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
         // clang-format off
         .add_options()
             ("h,help", "print this helper message", cxxopts::value<bool>())
-            ("file_parser", "the type of the file parser: \n\t0: binary\n\t1: arff", cxxopts::value<mpi::file_parser_type>()->default_value("binary"))
+            ("file_parser", "the type of the file parser: \n\t0: binary\n\t1: arff", cxxopts::value<mpi::file_parser_type>()->default_value(fmt::format("{}", mpi::file_parser_type::binary)))
+            ("profiling_type", "the profiling capabilities: \n\t0: none\n\t1: runtimes\n\t2: hws", cxxopts::value<profiling_types>()->default_value(fmt::format("{}", profiling_types::none)))
+            ("profiling_file", "the output file to write the profiling results to (YAML format)", cxxopts::value<std::string>())
             ("indices_save_file", "the file to which the calculated nearest-neighbors should be saved to", cxxopts::value<std::string>())
             ("distances_save_file", "the file to which the calculated nearest-neighbors distances should be saved to", cxxopts::value<std::string>())
             ("indices_ground_truth_file", "the file containing the correct nearest-neighbors for calculating the resulting recall", cxxopts::value<std::string>())
             ("distances_ground_truth_file", "the file containing the correct nearest-neighbors distances for calculating the resulting recall", cxxopts::value<std::string>())
             // locality sensitive hashing specific options
-            ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value("random-projections"))
+            ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value(fmt::format("{}", hash_function_type::random_projections)))
             ("hash_pool_size", "the number of hash functions in the hash pool", cxxopts::value<index_type>()->default_value("32"))
             ("num_hash_functions", "the number of hash functions per hash table", cxxopts::value<index_type>()->default_value("12"))
             ("num_hash_tables", "the number of used hash tables", cxxopts::value<index_type>()->default_value("8"))
@@ -123,6 +125,11 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
 
     file_parser = result["file_parser"].as<mpi::file_parser_type>();
 
+    profiling_type = result["profiling_type"].as<profiling_types>();
+    if (result.contains("profiling_file")) {
+        profiling_file = result["profiling_file"].as<std::string>();
+    }
+
     if (result.contains("indices_save_file")) {
         indices_save_file = result["indices_save_file"].as<std::string>();
     }
@@ -175,6 +182,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   "real_type: {} ({} byte)\n"
                                   "index_type: {} ({} byte)\n"
                                   "hash_value_type: {} ({} byte)\n"
+                                  "profiling_type: {}\n"
                                   "input file (data set): '{}'\n",
                                   opt.n_neighbors,
                                   detail::arithmetic_type_name<real_type>(),
@@ -183,8 +191,12 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   sizeof(index_type),
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
+                                  opt.profiling_type,
                                   opt.data_file);
 
+    if (opt.profiling_file.has_value()) {
+        str += fmt::format("profiling file: '{}'\n", opt.profiling_file.value());
+    }
     if (opt.indices_save_file.has_value()) {
         str += fmt::format("output file (indices): '{}'\n", opt.indices_save_file.value());
     }

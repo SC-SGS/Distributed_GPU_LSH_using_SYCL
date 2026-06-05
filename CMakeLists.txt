@@ -50,6 +50,7 @@ set(SYCL_LSH_LIBRARY_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors_result.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiling_types.cpp
 )
 
 # create library
@@ -348,14 +349,6 @@ if (SYCL_LSH_USE_64BIT_TYPES)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_64BIT_TYPES)
 else ()
     message(STATUS "Using 32bit types (default).")
-endif ()
-
-# enable benchmarking using an output file # TODO: combine with hardware sampling?
-set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
-if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
-    message(STATUS "Enabled benchmarking using the file: \"${SYCL_LSH_BENCHMARK}\"")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK_ENABLED)
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK_FILE="${SYCL_LSH_BENCHMARK}")
 endif ()
 
 ########################################################################################################################

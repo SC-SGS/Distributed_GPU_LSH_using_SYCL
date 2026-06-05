@@ -10,8 +10,9 @@
 #define SYCL_LSH_PROFILER_HPP
 #pragma once
 
-#include "sycl_lsh/data_set.hpp"  // sycl_lsh::data_set::attributes
-#include "sycl_lsh/options.hpp"   // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/data_set.hpp"         // sycl_lsh::data_set::attributes
+#include "sycl_lsh/options.hpp"          // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiling_types.hpp"  // sycl_lsh::profiling_types
 
 #include "fmt/chrono.h"  // format std::chrono types
 #include "fmt/format.h"  // fmt::format
@@ -26,6 +27,16 @@ namespace sycl_lsh {
 
 class profiler {
   public:
+    /**
+     * @brief Construct a new profiler using the @p profiling_type.
+     * @details The profiling types are:
+     *          - none: do not perform any profiling at all
+     *          - runtimes: only profile runtimes (and some additional options like data_set sizes etc.)
+     *          - hws: additionally to profiling runtimes, use the external hws library to also profile hardware characteristics
+     * @param[in] profiling_type the used profiling capabilities
+     */
+    explicit profiler(profiling_types profiling_type) noexcept;
+
     /**
      * @brief Add all sycl_lsh::data_set::attributes @p attr to the @p group.
      * @param[in] group the group name
@@ -77,12 +88,18 @@ class profiler {
     // The actual implementation. Passes the map as first parameter to be able to also add metadata to the map copy easily.
     template <typename T>
     void add_entry_impl(std::map<std::string, std::map<std::string, std::string>> &entries_map, const std::string &group, const std::string &name, const T &value) {
-        if (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-            entries_map[group][name] = fmt::format("\"{}\"", value);
-        } else {
-            entries_map[group][name] = fmt::format("{}", value);
+        // if the profiling type is none, nothing to be done
+        if (profiling_type_ != profiling_types::none) {
+            if (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+                entries_map[group][name] = fmt::format("\"{}\"", value);
+            } else {
+                entries_map[group][name] = fmt::format("{}", value);
+            }
         }
     }
+
+    /// The currently used profiling type.
+    profiling_types profiling_type_;
 
     /// All profiling entries currently gathered.
     std::map<std::string, std::map<std::string, std::string>> entries_;

@@ -15,6 +15,7 @@
 #include "sycl_lsh/mpi/communicator.hpp"       // sycl_lsh::mpi::communicator
 #include "sycl_lsh/mpi/detail/logging.hpp"     // sycl_lsh::mpi::detail::log
 #include "sycl_lsh/mpi/file_parser_types.hpp"  // sycl_lsh::mpi::file_parser
+#include "sycl_lsh/profiling_types.hpp"        // sycl_lsh::profiling_types
 
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 #include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than
@@ -101,6 +102,11 @@ class options {
     std::string data_file{};
     /// The type of the file parser.
     mpi::file_parser_type file_parser{};
+
+    /// The type of the used profiling.
+    profiling_types profiling_type{};
+    /// The output file to save the profiling information to. Has no effect if profiling_type is set to none.
+    std::optional<std::string> profiling_file{};
 
     /// The file to which the calculated nearest-neighbors should be saved to.
     std::optional<std::string> indices_save_file{};

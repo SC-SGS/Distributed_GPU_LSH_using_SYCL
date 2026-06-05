@@ -81,18 +81,18 @@ Where `preset` is one of `acpp`, or `icpx`.
 
 Provided configuration options are:
 
-| option                                | default value | description                                                                                                                  |
-|---------------------------------------|:-------------:|------------------------------------------------------------------------------------------------------------------------------|
-| `SYCL_LSH_TARGET_ARCH`                |               | Specify the SYCL target to compile for. Must follow the notation in aboves examples.                                         | 
-| `SYCL_LSH_IMPLEMENTATION`             |    `icpx`     | The used SYCL implementation. Must be one of: `acpp`, or `icpx`.                                                             | 
-| `SYCL_LSH_ENABLE_LTO`                 |     `OFF`     | Enable link time optimizations.                                                                                              | 
-| `SYCL_LSH_TIMER`                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NON_BLOCKING`, or `BLOCKING`.                             |
-| `SYCL_LSH_HARDWARE_SAMPLING_INTERVAL` |     `100`     | Specify the hardware sampling interval in ms.                                                                                |
-| `SYCL_LSH_BENCHMARK`                  |               | If defined enables benchmarking by logging the elapsed times in a machine readable way to a file. Must be a valid file name. |
-| `SYCL_LSH_ENABLE_ASSERTS`             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                  |
-| `SYCL_LSH_RANDOM_NUMBERS_DEBUG`       |     `OFF`     | If `ON`, do not seed the random number generators to enable better reproducability (can be used for debugging).              |
-| `SYCL_LSH_USE_64BIT_TYPES`            |     `OFF`     | If `ON`, internally uses 64bit tyües instead of 32bit types.                                                                 |
-| `SYCL_LSH_ENABLE_DOCUMENTATION`       |     `OFF`     | Enables the documentation target (requires doxygen).                                                                         |
+| option                                | default value | description                                                                                                                                         |
+|---------------------------------------|:-------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_TARGET_ARCH`                |               | Specify the SYCL target to compile for. Must follow the notation in aboves examples.                                                                | 
+| `SYCL_LSH_CPU_VECTORIZATION_TARGET`   |               | If the SYCL target is a CPU, this option **must** be equal to the target vectorization standard. Must be one of: `avx512`, `avx2`, `avx`, or `sse`. | 
+| `SYCL_LSH_IMPLEMENTATION`             |    `icpx`     | The used SYCL implementation. Must be one of: `acpp`, or `icpx`.                                                                                    | 
+| `SYCL_LSH_ENABLE_LTO`                 |     `OFF`     | Enable link time optimizations.                                                                                                                     | 
+| `SYCL_LSH_TIMER`                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NON_BLOCKING`, or `BLOCKING`.                                                    |
+| `SYCL_LSH_HARDWARE_SAMPLING_INTERVAL` |     `100`     | Specify the hardware sampling interval in ms.                                                                                                       |
+| `SYCL_LSH_ENABLE_ASSERTS`             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                                         |
+| `SYCL_LSH_RANDOM_NUMBERS_DEBUG`       |     `OFF`     | If `ON`, do not seed the random number generators to enable better reproducability (can be used for debugging).                                     |
+| `SYCL_LSH_USE_64BIT_TYPES`            |     `OFF`     | If `ON`, internally uses 64bit tyües instead of 32bit types.                                                                                        |
+| `SYCL_LSH_ENABLE_DOCUMENTATION`       |     `OFF`     | Enables the documentation target (requires doxygen).                                                                                                |
 
 ## Building the documentation
 
@@ -116,6 +116,11 @@ Usage:
       --file_parser arg         the type of the file parser: 
                                         0: binary
                                         1: arff (default: binary)
+      --profiling_type arg      the profiling capabilities: 
+                                        0: none
+                                        1: runtimes
+                                        2: hws (default: none)
+      --profiling_file arg      the output file to write the profiling results to (YAML format)
       --indices_save_file arg   the file to which the calculated nearest-neighbors should be saved to
       --distances_save_file arg
                                 the file to which the calculated nearest-neighbors distances should be saved to
@@ -126,7 +131,7 @@ Usage:
       --hash_function arg       the type of the hash functions: 
                                         0: random-projections
                                         1: entropy-based
-                                        2: mixed (default: random-projections)
+                                        2: mixed (default: random_projections)
       --hash_pool_size arg      the number of hash functions in the hash pool (default: 32)
       --num_hash_functions arg  the number of hash functions per hash table (default: 12)
       --num_hash_tables arg     the number of used hash tables (default: 8)

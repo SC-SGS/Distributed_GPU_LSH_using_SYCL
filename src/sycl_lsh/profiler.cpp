@@ -10,8 +10,12 @@
 #include "sycl_lsh/data_set.hpp"                     // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
 #include "sycl_lsh/options.hpp"                      // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiling_types.hpp"              // sycl_lsh::profiling_types
 
 namespace sycl_lsh {
+
+profiler::profiler(const profiling_types profiling_type) noexcept :
+    profiling_type_{ profiling_type } { }
 
 void profiler::add_entry(const std::string &group, const data_set::attributes &attr) {
     this->add_entry(group, "total_size", attr.total_size);
@@ -49,52 +53,58 @@ void profiler::add_entry(const options &opt) {
 }
 
 void profiler::dump(const std::string &filename) {
-    std::ofstream out{ filename, std::ios::app };
-    this->dump(out);
+    // if the profiling type is none, nothing to be done
+    if (profiling_type_ != profiling_types::none) {
+        std::ofstream out{ filename, std::ios::app };
+        this->dump(out);
+    }
 }
 
 void profiler::dump(std::ostream &out) {
-    // copy the internal entries such that adding the metadata does not change them
-    auto entries{ entries_ };
+    // if the profiling type is none, nothing to be done
+    if (profiling_type_ != profiling_types::none) {
+        // copy the internal entries such that adding the metadata does not change them
+        auto entries{ entries_ };
 
-    // add the metadata to the map copy
-    // general metadata
-    this->add_entry_impl(entries, "metadata", "build_type", std::string_view{ SYCL_LSH_BUILD_TYPE });
-    this->add_entry_impl(entries, "metadata", "date", fmt::format("{:%Y-%m-%d %H:%M:%S}", fmt::gmtime(std::time(nullptr))));
-    this->add_entry_impl(entries, "metadata", "timer", std::string_view{ SYCL_LSH_TIMER_NAME });
+        // add the metadata to the map copy
+        // general metadata
+        this->add_entry_impl(entries, "metadata", "build_type", std::string_view{ SYCL_LSH_BUILD_TYPE });
+        this->add_entry_impl(entries, "metadata", "date", fmt::format("{:%Y-%m-%d %H:%M:%S}", fmt::gmtime(std::time(nullptr))));
+        this->add_entry_impl(entries, "metadata", "timer", std::string_view{ SYCL_LSH_TIMER_NAME });
 #if defined(SYCL_LSH_ASSERTS_ENABLED)
-    this->add_entry_impl(entries, "metadata", "asserts", true);
+        this->add_entry_impl(entries, "metadata", "asserts", true);
 #else
-    this->add_entry_impl(entries, "metadata", "asserts", false);
+        this->add_entry_impl(entries, "metadata", "asserts", false);
 #endif
 #if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
-    this->add_entry_impl(entries, "metadata", "random_number_debug", true);
+        this->add_entry_impl(entries, "metadata", "random_number_debug", true);
 #else
-    this->add_entry_impl(entries, "meta_data", "random_number_debug", false);
+        this->add_entry_impl(entries, "meta_data", "random_number_debug", false);
 #endif
 
-    this->add_entry_impl(entries, "metadata", "real_type", detail::arithmetic_type_name<real_type>());
-    this->add_entry_impl(entries, "metadata", "index_type", detail::arithmetic_type_name<index_type>());
-    this->add_entry_impl(entries, "metadata", "hash_value_type", detail::arithmetic_type_name<hash_value_type>());
-    this->add_entry_impl(entries, "metadata", "BLOCKING_SIZE", BLOCKING_SIZE);
+        this->add_entry_impl(entries, "metadata", "real_type", detail::arithmetic_type_name<real_type>());
+        this->add_entry_impl(entries, "metadata", "index_type", detail::arithmetic_type_name<index_type>());
+        this->add_entry_impl(entries, "metadata", "hash_value_type", detail::arithmetic_type_name<hash_value_type>());
+        this->add_entry_impl(entries, "metadata", "BLOCKING_SIZE", BLOCKING_SIZE);
 
-    // backend related meta-data
-    this->add_entry_impl(entries, "backend", "sycl_implementation", std::string_view{ SYCL_LSH_IMPLEMENTATION });
-    this->add_entry_impl(entries, "backend", "target_arch", std::string_view{ SYCL_LSH_TARGET_ARCH });
+        // backend related meta-data
+        this->add_entry_impl(entries, "backend", "sycl_implementation", std::string_view{ SYCL_LSH_IMPLEMENTATION });
+        this->add_entry_impl(entries, "backend", "target_arch", std::string_view{ SYCL_LSH_TARGET_ARCH });
 #if defined(SYCL_LSH_CPU_VECTORIZATION_TARGET)
-    this->add_entry_impl(entries, "backend", "cpu_vectorization_width", std::string_view{ SYCL_LSH_CPU_VECTORIZATION_TARGET });
+        this->add_entry_impl(entries, "backend", "cpu_vectorization_width", std::string_view{ SYCL_LSH_CPU_VECTORIZATION_TARGET });
 #endif
 
-    // output the data in a YAML format
-    out << "---\n";
-    for (const auto &[group, group_entries] : entries) {
-        out << group << ":\n";
-        for (const auto &[name, value] : group_entries) {
-            out << "  " << name << ": " << value << '\n';
+        // output the data in a YAML format
+        out << "---\n";
+        for (const auto &[group, group_entries] : entries) {
+            out << group << ":\n";
+            for (const auto &[name, value] : group_entries) {
+                out << "  " << name << ": " << value << '\n';
+            }
+            out << '\n';
         }
-        out << '\n';
+        out << std::endl;
     }
-    out << std::endl;
 }
 
 void profiler::clear_entries() {
