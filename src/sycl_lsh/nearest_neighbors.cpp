@@ -121,7 +121,10 @@ nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const in
 #pragma omp parallel for collapse(2)
     for (std::size_t row = 0; row < distances.num_rows(); ++row) {
         for (std::size_t col = 0; col < distances.num_cols(); ++col) {
-            distances(row, col) = std::sqrt(distances(row, col));
+            // only use the real distance if it is a valid knn; otherwise it should stay at std::numeric_limits<real_type>::max
+            if (indices(row, col) != row) {
+                distances(row, col) = std::sqrt(distances(row, col));
+            }
         }
     }
 
