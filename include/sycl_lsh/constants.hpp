@@ -36,6 +36,7 @@ using hash_value_type = std::uint32_t;
 #endif
 
 /// The used internal blocking size used to speed up the calculations.
+/// NOTE: Changing the BLOCKING_SIZE can result in different accuracies since additional points from other hash buckets are considered.
 #if defined(SYCL_LSH_BLOCKING_SIZE)
 constexpr index_type BLOCKING_SIZE = SYCL_LSH_BLOCKING_SIZE;
 #else
