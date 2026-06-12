@@ -154,7 +154,7 @@ hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options 
     const std::vector<std::string> device_names = comm_.gather(fmt::format(queue_.get_device().get_info<sycl::info::device::name>()));
     mpi::detail::log(comm_, "Using the following device(s) for the nearest-neighbor calculation:\n");
     for (std::size_t i = 0; i < device_names.size(); ++i) {
-        mpi::detail::log(comm_, "  - [{}, {}]\n", i, device_names[i]);
+        mpi::detail::log(comm_, "  - [rank {}, {}]\n", i, device_names[i]);
     }
     mpi::detail::log(comm_, "\n");
 

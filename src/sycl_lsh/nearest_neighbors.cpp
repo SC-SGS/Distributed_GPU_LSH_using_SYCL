@@ -68,6 +68,9 @@ void nearest_neighbors::fit(data_set X) {
 nearest_neighbors_result nearest_neighbors::kneighbors_impl(data_set X, const index_type used_n_neighbors, const bool return_distances) const {
     const mpi::detail::timer mpi_timer{ comm_ };
 
+    // output that the knn calculation started
+    mpi::detail::log(comm_, "Starting to calculate {} nearest-neighbors ...\n", used_n_neighbors);
+
     // add event if available
     if (profiler_ != nullptr) {
         profiler_->add_event("kneighbors_start");
