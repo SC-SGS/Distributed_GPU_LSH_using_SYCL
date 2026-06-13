@@ -68,9 +68,18 @@ class nearest_neighbors {
             profiler_ = static_cast<decltype(profiler_)>(parser(sycl_lsh::perf_profiler));
         }
 
+        // check whether a different work-group size has been provided
+        if constexpr (parser.has(sycl_lsh::work_group_size)) {
+            // update the work-group size
+            work_group_size_ = static_cast<decltype(work_group_size_)>(parser(sycl_lsh::work_group_size));
+        }
+
         // perform some sanity checks
         if (n_neighbors_ < index_type{ 1 }) {
-            throw exception{ fmt::format("the number of nearest-neighbors ({}) must be larger than 0!", n_neighbors_) };
+            throw exception{ fmt::format("The number of nearest-neighbors ({}) must be larger than 0!", n_neighbors_) };
+        }
+        if (const std::size_t max_work_group_size = queue_.get_device().get_info<sycl::info::device::max_work_group_size>(); work_group_size_ > max_work_group_size) {
+            throw exception{ fmt::format("The maximum allowed work-group size for the current device is {}, but {} was provided!", max_work_group_size, work_group_size_) };
         }
     }
 
@@ -161,6 +170,8 @@ class nearest_neighbors {
     locality_sensitive_hashing_options lsh_options_{};
     /// The @ref sycl_lsh:detail::hashing::hash_tables: used in the locality sensitive hashing algorithm.
     std::unique_ptr<detail::hashing::hash_tables_base> hash_tables_{ nullptr };
+    /// The SYCL work-group size used in the main kernel(s).
+    std::size_t work_group_size_{ 512 };
 
     /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };

@@ -44,13 +44,13 @@ void nearest_neighbors::fit(data_set X) {
     using namespace detail::hashing;
     switch (lsh_options_.hash_function) {
         case hash_function_type::random_projections:
-            hash_tables_ = std::make_unique<hash_tables<random_projections>>(lsh_options_, data_, queue_, comm_, profiler_);
+            hash_tables_ = std::make_unique<hash_tables<random_projections>>(work_group_size_, lsh_options_, data_, queue_, comm_, profiler_);
             break;
         case hash_function_type::entropy_based:
-            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(lsh_options_, data_, queue_, comm_, profiler_);
+            hash_tables_ = std::make_unique<hash_tables<entropy_based>>(work_group_size_, lsh_options_, data_, queue_, comm_, profiler_);
             break;
         case hash_function_type::mixed_hash_functions:
-            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(lsh_options_, data_, queue_, comm_, profiler_);
+            hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(work_group_size_, lsh_options_, data_, queue_, comm_, profiler_);
             break;
     }
 

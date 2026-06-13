@@ -20,6 +20,7 @@
 #include "fmt/ostream.h"  // fmt::formatter, fmt::ostream_formatter
 #include "igor/igor.hpp"  // IGOR_MAKE_NAMED_ARGUMENT, igor::parser, igor::has_unnamed_arguments, igor::has_other_than
 
+#include <cstddef>   // std::size_t
 #include <iosfwd>    // std::ostream  forward declarations
 #include <optional>  // std::optional
 #include <string>    // std::string
@@ -33,6 +34,7 @@ IGOR_MAKE_NAMED_ARGUMENT(lsh_options);
 IGOR_MAKE_NAMED_ARGUMENT(n_neighbors);
 IGOR_MAKE_NAMED_ARGUMENT(return_distance);
 IGOR_MAKE_NAMED_ARGUMENT(perf_profiler);
+IGOR_MAKE_NAMED_ARGUMENT(work_group_size);
 
 /// @endcond
 
@@ -116,6 +118,9 @@ class options {
     std::optional<std::string> indices_ground_truth_file{};
     /// The file containing the correct nearest-neighbors **distances** for calculating the error ratio.
     std::optional<std::string> distances_ground_truth_file{};
+
+    /// The number of work-items per work-group for the main kernels. Used to fine-tune the performance.
+    std::size_t work_group_size{};
 
     /// Various options accessible on the respective device.
     locality_sensitive_hashing_options lsh_options{};

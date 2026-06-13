@@ -110,7 +110,7 @@ After a successful `make` an executable file named `./prog` is available:
 ./prog --help
 k-nearest-neighbors using Locality Sensitive Hashing and SYCL
 Usage:
-  build/icpx/prog [OPTION...] input_file k
+  prog [OPTION...] input_file k
 
   -h, --help                    print this helper message
       --file_parser arg         the type of the file parser: 
@@ -128,6 +128,7 @@ Usage:
                                 the file containing the correct nearest-neighbors for calculating the resulting recall
       --distances_ground_truth_file arg
                                 the file containing the correct nearest-neighbors distances for calculating the resulting recall
+      --work_group_size arg     the number of work-items per work-group for the main kernels (default: 512)
       --hash_function arg       the type of the hash functions: 
                                         0: random-projections
                                         1: entropy-based
@@ -140,5 +141,4 @@ Usage:
       --num_cut_off_points arg  the number of cut-off points for the entropy-based hash functions (default: 6)
       --file input_file         the input data file
       --knn knn                 the number of nearest-neighbors to calculate
-
 ```

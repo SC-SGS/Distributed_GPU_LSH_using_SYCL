@@ -63,13 +63,14 @@ class hash_tables : public hash_tables_base {
   public:
     /**
      * @brief Constructs a new @ref sycl_lsh::detail::hashing::hash_tables object initializing the LSH hash tables.
+     * @param[in] work_group_size the SYCL work-group size for the main kernel(s)
      * @param[in] options the used @ref sycl_lsh::locality_sensitive_hashing_options
      * @param[in] data the used @ref sycl_lsh::data_set representing the used data
      * @param[in] queue the SYCL queue to run on
      * @param[in] comm the used @ref sycl_lsh::mpi::communicator
      * @param[in] profiler the performance profiler used to log runtime information, if requested
      */
-    hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm, std::shared_ptr<profiler> profiler);
+    hash_tables(std::size_t work_group_size, const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, mpi::communicator comm, std::shared_ptr<profiler> profiler);
 
     /**
      * @brief Calculate the k nearest-neighbors using **Locality Sensitive Hashing**, **SYCL** and **MPI**.
@@ -117,6 +118,8 @@ class hash_tables : public hash_tables_base {
     /// The SYCL device buffer for the data that is owned by this MPI rank.
     device_ptr<real_type> owning_data_ptr_;
 
+    /// The SYCL work-group size for the main kernel(s).
+    std::size_t work_group_size_;
     /// The used LSH hashing related @ref sycl_lsh::locality_sensitive_hashing_options.
     locality_sensitive_hashing_options lsh_options_;
     /// The used has functions.
@@ -134,10 +137,11 @@ class hash_tables : public hash_tables_base {
 //                                                constructor                                                 //
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
-hash_tables<HashFunction>::hash_tables(const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm, std::shared_ptr<profiler> profiler) :
+hash_tables<HashFunction>::hash_tables(const std::size_t work_group_size, const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm, std::shared_ptr<profiler> profiler) :
     queue_{ std::move(queue) },
     comm_{ comm },
     owning_data_ptr_{ data.data().shape(), queue_ },
+    work_group_size_{ work_group_size },
     lsh_options_{ options },
     hash_functions_{ nullptr },
     hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
@@ -421,16 +425,7 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
         profiler_->add_event(fmt::format("search_nearest_neighbors_round_{}_start", round));
     }
 
-    // TODO 2020-10-07 15:52 marcel: check if correct and useful
-    const index_type local_mem_size = queue_.get_device().get_info<sycl::info::device::local_mem_size>();
-    const index_type max_local_size = local_mem_size / (k * (sizeof(index_type) + sizeof(real_type)));
-    const index_type max_work_group_size = queue_.get_device().get_info<sycl::info::device::max_work_group_size>();
-    index_type local_size = std::min<index_type>(std::pow(2, std::floor(std::log2(max_local_size))), max_work_group_size);
-    if (max_local_size == local_size) {
-        local_size /= 2;
-    }
-
-    const index_type global_size = static_cast<index_type>(std::ceil(static_cast<double>(attr.rank_size) / static_cast<double>(local_size))) * local_size;
+    const index_type global_size = static_cast<index_type>(std::ceil(static_cast<double>(attr.rank_size) / static_cast<double>(work_group_size_))) * work_group_size_;
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
@@ -450,10 +445,10 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
         const lsh_hash<HashFunction> hasher{};
 
         // create local memory accessors
-        sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ local_size * k }, cgh };
-        sycl::local_accessor<real_type, 1> knn_dist_local_mem{ sycl::range<1>{ local_size * k }, cgh };
+        sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ work_group_size_ * k }, cgh };
+        sycl::local_accessor<real_type, 1> knn_dist_local_mem{ sycl::range<1>{ work_group_size_ * k }, cgh };
 
-        const sycl::nd_range<1> execution_range{ sycl::range<1>{ global_size }, sycl::range<1>{ local_size } };
+        const sycl::nd_range<1> execution_range{ sycl::range<1>{ global_size }, sycl::range<1>{ work_group_size_ } };
 
         cgh.parallel_for(execution_range, [=](sycl::nd_item<1> item) {
             const index_type global_idx = item.get_global_linear_id();

@@ -42,7 +42,7 @@ int custom_main(int &argc, char **&argv) {
         sycl_lsh::data_set data{ comm, opt.data_file, sycl_lsh::perf_profiler = profiler };
 
         // create a nearest-neighbors object performing the unsupervised learning task
-        sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options, sycl_lsh::perf_profiler = profiler };
+        sycl_lsh::nearest_neighbors nn{ comm, queue, sycl_lsh::work_group_size = opt.work_group_size, sycl_lsh::n_neighbors = opt.n_neighbors, sycl_lsh::lsh_options = opt.lsh_options, sycl_lsh::perf_profiler = profiler };
 
         // fit the data
         nn.fit(data);

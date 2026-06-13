@@ -19,6 +19,7 @@
 #include "fmt/format.h"  // fmt::format
 #include "fmt/ranges.h"  // fmt::join
 
+#include <cstddef>    // std::size_t
 #include <exception>  // std::exception
 #include <optional>   // std::optional
 #include <ostream>    // std::ostream
@@ -69,6 +70,8 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
             ("distances_save_file", "the file to which the calculated nearest-neighbors distances should be saved to", cxxopts::value<std::string>())
             ("indices_ground_truth_file", "the file containing the correct nearest-neighbors for calculating the resulting recall", cxxopts::value<std::string>())
             ("distances_ground_truth_file", "the file containing the correct nearest-neighbors distances for calculating the resulting recall", cxxopts::value<std::string>())
+            // performance related options
+            ("work_group_size", "the number of work-items per work-group for the main kernels", cxxopts::value<std::size_t>()->default_value("512"))
             // locality sensitive hashing specific options
             ("hash_function", "the type of the hash functions: \n\t0: random-projections\n\t1: entropy-based\n\t2: mixed", cxxopts::value<hash_function_type>()->default_value(fmt::format("{}", hash_function_type::random_projections)))
             ("hash_pool_size", "the number of hash functions in the hash pool", cxxopts::value<index_type>()->default_value("32"))
@@ -143,6 +146,8 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
         distances_ground_truth_file = result["distances_ground_truth_file"].as<std::string>();
     }
 
+    work_group_size = result["work_group_size"].as<std::size_t>();
+
     lsh_options.hash_function = result["hash_function"].as<hash_function_type>();
     lsh_options.hash_pool_size = result["hash_pool_size"].as<index_type>();
     lsh_options.num_hash_functions = result["num_hash_functions"].as<index_type>();
@@ -182,6 +187,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   "real_type: {} ({} byte)\n"
                                   "index_type: {} ({} byte)\n"
                                   "hash_value_type: {} ({} byte)\n"
+                                  "work_group_size: {}\n"
                                   "BLOCKING_SIZE: {}\n"
                                   "profiling_type: {}\n"
                                   "input file (data set): '{}'\n",
@@ -192,6 +198,7 @@ std::ostream &operator<<(std::ostream &out, const options &opt) {
                                   sizeof(index_type),
                                   detail::arithmetic_type_name<hash_value_type>(),
                                   sizeof(hash_value_type),
+                                  opt.work_group_size,
                                   BLOCKING_SIZE,
                                   opt.profiling_type,
                                   opt.data_file);
