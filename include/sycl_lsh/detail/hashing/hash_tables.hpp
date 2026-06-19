@@ -144,7 +144,7 @@ hash_tables<HashFunction>::hash_tables(const std::size_t work_group_size, const 
     work_group_size_{ work_group_size },
     lsh_options_{ options },
     hash_functions_{ nullptr },
-    hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },  // TODO: look at blocking -> change to shape
+    hash_tables_ptr_{ lsh_options_.num_hash_tables * data.get_attributes().rank_size + BLOCKING_SIZE, queue_ },
     offsets_ptr_{ shape{ lsh_options_.num_hash_tables, lsh_options_.hash_table_size + 1 }, queue_ },
     profiler_{ std::move(profiler) } {
     const mpi::detail::timer mpi_timer{ comm_ };
@@ -296,6 +296,9 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
         profiler_->add_event("fill_hash_tables_start");
     }
 
+    const index_type comm_rank = comm_.rank();
+    const index_type comm_size = comm_.size();
+
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
         const real_type *data = owning_data_ptr_.get();
@@ -306,8 +309,6 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
         // get additional information
         const locality_sensitive_hashing_options options = lsh_options_;
         const index_type base_id = comm_.rank() * attr.rank_size;
-        const index_type comm_rank = comm_.rank();
-        const index_type comm_size = comm_.size();
 
         // get hasher functor instantiation
         const lsh_hash<HashFunction> hasher{};
@@ -316,7 +317,6 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
             const index_type hash_table = item.get_id(0);
             const index_type idx = item.get_id(1);
 
-            // TODO: understand of this could be mitigated by padding
             index_type val = base_id + idx;
             if (comm_rank == comm_size - 1 && hash_table == 0) {
                 // set correct values IDs for dummy points
@@ -332,7 +332,6 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
             const index_type hash_table_idx = atomic_op<index_type>{ offsets[hash_table * (options.hash_table_size + 1) + hash_value + 1] }.fetch_add(index_type{ 1 });
             hash_tables[hash_table * attr.rank_size + hash_table_idx] = val;
 
-            // TODO: understand of this could be mitigated by padding
             // fill additional values needed for blocking
             if (idx == attr.rank_size - 1 && hash_table == 0) {
                 for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
