@@ -381,6 +381,33 @@ if (hws_FOUND)
     message(STATUS "Found package hws.")
 else ()
     message(STATUS "Couldn't find package hws. Building version ${SYCL_LSH_HWS_VERSION} from source.")
+    # narrow down what hardware sampling capabilities are supported based on the provided target arch
+    # always try to sample CPU information
+    set(HWS_ENABLE_CPU_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    # NVIDIA GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "nvidia")
+        # NVIDIA GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_NVIDIA_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no NVIDIA GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_NVIDIA_SAMPLING OFF CACHE INTERNAL "" FORCE)
+    endif ()
+    # AMD GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "amd")
+        # AMD GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_AMD_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no AMD GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_AMD_SAMPLING OFF CACHE INTERNAL "" FORCE)
+    endif ()
+    # Intel GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "intel")
+        # Intel GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_INTEL_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no Intel GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_INTEL_SAMPLING OFF CACHE INTERNAL "" FORCE)
+    endif ()
     set(HWS_ENABLE_ERROR_CHECKS OFF CACHE INTERNAL "" FORCE)
     set(HWS_SAMPLING_INTERVAL ${SYCL_LSH_HARDWARE_SAMPLING_INTERVAL} CACHE INTERNAL "" FORCE)
     set(HWS_ENABLE_PYTHON_BINDINGS OFF CACHE INTERNAL "" FORCE)
