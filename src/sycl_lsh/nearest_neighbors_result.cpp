@@ -101,7 +101,7 @@ void nearest_neighbors_result::save_distances(const std::string &filename, const
     }
 }
 
-real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct_indices) const {
+std::tuple<real_type, index_type, index_type> nearest_neighbors_result::recall(const aos_matrix<index_type> &correct_indices) const {
     // perform sanity checks
     if (indices_.shape() != correct_indices.shape()) {
         throw exception{ fmt::format("The index sizes missmatch!: {} != {}", indices_.shape(), correct_indices.shape()) };
@@ -126,19 +126,23 @@ real_type nearest_neighbors_result::recall(const aos_matrix<index_type> &correct
 
     // gather the results from all MPI ranks
     const std::size_t total_size = mpi::detail::sum(indices_.num_rows(), comm_);
-    const real_type res = (static_cast<real_type>(mpi::detail::sum(count, comm_)) / static_cast<real_type>(total_size * indices_.num_cols())) * real_type{ 100.0 };
+    const std::size_t total_count = mpi::detail::sum(count, comm_);
+    const std::size_t total_n_neighbors = total_size * this->get_n_neighbors();
+    const real_type res = (static_cast<real_type>(total_count) / static_cast<real_type>(total_n_neighbors)) * real_type{ 100.0 };
 
     // add entry if available
     if (profiler_ != nullptr) {
         profiler_->add_entry("recall", "recall", res);
+        profiler_->add_entry("recall", "correct_count", total_count);
+        profiler_->add_entry("recall", "total_count", total_n_neighbors);
         profiler_->add_entry("recall", "total_runtime", mpi_timer.elapsed());
         profiler_->add_entry("recall", data_.get_attributes());
     }
 
-    return res;
+    return std::make_tuple(res, static_cast<index_type>(total_count), static_cast<index_type>(total_n_neighbors));
 }
 
-real_type nearest_neighbors_result::recall(const std::string &filename, const mpi::file_parser_type file_parser) const {
+std::tuple<real_type, index_type, index_type> nearest_neighbors_result::recall(const std::string &filename, const mpi::file_parser_type file_parser) const {
     const auto parser = mpi::detail::make_file_parser<index_type>(filename, file_parser, mpi::detail::file::mode::read, comm_);
     const aos_matrix<index_type> correct_indices = parser->parse_content();
     return this->recall(correct_indices);

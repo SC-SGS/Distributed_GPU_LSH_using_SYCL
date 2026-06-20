@@ -61,7 +61,8 @@ int custom_main(int &argc, char **&argv) {
 
         // optionally calculate the recall of the calculated nearest-neighbors
         if (opt.indices_ground_truth_file.has_value()) {
-            sycl_lsh::mpi::detail::log(comm, "recall: {:.2f}%\n", result.recall(opt.indices_ground_truth_file.value()));
+            const auto [recall, count_correct, count_total] = result.recall(opt.indices_ground_truth_file.value());
+            sycl_lsh::mpi::detail::log(comm, "recall: {:.2f}% ({} / {})\n", recall, count_correct, count_total);
         }
         // optionally calculate the error ratio of the calculated nearest-neighbors if return_distance was enabled
         if (opt.distances_ground_truth_file.has_value() && result.has_distances()) {

@@ -99,20 +99,22 @@ class nearest_neighbors_result {
     /**
      * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
      * @param[in] correct_indices the correct nearest-neighbor indices
-     * @return the resulting recall (`[[nodiscard]]`)
+     * @return a std::tuple containing the resulting recall, the number of correctly found nearest-neighbors, and the total
+     *         number of nearest-neighbors that were searched for (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::exception if the shape of the @p correct_indices does not match with the shape of the calculated ones
      */
-    [[nodiscard]] real_type recall(const aos_matrix<index_type> &correct_indices) const;
+    [[nodiscard]] std::tuple<real_type, index_type, index_type> recall(const aos_matrix<index_type> &correct_indices) const;
     /**
      * @brief Calculates the recall using: \f$ \frac{true\ positives}{relevant\ elements} \f$
      * @param[in] filename the filename storing the correct indices
      * @param[in] file_parser the @ref sycl_lsh::mpi::file_parser_type
-     * @return the resulting recall (`[[nodiscard]]`)
+     * @return a std::tuple containing the resulting recall, the number of correctly found nearest-neighbors, and the total
+     *         number of nearest-neighbors that were searched for (`[[nodiscard]]`)
      *
      * @throws sycl_lsh::exception if the shape of the indices read from @p filename does not match with the shape of the calculated ones
      */
-    [[nodiscard]] real_type recall(const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary) const;
+    [[nodiscard]] std::tuple<real_type, index_type, index_type> recall(const std::string &filename, mpi::file_parser_type file_parser = mpi::file_parser_type::binary) const;
 
     /**
      * @brief Calculates the error ratio using: \f$ \frac{1}{N} \cdot \sum\limits_{i = 0}^N (\frac{1}{k} \cdot \sum\limits_{j = 0}^k \frac{dist_{LSH_j}}{dist_{correct_j}}) \f$
