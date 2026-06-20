@@ -140,7 +140,7 @@ template <typename HashFunction>
 hash_tables<HashFunction>::hash_tables(const std::size_t work_group_size, const locality_sensitive_hashing_options &options, const data_set &data, sycl::queue queue, const mpi::communicator comm, std::shared_ptr<profiler> profiler) :
     queue_{ std::move(queue) },
     comm_{ comm },
-    owning_data_ptr_{ data.data().shape(), queue_ },
+    owning_data_ptr_{ data.data<soa_matrix>().shape(), queue_ },
     work_group_size_{ work_group_size },
     lsh_options_{ options },
     hash_functions_{ nullptr },
@@ -163,7 +163,7 @@ hash_tables<HashFunction>::hash_tables(const std::size_t work_group_size, const 
     mpi::detail::log(comm_, "\n");
 
     // copy the owning data to the device
-    owning_data_ptr_.copy_to_device(data.data());
+    owning_data_ptr_.copy_to_device(data.data<soa_matrix>());
 
     {
         const mpi::detail::timer mpi_timer_hash_functions{ comm_ };
@@ -195,6 +195,9 @@ hash_tables<HashFunction>::hash_tables(const std::size_t work_group_size, const 
 
     // fill the hash tables based on the previously calculated offsets
     this->fill_hash_tables(data.get_attributes());
+
+    // after creating the hash tables, convert the owning data from SoA to AoS layout since this layout is more beneficial in the search_nearest_neighbors kernel
+    owning_data_ptr_.copy_to_device(data.data<aos_matrix>());
 
     // add entry if available
     if (profiler_ != nullptr) {
@@ -356,7 +359,7 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
 // ---------------------------------------------------------------------------------------------------------- //
 template <typename HashFunction>
 void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, data_set &query_data, aos_matrix<index_type> &indices, aos_matrix<real_type> &distances) const {
-    device_ptr<real_type> query_data_ptr{ query_data.data().shape(), queue_ };
+    device_ptr<real_type> query_data_ptr{ query_data.data<soa_matrix>().shape(), queue_ };
 
     // add event if available
     if (profiler_ != nullptr) {
@@ -376,11 +379,11 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         mpi::detail::log(comm_, "Round {} of {} ... ", round + 1, comm_.size());
 
         // copy the current data to the device
-        query_data_ptr.copy_to_device(query_data.data());
+        query_data_ptr.copy_to_device(query_data.data<soa_matrix>());
 
         // create thread to asynchronously perform MPI communication
         std::thread mpi_thread{ [&]() {
-            comm_.send_receive_round_robin(query_data.mutable_data());
+            comm_.send_receive_round_robin(query_data.mutable_data<soa_matrix>());
         } };
 
         // set the knn data on the device
@@ -428,7 +431,7 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
 
     queue_.submit([&](sycl::handler &cgh) {
         // get device data
-        const real_type *data_owned = owning_data_ptr_.get();
+        const real_type *data_owned = owning_data_ptr_.get();  // NOTE: in AoS layout now!!!
         const real_type *data_received = received_data_ptr.get();
         const real_type *hash_functions = hash_functions_->get_device_ptr().get();
         const index_type *offsets = offsets_ptr_.get();
@@ -497,23 +500,25 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
                         knn_blocked[block] = hash_tables[hash_table * attr.rank_size + bucket_elem + block];
                         knn_dist_blocked[block] = 0.0;
 
-                        // calculate distances
-                        for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            const real_type x = data_received[dim * attr.rank_size + global_idx];
-                            const real_type y = data_owned[dim * attr.rank_size + (knn_blocked[block] - base_id)];
-                            knn_dist_blocked[block] += (x - y) * (x - y);
-                        }
+                        if (is_candidate(knn_blocked[block])) {
+                            // calculate distances
+                            for (index_type dim = 0; dim < attr.dims; ++dim) {
+                                const real_type x = data_received[dim * attr.rank_size + global_idx];
+                                const real_type y = data_owned[(knn_blocked[block] - base_id) * attr.dims + dim];
+                                knn_dist_blocked[block] += (x - y) * (x - y);
+                            }
 
-                        // update nearest-neighbors
-                        if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx][0] && is_candidate(knn_blocked[block])) {
-                            knn_local_mem[local_idx][0] = knn_blocked[block];
-                            knn_dist_local_mem[local_idx][0] = knn_dist_blocked[block];
+                            // update nearest-neighbors
+                            if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx][0]) {
+                                knn_local_mem[local_idx][0] = knn_blocked[block];
+                                knn_dist_local_mem[local_idx][0] = knn_dist_blocked[block];
 
-                            // ensure that the greatest distance is at pos 0 (bubble-sort)
-                            for (index_type nn = 0; nn < k - 1; ++nn) {
-                                if (knn_dist_local_mem[local_idx][nn] < knn_dist_local_mem[local_idx][nn + 1]) {
-                                    std::swap(knn_local_mem[local_idx][nn], knn_local_mem[local_idx][nn + 1]);
-                                    std::swap(knn_dist_local_mem[local_idx][nn], knn_dist_local_mem[local_idx][nn + 1]);
+                                // ensure that the greatest distance is at pos 0 (bubble-sort)
+                                for (index_type nn = 0; nn < k - 1; ++nn) {
+                                    if (knn_dist_local_mem[local_idx][nn] < knn_dist_local_mem[local_idx][nn + 1]) {
+                                        std::swap(knn_local_mem[local_idx][nn], knn_local_mem[local_idx][nn + 1]);
+                                        std::swap(knn_dist_local_mem[local_idx][nn], knn_dist_local_mem[local_idx][nn + 1]);
+                                    }
                                 }
                             }
                         }

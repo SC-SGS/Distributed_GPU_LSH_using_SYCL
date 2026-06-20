@@ -98,7 +98,10 @@ class data_set {
      * @brief Return the data points in this @ref sycl_lsh::data_set.
      * @return the data points (`[[nodiscard]]`)
      */
-    [[nodiscard]] const soa_matrix<real_type> &data() const { return *data_ptr_; }
+    template <template <typename> typename matrix_type>
+    [[nodiscard]] const matrix_type<real_type> &data() const {
+        return const_cast<data_set *>(this)->mutable_data<matrix_type>();
+    }
 
     /**
      * @brief Return the data attributes of this @ref sycl_lsh::data_set.
@@ -120,13 +123,27 @@ class data_set {
      * @attention Must be used with caution!
      * @return the data points (`[[nodiscard]]`)
      */
-    [[nodiscard]] soa_matrix<real_type> &mutable_data() { return *data_ptr_; }
+    template <template <typename> typename matrix_type>
+    [[nodiscard]] matrix_type<real_type> &mutable_data() {
+        if constexpr (std::is_same_v<matrix_type<real_type>, soa_matrix<real_type>>) {
+            return *data_soa_ptr_;
+        } else if constexpr (std::is_same_v<matrix_type<real_type>, aos_matrix<real_type>>) {
+            return *data_aos_ptr_;
+        } else {
+            static_assert(detail::always_false_v<matrix_type<real_type>>, "Invalid matrix type provided!");
+        }
+        detail::unreachable();  // silence clang-tidy warning
+    }
 
     /// The associated @ref sycl_lsh::data_set::attributes.
     attributes attributes_{};
 
+    // NOTE: we store the data twice on the host since some kernel perform better with the AoS layout then with the SoA layout
+    //       and it is cheaper performance (runtime) wise to store the data twice then converting it between the representations on-the-fly
     /// The host buffer represented as a @ref sycl_lsh::soa_matrix.
-    std::shared_ptr<soa_matrix<real_type>> data_ptr_{ nullptr };
+    std::shared_ptr<soa_matrix<real_type>> data_soa_ptr_{ nullptr };
+    /// The host buffer represented as a @ref sycl_lsh::aos_matrix.
+    std::shared_ptr<aos_matrix<real_type>> data_aos_ptr_{ nullptr };
 
     /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };
