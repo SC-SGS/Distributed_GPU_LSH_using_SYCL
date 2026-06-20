@@ -75,7 +75,7 @@ struct lsh_hash<random_projections> {
             // calculate hash for current hash function
             real_type hash = hash_functions_d[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + attr.dims];
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += data_d[point * attr.dims + dim]
+                hash += data_d[dim * attr.rank_size + point]
                         * hash_functions_d[hash_table * opt.num_hash_functions * (attr.dims + 1) + hash_function * (attr.dims + 1) + dim];
             }
             // combine hashes

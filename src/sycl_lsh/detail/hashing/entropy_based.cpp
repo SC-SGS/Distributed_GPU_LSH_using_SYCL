@@ -77,7 +77,7 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
                 for (index_type hash_function = 0; hash_function < options.hash_pool_size; ++hash_function) {
                     real_type value = 0.0;
                     for (index_type dim = 0; dim < attr.dims; ++dim) {
-                        value += data_d[idx * attr.dims + dim]
+                        value += data_d[dim * attr.rank_size + idx]
                                  * hash_functions_pool_d[hash_function * attr.dims + dim];
                     }
                     hash_values_d[hash_function * attr.rank_size + idx] = value;

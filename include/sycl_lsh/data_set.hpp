@@ -12,7 +12,7 @@
 
 #include "sycl_lsh/constants.hpp"         // sycl_lsh::real_type
 #include "sycl_lsh/detail/utility.hpp"    // SYCL_LSH_REQUIRES
-#include "sycl_lsh/matrix.hpp"            // sycl_lsh::aos_matrix
+#include "sycl_lsh/matrix.hpp"            // sycl_lsh::soa_matrix
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
 #include "sycl_lsh/options.hpp"           // sycl_lsh::options, sycl_lsh::detail::has_only_named_args_v
 
@@ -98,7 +98,7 @@ class data_set {
      * @brief Return the data points in this @ref sycl_lsh::data_set.
      * @return the data points (`[[nodiscard]]`)
      */
-    [[nodiscard]] const aos_matrix<real_type> &data() const { return *data_ptr_; }
+    [[nodiscard]] const soa_matrix<real_type> &data() const { return *data_ptr_; }
 
     /**
      * @brief Return the data attributes of this @ref sycl_lsh::data_set.
@@ -120,13 +120,13 @@ class data_set {
      * @attention Must be used with caution!
      * @return the data points (`[[nodiscard]]`)
      */
-    [[nodiscard]] aos_matrix<real_type> &mutable_data() { return *data_ptr_; }
+    [[nodiscard]] soa_matrix<real_type> &mutable_data() { return *data_ptr_; }
 
     /// The associated @ref sycl_lsh::data_set::attributes.
     attributes attributes_{};
 
-    /// The host buffer represented as a @ref sycl_lsh::aos_matrix.
-    std::shared_ptr<aos_matrix<real_type>> data_ptr_{ nullptr };
+    /// The host buffer represented as a @ref sycl_lsh::soa_matrix.
+    std::shared_ptr<soa_matrix<real_type>> data_ptr_{ nullptr };
 
     /// The optional @ref sycl_lsh::profiler.
     std::shared_ptr<profiler> profiler_{ nullptr };

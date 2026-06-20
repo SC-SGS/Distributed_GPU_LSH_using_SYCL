@@ -132,7 +132,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
                 for (index_type hash_function = 0; hash_function < options.num_hash_functions; ++hash_function) {
                     real_type hash = hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + attr.dims];
                     for (index_type dim = 0; dim < attr.dims; ++dim) {
-                        hash += data_d[idx * attr.dims + dim]
+                        hash += data_d[dim * attr.rank_size + idx]
                                 * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + dim];
                     }
                     value += static_cast<hash_value_type>(hash / options.w)

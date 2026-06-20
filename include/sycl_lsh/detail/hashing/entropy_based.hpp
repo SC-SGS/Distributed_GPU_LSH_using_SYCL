@@ -75,7 +75,7 @@ struct lsh_hash<entropy_based> {
             // calculate dot product for current hash function
             real_type hash = 0.0;
             for (index_type dim = 0; dim < attr.dims; ++dim) {
-                hash += data_d[point * attr.dims + dim]
+                hash += data_d[dim * attr.rank_size + point]
                         * hash_functions_d[hash_table * opt.num_hash_functions * (attr.dims + opt.num_cut_off_points - 1) + hash_function * (attr.dims + opt.num_cut_off_points - 1) + dim];
             }
             // calculate entropy hash for current hash function

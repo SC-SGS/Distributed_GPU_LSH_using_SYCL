@@ -488,8 +488,8 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
                     // calculate distances
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
                         for (index_type dim = 0; dim < attr.dims; ++dim) {
-                            const real_type x = data_received[global_idx * attr.dims + dim];
-                            const real_type y = data_owned[(knn_blocked[block] - base_id) * attr.dims + dim];
+                            const real_type x = data_received[dim * attr.rank_size + global_idx];
+                            const real_type y = data_owned[dim * attr.rank_size + (knn_blocked[block] - base_id)];
                             knn_dist_blocked[block] += (x - y) * (x - y);
                         }
                     }
