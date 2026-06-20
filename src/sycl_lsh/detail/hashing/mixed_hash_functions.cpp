@@ -6,12 +6,13 @@
 
 #include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"
 
-#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
-#include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
-#include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/data_set.hpp"                          // sycl_lsh::data_set::attributes
+#include "sycl_lsh/detail/device_ptr.hpp"                 // sycl_lsh::detail::device_ptr
+#include "sycl_lsh/detail/make_unique_for_overwrite.hpp"  // sycl_lsh::detail::make_unique_for_overwrite
+#include "sycl_lsh/mpi/communicator.hpp"                  // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/sort.hpp"                   // sycl_lsh::mpi::detail::sort
+#include "sycl_lsh/mpi/detail/utility.hpp"                // SYCL_LSH_MPI_ERROR_CHECK
+#include "sycl_lsh/options.hpp"                           // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::handler, sycl::range, sycl::item
 
@@ -106,7 +107,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Bcast(host_buffer.data(), host_buffer.size(), mpi::detail::mpi_datatype<real_type>(), 0, comm));
 
     // calculate cut-off points
-    std::vector<real_type> hash_values(attributes.rank_size * opt.num_hash_tables);
+    auto hash_values = detail::make_unique_for_overwrite<real_type[]>(attributes.rank_size * opt.num_hash_tables);
     {
         // copy the hash function pool to the device
         device_ptr<real_type> hash_functions_ptr{ host_buffer.size(), queue };
@@ -146,13 +147,13 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
         queue.wait_and_throw();
 
         // copy the hash values back to the host
-        hash_values_ptr.copy_to_host(hash_values);
+        hash_values_ptr.copy_to_host(hash_values.get());
     }
 
 #pragma omp parallel for
     for (index_type hash_table = 0; hash_table < opt.num_hash_tables; ++hash_table) {
         // sort hash_values vector in a distributed fashion
-        mpi::detail::sort(hash_values.begin() + hash_table * attributes.rank_size, hash_values.begin() + (hash_table + 1) * attributes.rank_size, comm);
+        mpi::detail::sort(hash_values.get() + hash_table * attributes.rank_size, hash_values.get() + (hash_table + 1) * attributes.rank_size, comm);
 
         std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
 

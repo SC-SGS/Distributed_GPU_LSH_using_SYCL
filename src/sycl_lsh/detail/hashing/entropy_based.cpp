@@ -6,12 +6,13 @@
 
 #include "sycl_lsh/detail/hashing/entropy_based.hpp"
 
-#include "sycl_lsh/data_set.hpp"            // sycl_lsh::data_set::attributes
-#include "sycl_lsh/detail/device_ptr.hpp"   // sycl_lsh::detail::device_ptr
-#include "sycl_lsh/mpi/communicator.hpp"    // sycl_lsh::mpi::communicator
-#include "sycl_lsh/mpi/detail/sort.hpp"     // sycl_lsh::mpi::detail::sort
-#include "sycl_lsh/mpi/detail/utility.hpp"  // SYCL_LSH_MPI_ERROR_CHECK
-#include "sycl_lsh/options.hpp"             // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/data_set.hpp"                          // sycl_lsh::data_set::attributes
+#include "sycl_lsh/detail/device_ptr.hpp"                 // sycl_lsh::detail::device_ptr
+#include "sycl_lsh/detail/make_unique_for_overwrite.hpp"  // sycl_lsh::detail::make_unique_for_overwrite
+#include "sycl_lsh/mpi/communicator.hpp"                  // sycl_lsh::mpi::communicator
+#include "sycl_lsh/mpi/detail/sort.hpp"                   // sycl_lsh::mpi::detail::sort
+#include "sycl_lsh/mpi/detail/utility.hpp"                // SYCL_LSH_MPI_ERROR_CHECK
+#include "sycl_lsh/options.hpp"                           // sycl_lsh::locality_sensitive_hashing_options
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::handler, sycl::range, sycl::item
 
@@ -53,7 +54,7 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
     std::vector<real_type> cut_off_points_pool(opt.hash_pool_size * (opt.num_cut_off_points - 1));
 
     // calculate cut-off points
-    std::vector<real_type> hash_values(attributes.rank_size * opt.hash_pool_size);
+    auto hash_values = detail::make_unique_for_overwrite<real_type[]>(attributes.rank_size * opt.hash_pool_size);
     {
         // copy the hash function pool to the device
         device_ptr<real_type> hash_functions_pool_ptr{ shape{ opt.hash_pool_size, attributes.dims }, queue };
@@ -71,17 +72,16 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
             const locality_sensitive_hashing_options options = opt;
             const data_set::attributes attr = attributes;
 
-            cgh.parallel_for(sycl::range<1>{ attr.rank_size }, [=](sycl::item<> item) {
-                const index_type idx = item.get_linear_id();
+            cgh.parallel_for(sycl::range<2>{ options.hash_pool_size, attr.rank_size }, [=](sycl::item<2> item) {
+                const index_type hash_function = item.get_id(0);
+                const index_type idx = item.get_id(1);
 
-                for (index_type hash_function = 0; hash_function < options.hash_pool_size; ++hash_function) {
-                    real_type value = 0.0;
-                    for (index_type dim = 0; dim < attr.dims; ++dim) {
-                        value += data_d[dim * attr.rank_size + idx]
-                                 * hash_functions_pool_d[hash_function * attr.dims + dim];
-                    }
-                    hash_values_d[hash_function * attr.rank_size + idx] = value;
+                real_type value = 0.0;
+                for (index_type dim = 0; dim < attr.dims; ++dim) {
+                    value += data_d[dim * attr.rank_size + idx]
+                             * hash_functions_pool_d[hash_function * attr.dims + dim];
                 }
+                hash_values_d[hash_function * attr.rank_size + idx] = value;
             });
         });
 
@@ -89,13 +89,13 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
         queue.wait_and_throw();
 
         // copy the hash values back to the host
-        hash_values_ptr.copy_to_host(hash_values);
+        hash_values_ptr.copy_to_host(hash_values.get());
     }
 
 #pragma omp parallel for
     for (index_type hash_function = 0; hash_function < opt.hash_pool_size; ++hash_function) {
         // sort hash_values vector in a distributed fashion
-        mpi::detail::sort(hash_values.begin() + hash_function * attributes.rank_size, hash_values.begin() + (hash_function + 1) * attributes.rank_size, comm);
+        mpi::detail::sort(hash_values.get() + hash_function * attributes.rank_size, hash_values.get() + (hash_function + 1) * attributes.rank_size, comm);
 
         std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
 
