@@ -444,8 +444,8 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
         const lsh_hash<HashFunction> hasher{};
 
         // create local memory accessors
-        sycl::local_accessor<index_type, 1> knn_local_mem{ sycl::range<1>{ work_group_size_ * k }, cgh };
-        sycl::local_accessor<real_type, 1> knn_dist_local_mem{ sycl::range<1>{ work_group_size_ * k }, cgh };
+        sycl::local_accessor<index_type, 2> knn_local_mem{ sycl::range<2>{ work_group_size_, k }, cgh };
+        sycl::local_accessor<real_type, 2> knn_dist_local_mem{ sycl::range<2>{ work_group_size_, k }, cgh };
 
         const sycl::nd_range<1> execution_range{ sycl::range<1>{ global_size }, sycl::range<1>{ work_group_size_ } };
 
@@ -462,10 +462,23 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
             std::array<index_type, BLOCKING_SIZE> knn_blocked{};
             std::array<real_type, BLOCKING_SIZE> knn_dist_blocked{};
 
+            // check candidate function
+            const auto is_candidate = [&](const index_type candidate_idx) {
+                if (candidate_idx - base_id == global_idx) {
+                    return false;
+                }
+                for (index_type nn = 0; nn < k; ++nn) {
+                    if (knn_local_mem[local_idx][nn] == candidate_idx) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
             // initialize local memory arrays
             for (index_type nn = 0; nn < k; ++nn) {
-                knn_local_mem[local_idx * k + nn] = knn[global_idx * k + nn];
-                knn_dist_local_mem[local_idx * k + nn] = knn_dist[global_idx * k + nn];
+                knn_local_mem[local_idx][nn] = knn[global_idx * k + nn];
+                knn_dist_local_mem[local_idx][nn] = knn_dist[global_idx * k + nn];
             }
 
             // perform nearest-neighbor search for all hash tables
@@ -483,41 +496,24 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
                     for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
                         knn_blocked[block] = hash_tables[hash_table * attr.rank_size + bucket_elem + block];
                         knn_dist_blocked[block] = 0.0;
-                    }
 
-                    // calculate distances
-                    for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
+                        // calculate distances
                         for (index_type dim = 0; dim < attr.dims; ++dim) {
                             const real_type x = data_received[dim * attr.rank_size + global_idx];
                             const real_type y = data_owned[dim * attr.rank_size + (knn_blocked[block] - base_id)];
                             knn_dist_blocked[block] += (x - y) * (x - y);
                         }
-                    }
 
-                    // check candidate function
-                    const auto is_candidate = [&](const index_type candidate_idx) {
-                        if (candidate_idx - base_id == global_idx) {
-                            return false;
-                        }
-                        for (index_type nn = 0; nn < k; ++nn) {
-                            if (knn_local_mem[local_idx * k + nn] == candidate_idx) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    };
-
-                    // update nearest-neighbors
-                    for (index_type block = 0; block < BLOCKING_SIZE; ++block) {
-                        if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx * k] && is_candidate(knn_blocked[block])) {
-                            knn_local_mem[local_idx * k] = knn_blocked[block];
-                            knn_dist_local_mem[local_idx * k] = knn_dist_blocked[block];
+                        // update nearest-neighbors
+                        if (knn_dist_blocked[block] < knn_dist_local_mem[local_idx][0] && is_candidate(knn_blocked[block])) {
+                            knn_local_mem[local_idx][0] = knn_blocked[block];
+                            knn_dist_local_mem[local_idx][0] = knn_dist_blocked[block];
 
                             // ensure that the greatest distance is at pos 0 (bubble-sort)
                             for (index_type nn = 0; nn < k - 1; ++nn) {
-                                if (knn_dist_local_mem[local_idx * k + nn] < knn_dist_local_mem[local_idx * k + nn + 1]) {
-                                    std::swap(knn_local_mem[local_idx * k + nn], knn_local_mem[local_idx * k + nn + 1]);
-                                    std::swap(knn_dist_local_mem[local_idx * k + nn], knn_dist_local_mem[local_idx * k + nn + 1]);
+                                if (knn_dist_local_mem[local_idx][nn] < knn_dist_local_mem[local_idx][nn + 1]) {
+                                    std::swap(knn_local_mem[local_idx][nn], knn_local_mem[local_idx][nn + 1]);
+                                    std::swap(knn_dist_local_mem[local_idx][nn], knn_dist_local_mem[local_idx][nn + 1]);
                                 }
                             }
                         }
@@ -527,8 +523,8 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
 
             // write back to global buffer
             for (index_type nn = 0; nn < k; ++nn) {
-                knn[global_idx * k + nn] = knn_local_mem[local_idx * k + nn];
-                knn_dist[global_idx * k + nn] = knn_dist_local_mem[local_idx * k + nn];
+                knn[global_idx * k + nn] = knn_local_mem[local_idx][nn];
+                knn_dist[global_idx * k + nn] = knn_dist_local_mem[local_idx][nn];
             }
         });
     });
