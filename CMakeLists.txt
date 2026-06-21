@@ -342,6 +342,13 @@ if (SYCL_LSH_RANDOM_NUMBERS_DEBUG)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_RANDOM_NUMBERS_DEBUG)
 endif ()
 
+# output the hash bucket distribution to a file after a call to fit
+option(SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG "If enabled, outputs the hash value distribution for the internal hash tables." OFF)
+if (SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
+    message(STATUS "The hash value distribution is output during the call to fit.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
+endif ()
+
 # use 64bit floating point and index types if requested
 option(SYCL_LSH_USE_64BIT_TYPES "Use 64bit types (real_type, index_type, hash_value_type) instead of their 32bit counterparts." OFF)
 if (SYCL_LSH_USE_64BIT_TYPES)

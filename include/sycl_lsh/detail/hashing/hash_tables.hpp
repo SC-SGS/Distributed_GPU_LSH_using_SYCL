@@ -240,6 +240,20 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
     // wait until the kernel finished
     queue_.wait_and_throw();
 
+#if defined(SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
+    // copy the data to the host
+    std::vector<index_type> hash_values_count(hash_values_count_ptr.size());
+    hash_values_count_ptr.copy_to_host(hash_values_count);
+    // output the count values to a simple .csv file
+    std::ofstream out{ "hash_value_distribution.csv" };
+    if (!out.good()) {
+        throw exception{ "Couldn't create the hash value distribution .csv file!" };
+    }
+    for (std::size_t hash_table = 0; hash_table < lsh_options_.num_hash_tables; ++hash_table) {
+        out << fmt::format("{},{}", hash_table, fmt::join(hash_values_count.begin() + hash_table * lsh_options_.hash_table_size, hash_values_count.begin() + (hash_table + 1) * lsh_options_.hash_table_size, ",")) << std::endl;
+    }
+#endif
+
     // add event and entry if available
     if (profiler_ != nullptr) {
         profiler_->add_event("count_hash_values_end");
