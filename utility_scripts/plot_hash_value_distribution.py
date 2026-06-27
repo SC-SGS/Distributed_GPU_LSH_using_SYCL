@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-##############################
-# Authors: Marcel Breyer     #
-# Copyright (C): 2020-today  #
-##############################
-
 import argparse
 import numpy as np
 from numpy import genfromtxt
@@ -21,10 +13,31 @@ if __name__ == "__main__":
     # load the data
     distributions = genfromtxt(args.input_file, delimiter=',', ndmin=2)
 
+    # create two axes besides each other
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
     for dist in distributions:
         data = dist[1:]
-        plt.plot(np.arange(len(data)), data, label=f"hash table {dist[0]}")
-        plt.yscale("log")
+        label = f"hash table {int(dist[0])}"
+
+        # left plot: count per hash value
+        ax1.plot(np.arange(len(data)), data, label=label)
+
+        # right plot: distribution of bucket sizes (how often does each count appear)
+        unique, freq = np.unique(data, return_counts=True)
+        ax2.plot(unique, freq, label=label)
+
+    ax1.set_yscale("log")
+    ax1.set_xlabel("hash value")
+    ax1.set_ylabel("count")
+    ax1.set_title("Count per hash value")
+
+    ax2.set_yscale("log")
+    ax2.set_xlabel("hash bucket size")
+    ax2.set_ylabel("number of buckets with this size")
+    ax2.set_title("Distribution of bucket sizes")
+
+    plt.tight_layout()
 
     if args.output_file is not None:
         plt.savefig(args.output_file, dpi=150, bbox_inches="tight")
