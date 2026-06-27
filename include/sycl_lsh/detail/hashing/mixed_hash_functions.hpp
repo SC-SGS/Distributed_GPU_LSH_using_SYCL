@@ -18,6 +18,8 @@
 
 #include "sycl/sycl.hpp"  // sycl::queue
 
+#include <type_traits>  // std::make_signed_t
+
 namespace sycl_lsh::detail::hashing {
 
 /**
@@ -79,8 +81,7 @@ struct lsh_hash<mixed_hash_functions> {
                         * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + dim];
             }
             // combine hash values using the entropy-based hash functions
-            value += static_cast<hash_value_type>(hash / opt.w)
-                     * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attr.dims + 1) + hash_function];
+            value += static_cast<real_type>(static_cast<std::make_signed_t<hash_value_type>>(hash / opt.w));
         }
         // calculate final hash value using the cut-off points of the combined hash values
         hash_value_type combined_hash = 0;

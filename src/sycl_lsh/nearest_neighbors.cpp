@@ -50,6 +50,9 @@ void nearest_neighbors::fit(data_set X) {
             hash_tables_ = std::make_unique<hash_tables<entropy_based>>(work_group_size_, lsh_options_, data_, queue_, comm_, profiler_);
             break;
         case hash_function_type::mixed_hash_functions:
+            // for the mixed hash functions, we now that the maximum hash value equals to num_cut_off_points
+            // -> make use of this knowledge and reduce the size of the hash tables
+            lsh_options_.hash_table_size = std::min(lsh_options_.hash_table_size, lsh_options_.num_cut_off_points);
             hash_tables_ = std::make_unique<hash_tables<mixed_hash_functions>>(work_group_size_, lsh_options_, data_, queue_, comm_, profiler_);
             break;
     }

@@ -18,8 +18,9 @@
 
 #include "mpi.h"  // MPI_Bcast, MPI_Allreduce
 
-#include <random>  // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
-#include <vector>  // std::vector
+#include <random>       // std::mt19937, std::random_device, std::normal_distribution, std::uniform_real_distribution, std::uniform_int_distribution
+#include <type_traits>  // std::make_signed_t
+#include <vector>       // std::vector
 
 namespace sycl_lsh::detail::hashing {
 
@@ -136,8 +137,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
                         hash += data_d[dim * attr.rank_size + idx]
                                 * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + hash_function * (attr.dims + 1) + dim];
                     }
-                    value += static_cast<hash_value_type>(hash / options.w)
-                             * hash_functions_d[hash_table * (opt.num_hash_functions * (attr.dims + 1) + opt.num_hash_functions + opt.num_cut_off_points - 1) + opt.num_hash_functions * (attr.dims + 1) + hash_function];
+                    value += static_cast<real_type>(static_cast<std::make_signed_t<hash_value_type>>(hash / opt.w));
                 }
                 hash_values_d[hash_table * attr.rank_size + idx] = value;
             });
@@ -155,20 +155,18 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
         // sort hash_values vector in a distributed fashion
         mpi::detail::sort(hash_values.get() + hash_table * attributes.rank_size, hash_values.get() + (hash_table + 1) * attributes.rank_size, comm);
 
-        std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1, 0.0);
-
-        // calculate cut-off points indices
-        std::vector<index_type> cut_off_points_idx(cut_off_points.size());
-        const index_type jump = (attributes.rank_size * comm.size()) / opt.num_cut_off_points;
-        for (index_type cop = 0; cop < cut_off_points_idx.size(); ++cop) {
-            cut_off_points_idx[cop] = (cop + 1) * jump;
-        }
-
         // fill cut-off points which are located on the current MPI rank
+        std::vector<real_type> cut_off_points(opt.num_cut_off_points - 1);
+        const index_type total_size = attributes.rank_size * comm.size();
+        const index_type jump = total_size / opt.num_cut_off_points;
+        const index_type remainder = total_size % opt.num_cut_off_points;
+        index_type cut_off_idx = 0;
         for (index_type cop = 0; cop < opt.num_cut_off_points - 1; ++cop) {
+            // get the cut-off point index
+            cut_off_idx += jump + (cop < remainder ? 1 : 0);
             // check if index belongs to current MPI rank
-            if (cut_off_points_idx[cop] >= attributes.rank_size * comm.rank() && cut_off_points_idx[cop] < attributes.rank_size * (comm.rank() + 1)) {
-                cut_off_points[cop] = hash_values[hash_table * attributes.rank_size + cut_off_points_idx[cop] % attributes.rank_size];
+            if (cut_off_idx >= attributes.rank_size * comm.rank() && cut_off_idx < attributes.rank_size * (comm.rank() + 1)) {
+                cut_off_points[cop] = hash_values[hash_table * attributes.rank_size + cut_off_idx % attributes.rank_size];
             }
         }
 
