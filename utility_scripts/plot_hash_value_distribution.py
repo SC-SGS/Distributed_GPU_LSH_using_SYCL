@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # load the data
-    distributions = genfromtxt(args.input_file, delimiter=',')
+    distributions = genfromtxt(args.input_file, delimiter=',', ndmin=2)
 
     for dist in distributions:
         data = dist[1:]
