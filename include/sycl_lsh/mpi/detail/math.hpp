@@ -14,7 +14,7 @@
 #include "sycl_lsh/mpi/detail/type_cast.hpp"  // sycl_lsh::mpi::detail::mpi_datatype
 #include "sycl_lsh/mpi/detail/utility.hpp"    // SYCL_LSH_MPI_ERROR_CHECK
 
-#include "mpi.h"  // MPI_Allreduce, MPI_SUM
+#include "mpi.h"  // MPI_Allreduce, MPI_SUM, MPI_Reduce, MPI_IN_PLACE
 
 namespace sycl_lsh::mpi::detail {
 
@@ -31,6 +31,18 @@ template <typename T>
     T sum{};
     SYCL_LSH_MPI_ERROR_CHECK(MPI_Allreduce(&value, &sum, 1, mpi_datatype<T>(), MPI_SUM, comm));
     return sum;
+}
+
+/**
+ * @brief Sums the given values in @p vec over all MPI ranks and returns the result in the MPI main rank.
+ * @details Returns the result **only** in the MPI main rank.
+ * @tparam T the type of the values to sum
+ * @param[in] vec the values to sum
+ * @param[in] comm the used @ref sycl_lsh::mpi::communicator
+ */
+template <typename T>
+void elementwise_sum_inplace_main(std::vector<T> &vec, const communicator &comm) {
+    SYCL_LSH_MPI_ERROR_CHECK(MPI_Reduce(MPI_IN_PLACE, vec.data(), static_cast<int>(vec.size()), mpi_datatype<T>(), MPI_SUM, communicator::main_rank(), comm));
 }
 
 /**

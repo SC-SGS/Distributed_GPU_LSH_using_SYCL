@@ -17,6 +17,7 @@
 #include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"  // sycl_lsh::detail::hashing::mixed_hash_functions
 #include "sycl_lsh/detail/hashing/random_projections.hpp"    // sycl_lsh::detail::hashing::random_projections
 #include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
+#include "sycl_lsh/mpi/detail/math.hpp"                      // sycl_lsh::mpi::detail::elementwise_sum_inplace_main
 #include "sycl_lsh/mpi/detail/timer.hpp"                     // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
 #include "sycl_lsh/profiler.hpp"                             // sycl_lsh::profiler
@@ -244,13 +245,30 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
     // copy the data to the host
     std::vector<index_type> hash_values_count(hash_values_count_ptr.size());
     hash_values_count_ptr.copy_to_host(hash_values_count);
-    // output the count values to a simple .csv file
-    std::ofstream out{ "hash_value_distribution.csv" };
-    if (!out.good()) {
-        throw exception{ "Couldn't create the hash value distribution .csv file!" };
-    }
-    for (std::size_t hash_table = 0; hash_table < lsh_options_.num_hash_tables; ++hash_table) {
-        out << fmt::format("{},{}", hash_table, fmt::join(hash_values_count.begin() + hash_table * lsh_options_.hash_table_size, hash_values_count.begin() + (hash_table + 1) * lsh_options_.hash_table_size, ",")) << std::endl;
+
+    // collect the data from the other MPI ranks
+    mpi::detail::elementwise_sum_inplace_main(hash_values_count, comm_);
+
+    if (comm_.is_main_rank()) {
+        // output the count values to a simple .csv file only on the MPI main rank
+        std::ofstream out{ "hash_value_distribution.csv" };
+        if (!out.good()) {
+            throw exception{ "Couldn't create the hash value distribution .csv file!" };
+        }
+
+        // add metadata as comment
+        out << fmt::format("# hash_function_type: {}\n", lsh_options_.hash_function);
+        out << fmt::format("# hash_pool_size: {}\n", lsh_options_.hash_pool_size);
+        out << fmt::format("# num_hash_functions: {}\n", lsh_options_.num_hash_functions);
+        out << fmt::format("# num_hash_tables: {}\n", lsh_options_.num_hash_tables);
+        out << fmt::format("# hash_table_size: {}\n", lsh_options_.hash_table_size);
+        out << fmt::format("# num_cut_off_points: {}\n", lsh_options_.num_cut_off_points);
+        out << fmt::format("# num_data_points: {}\n", attr.total_size);
+
+        // add the distributions
+        for (std::size_t hash_table = 0; hash_table < lsh_options_.num_hash_tables; ++hash_table) {
+            out << fmt::format("{},{}", hash_table, fmt::join(hash_values_count.begin() + hash_table * lsh_options_.hash_table_size, hash_values_count.begin() + (hash_table + 1) * lsh_options_.hash_table_size, ",")) << std::endl;
+        }
     }
 #endif
 
