@@ -494,7 +494,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
 }
 
 template <typename HashFunction>
-std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_round(const int round, const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr, device_ptr<index_type> &knn_calculation_count_ptr) const {
+std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_round(const int round, const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr, [[maybe_unused]] device_ptr<index_type> &knn_calculation_count_ptr) const {
     const mpi::detail::timer mpi_timer{ comm_ };
 
     // add event if available
@@ -513,7 +513,9 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
         const index_type *hash_tables = hash_tables_ptr_.get();
         index_type *knn = knn_indices_ptr.get();
         real_type *knn_dist = knn_distances_ptr.get();
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
         index_type *knn_calculation_count = knn_calculation_count_ptr.get();
+#endif
 
         // get additional information
         const locality_sensitive_hashing_options options = lsh_options_;
