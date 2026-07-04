@@ -42,7 +42,11 @@ template <typename T>
  */
 template <typename T>
 void elementwise_sum_inplace_main(std::vector<T> &vec, const communicator &comm) {
-    SYCL_LSH_MPI_ERROR_CHECK(MPI_Reduce(MPI_IN_PLACE, vec.data(), static_cast<int>(vec.size()), mpi_datatype<T>(), MPI_SUM, communicator::main_rank(), comm));
+    if (comm.is_main_rank()) {
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Reduce(MPI_IN_PLACE, vec.data(), static_cast<int>(vec.size()), mpi_datatype<T>(), MPI_SUM, communicator::main_rank(), comm));
+    } else {
+        SYCL_LSH_MPI_ERROR_CHECK(MPI_Reduce(vec.data(), nullptr, static_cast<int>(vec.size()), mpi_datatype<T>(), MPI_SUM, communicator::main_rank(), comm));
+    }
 }
 
 /**
