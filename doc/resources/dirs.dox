@@ -1,0 +1,52 @@
+/**
+ * @dir include/sycl_lsh
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains the core functionality.
+ */
+
+/**
+ * @dir include/sycl_lsh/detail
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all helper classes and functions.
+ * @details Not intended to be used by a user.
+ */
+
+/**
+ * @dir include/sycl_lsh/detail/hashing
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all helper classes and functions related to the actual hashing.
+ * @details Not intended to be used by a user.
+ */
+
+/**
+ * @dir include/sycl_lsh/exceptions
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all custom exception classes.
+ */
+
+/**
+ * @dir include/sycl_lsh/mpi
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all wrapper classes or functions around MPI functions.
+ */
+
+/**
+ * @dir include/sycl_lsh/mpi/detail
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all helper wrapper classes or functions around MPI functions.
+ * @details Not intended to be used by a user.
+ */
+
+/**
+ * @dir include/sycl_lsh/mpi/detail/file_parser
+ * @author Marcel Breyer
+ *
+ * @brief This directory contains all MPI file parsing related classes and functions.
+ * @details Not intended to be used by a user.
+ */

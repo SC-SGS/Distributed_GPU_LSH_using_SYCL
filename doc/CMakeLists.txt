@@ -1,22 +1,59 @@
-### based on https://vicrucann.github.io/tutorials/quick-cmake-doxygen/ ###
+# Authors: Marcel Breyer
+# License: This file is released under the MIT license. See the LICENSE file in the project root for full information.
+########################################################################################################################
 
-# find doxygen
-find_package(Doxygen REQUIRED dot)
+list(APPEND CMAKE_MESSAGE_INDENT "Documentation:  ")
 
-# configure doxygen files
-set(DOXYGEN_IN Doxyfile.in)
-set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.in)
-configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+## use installed doxygen
+find_package(Doxygen REQUIRED OPTIONAL_COMPONENTS dot)
 
+## configure doxygen
+set(DOXYGEN_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/doc")
+set(DOXYGEN_IMAGE_PATH "${PROJECT_SOURCE_DIR}/doc/resources")
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "README.md")
+set(DOXYGEN_FILE_PATTERNS "*.hpp;*.dox")
+set(DOXYGEN_STRIP_FROM_PATH "${PROJECT_SOURCE_DIR}")
+set(DOXYGEN_EXCLUDE "${PROJECT_SOURCE_DIR}/src/main.cpp")
+set(DOXYGEN_ABBREVIATE_BRIEF "")
+set(DOXYGEN_QUIET "YES")
+set(DOXYGEN_HTML_TIMESTAMP "YES")
+set(DOXYGEN_NUM_PROC_THREADS 0)
+set(DOXYGEN_WARN_NO_PARAMDOC "YES")
+set(DOXYGEN_SORT_MEMBER_DOCS "NO")
+set(DOXYGEN_INLINE_INHERITED_MEMB "YES")
+set(DOXYGEN_USE_MATHJAX "YES")
+set(DOXYGEN_EXCLUDE_SYMBOLS "*_HPP_")
+set(DOXYGEN_HTML_COLORSTYLE "TOGGLE")
 
-add_custom_command(
-        OUTPUT
-            doxygen.stamp
-        COMMAND
-            ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-        COMMENT
-            "Generating API documentation using Doxygen"
-        VERBATIM
+set(DOXYGEN_DOT_IMAGE_FORMAT "svg")
+set(DOXYGEN_DOT_GRAPH_MAX_NODES "100")
+set(DOXYGEN_INTERACTIVE_SVG "YES")
+set(DOXYGEN_INCLUDE_GRAPH "NO")
+set(DOXYGEN_EXTRACT_PRIVATE "YES")
+
+## enable processing of specific attributes and macros
+set(DOXYGEN_ENABLE_PREPROCESSING "YES")
+set(DOXYGEN_MACRO_EXPANSION "YES")
+set(DOXYGEN_EXPAND_ONLY_PREDEF "YES")
+set(DOXYGEN_EXPAND_AS_DEFINED "YES")
+
+set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
+set(DOXYGEN_ALIASES
+        [[license="\par License^^\parblock^^"  ]]
 )
 
-add_custom_target(doc DEPENDS doxygen.stamp)
+## add doxygen as target
+doxygen_add_docs(
+        doc
+        "${PROJECT_SOURCE_DIR}/include;${PROJECT_SOURCE_DIR}/doc/resources;${PROJECT_SOURCE_DIR}/README.md"
+        ALL # add to the default build target
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        COMMENT "Generating API documentation with Doxygen"
+)
+
+# install targets for the documentation
+include(GNUInstallDirs)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/doc/html" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/documentation.html" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)

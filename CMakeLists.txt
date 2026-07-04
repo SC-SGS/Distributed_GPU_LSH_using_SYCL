@@ -1,257 +1,448 @@
-cmake_minimum_required(VERSION 3.10)
+# Authors: Marcel Breyer
+# License: This file is released under the MIT license. See the LICENSE file in the project root for full information.
+########################################################################################################################
 
-# specify used SYCL implementation
-set(SUPPORTED_SYCL_LSH_IMPLEMENTATIONS hipSYCL ComputeCpp oneAPI)
-set(SYCL_LSH_IMPLEMENTATION hipSYCL CACHE STRING "The used SYCL implementation backend.")
-set_property(CACHE SYCL_LSH_IMPLEMENTATION PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS})
-if (NOT SYCL_LSH_IMPLEMENTATION IN_LIST SUPPORTED_SYCL_LSH_IMPLEMENTATIONS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_IMPLEMENTATIONS_OUT "${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS}")
-    message(FATAL_ERROR "SYCL implementation \"${SYCL_LSH_IMPLEMENTATION}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_IMPLEMENTATIONS_OUT}")
-else ()
-    message(STATUS "Using \"${SYCL_LSH_IMPLEMENTATION}\" as SYCL implementation.")
-endif ()
-
-
-# set compiler wrapper to dpcpp if using Intel's oneAPI, since find_package(oneAPI) isn't supported
-if (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
-    set(CMAKE_CXX_COMPILER dpcpp)
-endif()
-
-
-# set supported SYCL targets
-set(SUPPORTED_SYCL_LSH_TARGETS CPU NVIDIA AMD INTEL) # CPU = 0, NVIDIA GPU = 1, AMD GPU = 2, INTEL GPU = 3
-set(SYCL_LSH_TARGET NVIDIA CACHE STRING "The used SYCL target.")
-set_property(CACHE SYCL_LSH_TARGET PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_TARGETS})
-if (NOT SYCL_LSH_TARGET IN_LIST SUPPORTED_SYCL_LSH_TARGETS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_TARGETS_OUT "${SUPPORTED_SYCL_LSH_TARGETS}")
-    message(FATAL_ERROR "SYCL target \"${SYCL_LSH_TARGET}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_TARGETS_OUT}")
-else ()
-    message(STATUS "Using \"${SYCL_LSH_TARGET}\" as SYCL target.")
-endif ()
-
+cmake_minimum_required(VERSION 3.25)
 
 project("Distributed k-nearest Neighbors using Locality Sensitive Hashing and SYCL"
-        VERSION 2.0.0
+        VERSION 3.0.0
         LANGUAGES CXX
         DESCRIPTION "Master Thesis Marcel Breyer")
 
-
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-
-    # MUST set the environment variable hipSYCL_DIR to the root directory of hipSYCL
-    set(hipSYCL_DIR $ENV{hipSYCL_DIR}/lib/cmake CACHE INTERNAL "Path to the root directory of the hipSYCL installation.")
-
-    # set HIPSYCL_PLATFORM based on the provided SYCL_LSH_TARGET
-    # MUST set the environment variable hipSYCL_GPU_ARCH to the correct architecture value
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        # use the CPU as target
-        set(HIPSYCL_PLATFORM cpu CACHE INTERNAL "")
-    elseif (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        # use NVIDIA GPUs as target
-        set(HIPSYCL_PLATFORM cuda CACHE INTERNAL "")
-        set(HIPSYCL_GPU_ARCH $ENV{hipSYCL_GPU_ARCH} CACHE INTERNAL "The GPU architecture used.")
-    elseif (SYCL_LSH_TARGET MATCHES "AMD")
-        # use AMD GPUs as target
-        set(HIPSYCL_PLATFORM rocm CACHE INTERNAL "")
-        set(HIPSYCL_GPU_ARCH $ENV{HIPSYCL_GPU_ARCH} CACHE INTERNAL "The GPU architecture used.")
-    elseif (SYCL_LSH_TARGET MATCHES "INTEL")
-        # Intel GPUs aren't supported by hipSYCL
-        unset(HIPSYCL_PLATFORM CACHE)
-        message(FATAL_ERROR "Intel GPUs aren't supported with hipSYCL.")
-    endif ()
-
-    # find hipSYCL
-    find_package(hipSYCL REQUIRED)
-
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-
-    # needed to be able to use ComputeCpp
-    set(CMAKE_CXX_STANDARD 17)
-    
-    # set bitcode to ptx64 if targeting NVIDIA GPUs
-    if (SYCL_LSH_TARGET MATCHES "NVIDIA")
-        set(COMPUTECPP_BITCODE ptx64 CACHE INTERNAL "")
-    else ()
-        unset(COMPUTECPP_BITCODE CACHE)
-    endif ()
-
-    # MUST set the environment variable ComputeCpp_DIR to the root directory of ComputeCpp
-    set(ComputeCpp_DIR $ENV{ComputeCpp_DIR} CACHE INTERNAL "Path to the root directory of the ComputeCpp installation.")
-    
-    # MUST set the environment variable ComputeCpp_SDK_DIR to the root directory of the ComputeCpp SDK
-    list(APPEND CMAKE_MODULE_PATH "$ENV{ComputeCpp_SDK_DIR}/cmake/Modules")
-
-    # find ComputeCpp
-    include(FindComputeCpp)
-    include_directories(${COMPUTE_CPP_INCLUDE_DIRECTORIES})
-
-endif ()
-
-
-
-
-# set cmake build type if none was specified
-set(SUPPORTED_SYCL_LSH_BUILD_TYPES Debug Release MinSizeRel RelWithDebInfo)
+########################################################################################################################
+#                                             set default cmake build type                                             #
+########################################################################################################################
+set(default_build_type "Release")
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(SYCL_LSH_DEFAULT_BUILD_TYPE "Release")
-    message(STATUS "Setting build type to \"${SYCL_LSH_DEFAULT_BUILD_TYPE}\" as none was specified!")
-    set(CMAKE_BUILD_TYPE "${SYCL_LSH_DEFAULT_BUILD_TYPE}" CACHE STRING "The used CMake build type." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_BUILD_TYPES})
-endif ()
-if (NOT CMAKE_BUILD_TYPE IN_LIST SUPPORTED_SYCL_LSH_BUILD_TYPES)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_BUILD_TYPES_OUT "${SUPPORTED_SYCL_LSH_BUILD_TYPES}")
-    message(FATAL_ERROR "Build type \"${CMAKE_BUILD_TYPE}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_BUILD_TYPES_OUT}")
-else ()
-    message(STATUS "Using \"${CMAKE_BUILD_TYPE}\" as build type.")
+    message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+    # set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif ()
 
+########################################################################################################################
+#                                                    create library                                                    #
+########################################################################################################################
+# set all library source files
+set(SYCL_LSH_LIBRARY_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/entropy_based.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/mixed_hash_functions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/hashing/random_projections.cpp
 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/exceptions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/source_location.cpp
 
-# create library
-set(SYCL_LSH_LIBRARY_NAME "sycl_lsh")
-add_library(${SYCL_LSH_LIBRARY_NAME} SHARED
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/argv_parser.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/sycl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/detail/utility.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/device_selector.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/communicator_exception.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/file_exception.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/not_implemented_exception.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/exceptions/window_exception.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/errhandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/logger.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/timer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/timer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/utility.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/detail/file_parser/file.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/communicator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/environment.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/file_parser_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/mpi/main.cpp
+
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/data_set.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/hash_function_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/matrix.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/nearest_neighbors_result.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/options.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/profiling_types.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sycl_lsh/shape.cpp
 )
 
-# set include directory
-target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC include)
+# create library
+set(SYCL_LSH_LIBRARY_NAME sycl-lsh)
+add_library(${SYCL_LSH_LIBRARY_NAME} STATIC ${SYCL_LSH_LIBRARY_SOURCES})
 
-# set c++ standard
+########################################################################################################################
+#                                                  set compiler flags                                                  #
+########################################################################################################################
+# set C++ standard
 target_compile_features(${SYCL_LSH_LIBRARY_NAME} PUBLIC cxx_std_17)
+# set include directory
+target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+# additional library compile options
+target_compile_options(
+        ${SYCL_LSH_LIBRARY_NAME}
+        PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:GNU,Clang,IntelLLVM>:-Wall
+        -Wextra
+        -fno-common
+        -Wshadow
+        -Wcast-qual
+        -Wnull-dereference
+        -Wnon-virtual-dtor
+        -Wextra-semi
+        -Wunreachable-code
+        -Wuninitialized
+        -Wno-ctor-dtor-privacy
+        -fPIC>
+        $<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wsuggest-override
+        -Wstrict-null-sentinel
+        -Wlogical-op
+        -Wduplicated-branches
+        -Wimplicit-fallthrough=5>
+        $<$<COMPILE_LANG_AND_ID:CXX,Clang,IntelLLVM>:-Wmost>>
+        -Wno-double-promotion
+)
 
+target_compile_options(
+        ${SYCL_LSH_LIBRARY_NAME}
+        PUBLIC $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,IntelLLVM>:-Werror=switch
+        -fstrict-enums>
+        $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/we4062
+        /wd4005
+        /wd4702
+        /wd4849
+        /wd4127
+        /wd4250 # disable multiple-inheritance dominance warning
+        /wd4589> # disable constructor inheritance warning
+        # /wd4849: ignore "OpenMP 'reduction' clause ignored in 'simd' directive" -> no SIMD clause currently effective in MSVC /wd4127: ignore "conditional
+        # expression is constant" from {fmt} ranges.h header
+)
 
-# find MPI library and add it to the target
-find_package(MPI REQUIRED)
-include_directories(${MPI_CXX_INCLUDE_DIRS})
-target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
+# compile with more optimizations
+target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC
+        $<$<AND:$<NOT:$<CONFIG:DEBUG>>,$<CXX_COMPILER_ID:GNU,Clang>>:-ffast-math -march=native>
+)
 
+# add math defines to library
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PRIVATE _USE_MATH_DEFINES)
 
-# find {fmt} formatting library and add it to the target
-find_package(fmt REQUIRED)
-option(SYCL_LSH_FMT_HEADER_ONLY "Use the header only mode of the {fmt} formatting library." OFF)
-if (SYCL_LSH_FMT_HEADER_ONLY)
-    message(STATUS "Using the {fmt} library in its header only mode.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC FMT_HEADER_ONLY=1)
-else ()
-    message(STATUS "Using the {fmt} library as shared library and link against it.")
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
+# add additional compile definition(s)
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
+
+########################################################################################################################
+#                                                   add SYCL support                                                   #
+########################################################################################################################
+list(APPEND CMAKE_MESSAGE_INDENT "SYCL:  ")
+
+# we have to specify the correct target (e.g., nvidia_gpu_sm_80, amd_gpu_gfx90a, intel_gpu_bmg_g21, spir64_x86_64, etc.)
+# emit an error if it was not specified
+if (NOT SYCL_LSH_TARGET_ARCH)
+    message(FATAL_ERROR "The necessary \"SYCL_LSH_TARGET_ARCH\" variable was not set!\n"
+            "Valid examples are: nvidia_gpu_sm_80, amd_gpu_gfx90a, intel_gpu_bmg_g21, or spir64_x86_64")
 endif ()
 
+set(SYCL_LSH_IMPLEMENTATION "icpx" CACHE STRING "Choose the SYCL implementation. Either icpx or acpp.")
 
-# if the current target is CPU, use OpenMP (if OpenMP has been found)
-if ((SYCL_LSH_TARGET MATCHES "CPU") OR (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL"))
-    find_package(OpenMP)
-    if (OpenMP_CXX_FOUND)
-        message(STATUS "Linking against OpenMP since the current SYCL_LSH_TARGET is 'CPU'.")
-        target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
+if (SYCL_LSH_IMPLEMENTATION STREQUAL "icpx")
+    # check for the icpx compiler
+    message(STATUS "Use Intel's icpx as SYCL implementation.")
+    if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+        message(FATAL_ERROR "Couldn't find the requested Intel compiler for SYCL!")
+    endif ()
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -sycl-std=2020 -fno-sycl-id-queries-fit-in-int -fsycl -fsycl-targets=${SYCL_LSH_TARGET_ARCH})
+    target_link_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl -fsycl-targets=${SYCL_LSH_TARGET_ARCH})
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION="icpx")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION_ICPX)
+elseif (SYCL_LSH_IMPLEMENTATION STREQUAL "acpp")
+    # check for AdaptiveCpp
+    message(STATUS "Use AdaptiveCpp as SYCL implementation.")
+    set(ACPP_TARGETS "generic" CACHE STRING "" FORCE)
+    find_package(AdaptiveCpp CONFIG REQUIRED)
+    add_sycl_to_target(TARGET ${SYCL_LSH_LIBRARY_NAME} SOURCES ${SYCL_LSH_LIBRARY_SOURCES})
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION="acpp")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION_ACPP)
+else ()
+    message(FATAL_ERROR "Unrecognized SYCL implementation \"${SYCL_LSH_IMPLEMENTATION}\"! Supported values are: icpx and acpp.")
+endif ()
+
+# if the target arch is spir64_x86_64, we use a CPU, otherwise we ALWAYS use a GPU!
+if (SYCL_LSH_TARGET_ARCH STREQUAL "spir64_x86_64")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_CPU)
+endif ()
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET_ARCH="${SYCL_LSH_TARGET_ARCH}")
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+########################################################################################################################
+#                                                   create executable                                                  #
+########################################################################################################################
+set(SYCL_LSH_EXECUTABLE_NAME prog)
+add_executable(${SYCL_LSH_EXECUTABLE_NAME} src/main.cpp)
+
+# link executables against library
+target_link_libraries(${SYCL_LSH_EXECUTABLE_NAME} PRIVATE ${SYCL_LSH_LIBRARY_NAME})
+
+########################################################################################################################
+#                                           check for Link Time Optimization                                           #
+########################################################################################################################
+# enable Link Time Optimization (LTO)
+option(SYCL_LSH_ENABLE_LTO "Enable Link Time Optimizations." OFF)
+if (SYCL_LSH_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT SYCL_LSH_LTO_SUPPORTED LANGUAGES CXX)
+    if (SYCL_LSH_LTO_SUPPORTED)
+        message(STATUS "Interprocedural optimization (IPO/LTO) enabled.")
+        set_property(TARGET ${SYCL_LSH_EXECUTABLE_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     else ()
-        message(STATUS "Can't find OpenMP although the current SYCL_LSH_TARGET is 'CPU'. Performance may be degraded!")
+        message(STATUS "Interprocedural optimization (IPO/LTO) not supported.")
     endif ()
 endif ()
 
+########################################################################################################################
+#                          enable the requested vectorization widths for the auto-vectorizers                          #
+########################################################################################################################
+# GCC and clang both do not automatically auto-vectorize for AVX-512 (only AVX2)
+# -> if the SYCL_LSH_TARGET_ARCH is "spir64_x86_64" we are compiling for a CPU
+# -> the CPU vectorization standard to use MUST be explicitly provided
+if (SYCL_LSH_TARGET_ARCH STREQUAL "spir64_x86_64")
+    if (NOT SYCL_LSH_CPU_VECTORIZATION_TARGET)
+        message(FATAL_ERROR "For the CPU target, the \"SYCL_LSH_CPU_VECTORIZATION_TARGET\" must be explicitly provided!")
+    endif ()
 
-# add debug mode
-option(SYCL_LSH_ENABLE_DEBUG "Enable Debug mode using assertion macros." OFF)
-if (SYCL_LSH_ENABLE_DEBUG)
-    message(STATUS "Enabled Debug mode.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC -DSYCL_LSH_DEBUG)
-
-    # sanitizers
-#    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
-#    target_link_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -g -fno-omit-frame-pointer -fsanitize=address,undefined,integer)
+    if (${SYCL_LSH_CPU_VECTORIZATION_TARGET} STREQUAL "avx512")
+        message(STATUS "Enabling AVX512 support for the auto-vectorizers (-mprefer-vector-width=512).")
+        target_compile_options(
+                ${SYCL_LSH_LIBRARY_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:GNU,Clang,IntelLLVM>:-mprefer-vector-width=512>>
+        )
+    elseif (${SYCL_LSH_CPU_VECTORIZATION_TARGET} STREQUAL "avx2" OR ${SYCL_LSH_CPU_VECTORIZATION_TARGET} STREQUAL "avx")
+        message(STATUS "Enabling AVX/AVX2 support for the auto-vectorizers (-mprefer-vector-width=256).")
+        target_compile_options(
+                ${SYCL_LSH_LIBRARY_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:GNU,Clang,IntelLLVM>:-mprefer-vector-width=256>>
+        )
+    elseif (${SYCL_LSH_CPU_VECTORIZATION_TARGET} MATCHES "^sse")
+        message(STATUS "Enabling SSE for the auto-vectorizers (-mprefer-vector-width=128).")
+        target_compile_options(
+                ${SYCL_LSH_LIBRARY_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:GNU,Clang,IntelLLVM>:-mprefer-vector-width=128>>
+        )
+    else ()
+        message(FATAL_ERROR "Unrecognized CPU target architecture \"${SYCL_LSH_CPU_VECTORIZATION_TARGET}\". Allowed values are: avx512, avx2, avx, sse.")
+    endif ()
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_CPU_VECTORIZATION_TARGET="${SYCL_LSH_CPU_VECTORIZATION_TARGET}")
 endif ()
 
+########################################################################################################################
+#                                     check for optional and necessary dependencies                                    #
+########################################################################################################################
+# use MPI + OpenMP to speedup the calculations
+find_package(MPI REQUIRED)
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC MPI::MPI_CXX)
+find_package(OpenMP REQUIRED)
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC OpenMP::OpenMP_CXX)
 
+# setup dependencies
+include(FetchContent)
+list(APPEND CMAKE_MESSAGE_INDENT "Dependencies:  ")
+
+# try finding cxxopts
+set(SYCL_LSH_cxxopts_VERSION v3.3.1)
+find_package(cxxopts 3.3.1 QUIET)
+if (cxxopts_FOUND)
+    message(STATUS "Found package cxxopts.")
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC ${cxxopts_INCLUDE_DIR})
+else ()
+    message(STATUS "Couldn't find package cxxopts. Building version ${SYCL_LSH_cxxopts_VERSION} from source.")
+    # set options for cxxopts
+    set(CXXOPTS_BUILD_EXAMPLES OFF CACHE INTERNAL "" FORCE)
+    set(CXXOPTS_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
+    set(CXXOPTS_ENABLE_WARNINGS OFF CACHE INTERNAL "" FORCE)
+    # fetch command line parser library cxxopts
+    FetchContent_Declare(
+            cxxopts
+            GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+            GIT_TAG ${SYCL_LSH_cxxopts_VERSION}
+            QUIET
+    )
+    FetchContent_MakeAvailable(cxxopts)
+    add_dependencies(${SYCL_LSH_LIBRARY_NAME} cxxopts)
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${cxxopts_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+endif ()
+
+# try finding igor
+set(SYCL_LSH_igor_VERSION fef608b458ab2fca736ac8e415e4d4160a48745d) # can't use a newer commit since igor switch to mandatory C++20
+find_package(igor QUIET)
+if (igor_FOUND)
+    message(STATUS "Found package igor.")
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC ${igor_INCLUDE_DIR})
+else ()
+    message(STATUS "Couldn't find package igor. Building version ${SYCL_LSH_igor_VERSION} from source.")
+    # set options for igor
+    set(IGOR_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
+    # disable additional compiler flags check (only warning flags) since for some reasons it takes ages with stdpar compilers
+    set(_YACMACompilerLinkerSettingsIncluded ON CACHE INTERNAL "" FORCE)
+    # fetch named argument library igor
+    FetchContent_Declare(
+            igor
+            GIT_REPOSITORY https://github.com/bluescarni/igor
+            GIT_TAG ${SYCL_LSH_igor_VERSION}
+            QUIET
+    )
+    FetchContent_MakeAvailable(igor)
+    add_dependencies(${SYCL_LSH_LIBRARY_NAME} igor)
+    target_include_directories(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<BUILD_INTERFACE:${igor_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+endif ()
+
+# try finding fmt
+set(SYCL_LSH_fmt_VERSION 11.0.2)
+find_package(fmt 11.0.2 QUIET)
+if (fmt_FOUND)
+    message(STATUS "Found package fmt.")
+else ()
+    message(STATUS "Couldn't find package fmt. Building version ${SYCL_LSH_fmt_VERSION} from source.")
+    # set options for fmt
+    set(FMT_PEDANTIC OFF CACHE INTERNAL "" FORCE)
+    set(FMT_WERROR OFF CACHE INTERNAL "" FORCE)
+    set(FMT_DOC OFF CACHE INTERNAL "" FORCE)
+    set(FMT_INSTALL ON CACHE INTERNAL "" FORCE) # let {fmt} handle the install target
+    set(FMT_TEST OFF CACHE INTERNAL "" FORCE)
+    set(FMT_FUZZ OFF CACHE INTERNAL "" FORCE)
+    set(FMT_CUDA_TEST OFF CACHE INTERNAL "" FORCE)
+    set(FMT_MODULE OFF CACHE INTERNAL "" FORCE)
+    set(FMT_SYSTEM_HEADERS ON CACHE INTERNAL "" FORCE)
+    # fetch string formatting library fmt
+    FetchContent_Declare(
+            fmt
+            GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+            GIT_TAG ${SYCL_LSH_fmt_VERSION}
+            QUIET
+    )
+    FetchContent_MakeAvailable(fmt)
+    set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(fmt PROPERTIES CXX_CLANG_TIDY "")
+    target_compile_definitions(fmt PRIVATE FMT_USE_FULL_CACHE_DRAGONBOX)
+    add_dependencies(${SYCL_LSH_LIBRARY_NAME} fmt)
+endif ()
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC fmt::fmt)
+
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+########################################################################################################################
+#                                         set additional configuration options                                         #
+########################################################################################################################
 # set timer behavior
-set(SUPPORTED_SYCL_LSH_TIMERS NONE NON_BLOCKING BLOCKING) # NONE = 0, NON_BLOCKING = 1, BLOCKING = 2
+set(SYCL_LSH_TIMERS NON_BLOCKING BLOCKING) # NON_BLOCKING = 0, BLOCKING = 1
 set(SYCL_LSH_TIMER BLOCKING CACHE STRING "The used timer implementation.")
-set_property(CACHE SYCL_LSH_TIMER PROPERTY STRINGS ${SUPPORTED_SYCL_LSH_TIMERS})
-if (NOT SYCL_LSH_TIMER IN_LIST SUPPORTED_SYCL_LSH_TIMERS)
-    string(REPLACE ";" ", " SUPPORTED_SYCL_LSH_TIMERS_OUT "${SUPPORTED_SYCL_LSH_TIMERS}")
-    message(FATAL_ERROR "Timer \"${SYCL_LSH_TIMER}\" not supported!\nMust be one of: ${SUPPORTED_SYCL_LSH_TIMERS_OUT}")
+set_property(CACHE SYCL_LSH_TIMER PROPERTY STRINGS ${SYCL_LSH_TIMERS})
+if (NOT SYCL_LSH_TIMER IN_LIST SYCL_LSH_TIMERS)
+    string(REPLACE ";" ", " SYCL_LSH_TIMERS_OUT "${SYCL_LSH_TIMERS}")
+    message(FATAL_ERROR "Timer \"${SYCL_LSH_TIMER}\" not supported!\nMust be one of: ${SYCL_LSH_TIMERS_OUT}")
 else ()
     message(STATUS "Using \"${SYCL_LSH_TIMER}\" as timer implementation.")
 
-    list(FIND SUPPORTED_SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
+    list(FIND SYCL_LSH_TIMERS "${SYCL_LSH_TIMER}" SYCL_LSH_TIMER_IDX)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER=${SYCL_LSH_TIMER_IDX})
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TIMER_NAME="${SYCL_LSH_TIMER}")
 endif ()
 
+# add custom assertions
+option(SYCL_LSH_ENABLE_ASSERTS "Enable assertion macros." OFF)
+if (SYCL_LSH_ENABLE_ASSERTS)
+    message(STATUS "Enabled additional sycl-lsh sanity checks using assertions.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_ASSERTS_ENABLED)
+endif ()
 
-# in order to benchmark the code, a timer must be enabled
-set(SYCL_LSH_BENCHMARK "" CACHE STRING "The path to the benchmarking file if benchmarking should be enabled.")
-if (NOT "${SYCL_LSH_BENCHMARK}" STREQUAL "")
-    if (SYCL_LSH_TIMER MATCHES "NONE")
-        message(FATAL_ERROR "In order to enable benchmarking, a valid timer (NON_BLOCKING or BLOCKING) must be enabled!")
+# do not seed random number generators
+option(SYCL_LSH_RANDOM_NUMBERS_DEBUG "If enabled, random number generators are not seeded resulting in predictability." OFF)
+if (SYCL_LSH_RANDOM_NUMBERS_DEBUG)
+    message(STATUS "Random numbers are not seeded enabling easier debugability.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_RANDOM_NUMBERS_DEBUG)
+endif ()
+
+# output the hash bucket distribution to a file after a call to fit
+option(SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG "If enabled, outputs the hash value distribution for the internal hash tables." OFF)
+if (SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
+    message(STATUS "The hash value distribution is output during the call to fit.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
+endif ()
+
+# output the needed number of nearest-neighbor calculations to a file after a call to kneighbors
+option(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG "If enabled, outputs the necessary number of nearest-neighbor calculations." OFF)
+if (SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+    message(STATUS "The number of nearest-neighbor searches is output during the call to kneighbors.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+endif ()
+
+# use 64bit floating point and index types if requested
+option(SYCL_LSH_USE_64BIT_TYPES "Use 64bit types (real_type, index_type, hash_value_type) instead of their 32bit counterparts." OFF)
+if (SYCL_LSH_USE_64BIT_TYPES)
+    message(STATUS "Using 64bit types.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_64BIT_TYPES)
+else ()
+    message(STATUS "Using 32bit types (default).")
+endif ()
+
+# set specific blocking size if requested
+if (DEFINED ENV{SYCL_LSH_BLOCKING_SIZE})
+    set(SYCL_LSH_BLOCKING_SIZE $ENV{SYCL_LSH_BLOCKING_SIZE} CACHE STRING "The used blocking size." FORCE)
+endif ()
+if (DEFINED SYCL_LSH_BLOCKING_SIZE)
+    if (SYCL_LSH_BLOCKING_SIZE MATCHES "^[0-9]+$" AND SYCL_LSH_BLOCKING_SIZE GREATER 0)
+        message(STATUS "Set BLOCKING_SIZE to ${SYCL_LSH_BLOCKING_SIZE}.")
+        # add target definition
+        target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BLOCKING_SIZE=${SYCL_LSH_BLOCKING_SIZE})
+    else ()
+        message(SEND_ERROR "SYCL_LSH_BLOCKING_SIZE must be an integer greater than 0 but is \"${SYCL_LSH_BLOCKING_SIZE}\"!")
     endif ()
-    message(STATUS "Enabled benchmarking using the file: \"${SYCL_LSH_BENCHMARK}\"")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_BENCHMARK="${SYCL_LSH_BENCHMARK}")
 endif ()
 
+########################################################################################################################
+#                                               enable hardware sampling                                               #
+########################################################################################################################
+list(APPEND CMAKE_MESSAGE_INDENT "hws:  ")
 
-# enable <experimental/filesystem> header if requested
-option(SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM "Use the <experimental/filesystem> header instead of <filesystem>." OFF)
-if (SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
-    message(STATUS "Using <experimental/filesystem> instead of <filesystem>.")
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_USE_EXPERIMENTAL_FILESYSTEM)
-    # silence LLVM deprecated warning
-    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM)
-endif ()
+# option for the used sampling interval
+set(SYCL_LSH_HARDWARE_SAMPLING_INTERVAL "100" CACHE STRING "The interval in milliseconds in which the hardware information (like clock frequency or power draw) are queried.")
+message(STATUS "Setting the hardware sampling interval to ${SYCL_LSH_HARDWARE_SAMPLING_INTERVAL}ms.")
+target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_HARDWARE_SAMPLING_INTERVAL=${SYCL_LSH_HARDWARE_SAMPLING_INTERVAL}ms)
 
-
-# propagate SYCL_LSH_IMPLEMENTATION and SYCL_LSH_TARGET to library
-list(FIND SUPPORTED_SYCL_LSH_IMPLEMENTATIONS "${SYCL_LSH_IMPLEMENTATION}" SYCL_LSH_IMPLEMENTATION_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_IMPLEMENTATION=${SYCL_LSH_IMPLEMENTATION_IDX})
-list(FIND SUPPORTED_SYCL_LSH_TARGETS "${SYCL_LSH_TARGET}" SYCL_LSH_TARGET_IDX)
-target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_TARGET=${SYCL_LSH_TARGET_IDX})
-
-
-# set SYCL implementation specific options
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL")
-    # disable -Wpedantic if compiling for hipSYCL targeting the CPU
-    if (SYCL_LSH_TARGET MATCHES "CPU")
-        target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-pedantic)
+set(SYCL_LSH_HWS_VERSION v1.1.2)
+find_package(hws QUIET)
+if (hws_FOUND)
+    message(STATUS "Found package hws.")
+else ()
+    message(STATUS "Couldn't find package hws. Building version ${SYCL_LSH_HWS_VERSION} from source.")
+    # narrow down what hardware sampling capabilities are supported based on the provided target arch
+    # always try to sample CPU information
+    set(HWS_ENABLE_CPU_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    # NVIDIA GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "nvidia")
+        # NVIDIA GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_NVIDIA_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no NVIDIA GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_NVIDIA_SAMPLING OFF CACHE INTERNAL "" FORCE)
     endif ()
-    # disable -Wunused-parameter if compiling for hipSYCL
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC -Wno-unused-parameter -Wno-gcc-compat)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "ComputeCpp")
-    # add additional ComputeCpp specific flags
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -lstdc++fs)
-    list(APPEND COMPUTECPP_USER_FLAGS -no-serial-memop)
-elseif (SYCL_LSH_IMPLEMENTATION MATCHES "oneAPI")
-    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC --gcc-toolchain=$ENV{DPCPP_GCC_TOOLCHAIN})
-    target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC -fsycl -lstdc++fs)
-endif()
-
-
-# create executable
-add_executable(prog src/main.cpp)
-target_compile_options(prog PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(prog PRIVATE ${SYCL_LSH_LIBRARY_NAME})
-
-
-# add necessary SYCL flags to the target
-if (SYCL_LSH_IMPLEMENTATION MATCHES "hipSYCL|ComputeCpp")
-    add_sycl_to_target(TARGET prog SOURCES src/main.cpp)
+    # AMD GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "amd")
+        # AMD GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_AMD_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no AMD GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_AMD_SAMPLING OFF CACHE INTERNAL "" FORCE)
+    endif ()
+    # Intel GPUs
+    if (SYCL_LSH_TARGET_ARCH MATCHES "intel")
+        # Intel GPU target is provided -> try to sample information
+        set(HWS_ENABLE_GPU_INTEL_SAMPLING AUTO CACHE INTERNAL "" FORCE)
+    else ()
+        # no Intel GPU target is provided -> don't try to sample information
+        set(HWS_ENABLE_GPU_INTEL_SAMPLING OFF CACHE INTERNAL "" FORCE)
+    endif ()
+    set(HWS_ENABLE_ERROR_CHECKS OFF CACHE INTERNAL "" FORCE)
+    set(HWS_SAMPLING_INTERVAL ${SYCL_LSH_HARDWARE_SAMPLING_INTERVAL} CACHE INTERNAL "" FORCE)
+    set(HWS_ENABLE_PYTHON_BINDINGS OFF CACHE INTERNAL "" FORCE)
+    FetchContent_Declare(hws
+            GIT_REPOSITORY https://github.com/SC-SGS/hardware_sampling
+            GIT_TAG ${SYCL_LSH_HWS_VERSION}
+            QUIET
+    )
+    FetchContent_MakeAvailable(hws)
+    add_dependencies(${SYCL_LSH_LIBRARY_NAME} hws)
 endif ()
+target_link_libraries(${SYCL_LSH_LIBRARY_NAME} PUBLIC hws::hws)
 
+list(POP_BACK CMAKE_MESSAGE_INDENT)
 
-# generate documentation if requested
-option(SYCL_LSH_ENABLE_DOCUMENTATION "Enable the generation of the documentation using Doxygen." OFF)
+########################################################################################################################
+#                                     enable documentation generation via doxygen                                      #
+########################################################################################################################
+option(SYCL_LSH_ENABLE_DOCUMENTATION "Enable the generation of the documentation using Doxygen" OFF)
 if (SYCL_LSH_ENABLE_DOCUMENTATION)
-    message(STATUS "Using Doxygen to generate documentation.")
     add_subdirectory(doc)
+    # if documentation is enabled, add documentation warning flag when compiling with clang
+    target_compile_options(${SYCL_LSH_LIBRARY_NAME} PUBLIC $<$<COMPILE_LANG_AND_ID:CXX,Clang,IntelLLVM>:-Wdocumentation>)
 endif ()

@@ -1,0 +1,137 @@
+/**
+ * @file
+ * @author Marcel Breyer
+ * @date 2020-today
+ *
+ * @brief A simple performance profiler to track various metrics like options or runtimes.
+ */
+
+#ifndef SYCL_LSH_PROFILER_HPP
+#define SYCL_LSH_PROFILER_HPP
+#pragma once
+
+#include "sycl_lsh/data_set.hpp"         // sycl_lsh::data_set::attributes
+#include "sycl_lsh/options.hpp"          // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiling_types.hpp"  // sycl_lsh::profiling_types
+
+#include "fmt/chrono.h"  // format std::chrono types
+#include "fmt/format.h"  // fmt::format
+#include "fmt/std.h"     // format std:: types
+#include "hws/core.hpp"  // hws::system_hardware_sampler
+
+#include <iosfwd>       // std::ostream forward declaration
+#include <map>          // std::map
+#include <string>       // std::string
+#include <type_traits>  // std::is_same_v
+
+namespace sycl_lsh {
+
+/**
+ * @brief A class to track some profiling information like runtimes are hardware characteristics.
+ * @details The profiling capabilities can be selected using the profiling_types.
+ */
+class profiler {
+  public:
+    /**
+     * @brief Construct a new profiler using the @p profiling_type.
+     * @details The @ref sycl_lsh::profiling_types are:
+     *          - none: do not perform any profiling at all
+     *          - runtimes: only profile runtimes (and some additional options like data_set sizes etc.)
+     *          - hws: additionally to profiling runtimes, use the external hws library to also profile hardware characteristics
+     * @param[in] profiling_type the used profiling capabilities
+     */
+    explicit profiler(profiling_types profiling_type) noexcept;
+
+    /**
+     * @brief Add all @ref sycl_lsh::data_set::attributes @p attr to the @p group.
+     * @param[in] group the group name
+     * @param[in] attr the @ref sycl_lsh::data_set::attributes to store
+     */
+    void add_entry(const std::string &group, const data_set::attributes &attr);
+    /**
+     * @brief Add all LSH related @ref sycl_lsh::locality_sensitive_hashing_options stored in @p opt as entries.
+     * @param[in] opt the @ref sycl_lsh::locality_sensitive_hashing_options to store
+     */
+    void add_entry(const locality_sensitive_hashing_options &opt);
+    /**
+     * @brief Add all @ref sycl_lsh::options stored in @p opt as entries.
+     * @param[in] opt the @ref sycl_lsh::options to store
+     */
+    void add_entry(const options &opt);
+
+    /**
+     * @brief Add a new profiling entry to @p group with @p name and @p value.
+     * @details The value is converted to a std::string using fmt.
+     *          If @p T is either a std::string or std::string_view type, then the string value is enclosed in quotes.
+     * @tparam T the type of the value to add
+     * @param[in] group the group name
+     * @param[in] name the value name
+     * @param[in] value the value
+     */
+    template <typename T>
+    void add_entry(const std::string &group, const std::string &name, const T &value) {
+        this->add_entry_impl(entries_, group, name, value);
+    }
+
+    /**
+     * @brief Add a new hws event. Has no effect if the profiling type is not set to @ref sycl_lsh::profiling_types::hws.
+     * @param[in] name the event name
+     */
+    void add_event(const std::string &name) const;
+
+    /**
+     * @brief Dump all gathered profiling entries to the @p filename in a YAML format.
+     * @param[in] filename the output YAML file name
+     */
+    void dump(const std::string &filename);
+    /**
+     * @brief Dump all gathered profiling entries to the @p out stream in a YAML format.
+     * @param[in] out the output stream
+     */
+    void dump(std::ostream &out);
+
+    /**
+     * @brief Remove all already gathered entries.
+     */
+    void clear_entries();
+
+    /**
+     * @brief Get the current profiling type.
+     * @return the profiling type (`[[nodiscard]]`)
+     */
+    [[nodiscard]] profiling_types profiling_type() const noexcept;
+
+  private:
+    /**
+     * @brief The actual implementation. Passes the map as first parameter to be able to also add metadata to the map copy easily.
+     * @tparam T the type of the value to add
+     * @param[in,out] entries_map the map to add the entry to
+     * @param[in] group the group name
+     * @param[in] name the value name
+     * @param[in] value the value
+     */
+    template <typename T>
+    void add_entry_impl(std::map<std::string, std::map<std::string, std::string>> &entries_map, const std::string &group, const std::string &name, const T &value) {
+        // if the profiling type is none, nothing to be done
+        if (profiling_type_ != profiling_types::none) {
+            if (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+                entries_map[group][name] = fmt::format("\"{}\"", value);
+            } else {
+                entries_map[group][name] = fmt::format("{}", value);
+            }
+        }
+    }
+
+    /// The currently used profiling type.
+    profiling_types profiling_type_;
+
+    /// All profiling entries currently gathered.
+    std::map<std::string, std::map<std::string, std::string>> entries_;
+
+    /// The hws system-wide hardware sampler.
+    std::unique_ptr<hws::system_hardware_sampler> hardware_sampler_;
+};
+
+}  // namespace sycl_lsh
+
+#endif  // SYCL_LSH_PROFILER_HPP

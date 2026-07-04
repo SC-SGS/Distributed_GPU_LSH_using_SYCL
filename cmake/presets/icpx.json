@@ -1,0 +1,25 @@
+{
+  "version": 6,
+  "include": [
+    "common.json"
+  ],
+  "configurePresets": [
+    {
+      "name": "icpx",
+      "displayName": "icpx SYCL backend",
+      "inherits": "build",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "icpx",
+        "SYCL_LSH_IMPLEMENTATION": "icpx"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "icpx",
+      "displayName": "icpx SYCL backend",
+      "configurePreset": "icpx",
+      "inherits": "common"
+    }
+  ]
+}

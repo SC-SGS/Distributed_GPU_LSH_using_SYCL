@@ -1,46 +1,81 @@
 /**
  * @file
  * @author Marcel Breyer
- * @date 2020-10-28
+ * @date 2020-today
  *
  * @brief Defines a custom assertion macro with more intuitive syntax and better error message.
  */
 
-#ifndef DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
-#define DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
+#ifndef SYCL_LSH_DETAIL_ASSERT_HPP
+#define SYCL_LSH_DETAIL_ASSERT_HPP
+#pragma once
 
-#include <cstdio>
+#include "sycl_lsh/exceptions/source_location.hpp"  // sycl_lsh::source_location
+#include "sycl_lsh/mpi/detail/utility.hpp"          // SYCL_LSH_MPI_ERROR_CHECK
+#include "sycl_lsh/mpi/environment.hpp"             // sycl_lsh::mpi::is_active
+
+#include "fmt/color.h"   // fmt::emphasis, fmt::fg, fmt::color
+#include "fmt/format.h"  // fmt::format
+#include "mpi.h"     // MPI_Abort, MPI_COMM_WORLD
+
+#include <cstdlib>      // std::abort
+#include <iostream>     // std::cerr, std::endl
+#include <string>       // std::string
+#include <string_view>  // std::string_view
+#include <utility>      // std::forward
+
+namespace sycl_lsh::detail {
 
 /**
- * @def SYCL_LSH_PRETTY_FUNC_NAME__
- * @brief The @ref SYCL_LSH_PRETTY_FUNC_NAME__ macro is defined as `__PRETTY_FUNC__` ([*GCC*](https://gcc.gnu.org/) and
- * [*clang*](https://clang.llvm.org/)), `__FUNCSIG__` ([*MSVC*](https://visualstudio.microsoft.com/de/vs/features/cplusplus/)) or
- * `__func__` (otherwise).
- * @details It can be used as compiler independent way to enable a better function name in the assertion macros.
+ * @brief Function called by the `SYCL_LSH_ASSERT` macro. Checks the assertion condition. If the condition evaluates to `false`,
+ *        prints the assertion condition together with additional information (e.g., @ref sycl_lsh::source_location information) and aborts the execution.
+ * @tparam Args the placeholder types
+ * @param[in] cond the assertion condition, aborts the program if evaluated to `false`
+ * @param[in] cond_str the assertion condition as string
+ * @param[in] loc the source location where the assertion appeared
+ * @param[in] msg the custom assertion message
+ * @param[in] args the placeholder values for the custom assertion message
  */
-#ifdef __GNUG__
-#include <execinfo.h>
-#include <cxxabi.h>
-#define SYCL_LSH_PRETTY_FUNC_NAME__ __PRETTY_FUNCTION__
-#elif _MSVC_VER
-#define SYCL_LSH_PRETTY_FUNC_NAME__ __FUNCSIG__
-#else
-#define SYCL_LSH_PRETTY_FUNC_NAME__ __func__
-#endif
+template <typename... Args>
+void check_assertion(const bool cond, const std::string_view cond_str, const source_location &loc, const std::string_view msg, Args &&...args) {
+    // check if the assertion holds
+    if (!cond) {
+        // print assertion error message
+        std::cerr << fmt::format(
+            "Assertion '{}' failed!\n"
+            "{}"
+            "  in file            {}\n"
+            "  in function        {}\n"
+            "  @ line             {}\n\n"
+            "{}\n",
+            fmt::format(fmt::emphasis::bold | fmt::fg(fmt::color::green), "{}", cond_str),
+            loc.world_rank().has_value() ? fmt::format("  on MPI world rank  {}\n", loc.world_rank().value()) : std::string{},
+            loc.file_name(),
+            loc.function_name(),
+            loc.line(),
+            fmt::format(fmt::emphasis::bold | fmt::fg(fmt::color::red), msg, std::forward<Args>(args)...))
+                  << std::endl;
+
+        // abort further execution -> call MPI_Abort if in an MPI environment
+        if (mpi::is_active()) {
+            SYCL_LSH_MPI_ERROR_CHECK(MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE));
+        } else {
+            std::abort();
+        }
+    }
+}
+
+}  // namespace sycl_lsh::detail
 
 /**
- * @def SYCL_LSH_DEBUG_ASSERT
+ * @def SYCL_LSH_ASSERT
  * @brief Defines a custom `assert()` macro with potential additional parameters to the assertion message.
- * @details This macro is only defined if `SYCL_LSH_ENABLE_DEBUG` is set to `On` during [CMake's](https://cmake.org/) configuration step.
- * @param[in] cond the assert condition
- * @param[in] msg the custom assert message
+ * @details This macro is only defined if `SYCL_LSH_ENABLE_DEBUG` is set to `ON` during [CMake's](https://cmake.org/) configuration step.
  */
-#if SYCL_LSH_DEBUG
-#define SYCL_LSH_DEBUG_ASSERT(cond, msg)                                                                            \
-if (!(cond)) std::printf("Assertion '%s' failed!\n  in file     '%s'\n  in function '%s'\n  @ line     %i\n\n%s\n", \
-        #cond, __FILE__, SYCL_LSH_PRETTY_FUNC_NAME__, __LINE__, msg);
+#if defined(SYCL_LSH_ASSERTS_ENABLED)
+    #define SYCL_LSH_ASSERT(cond, msg, ...) sycl_lsh::detail::check_assertion((cond), (#cond), sycl_lsh::source_location::current(), (msg), ##__VA_ARGS__)
 #else
-#define SYCL_LSH_DEBUG_ASSERT(cond, msg)
+    #define SYCL_LSH_ASSERT(cond, msg, ...)
 #endif
 
-#endif // DISTRIBUTED_GPU_LSH_IMPLEMENTATION_USING_SYCL_ASSERT_HPP
+#endif  // SYCL_LSH_DETAIL_ASSERT_HPP
