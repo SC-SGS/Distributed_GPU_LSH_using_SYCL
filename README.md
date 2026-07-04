@@ -81,18 +81,20 @@ Where `preset` is one of `acpp`, or `icpx`.
 
 Provided configuration options are:
 
-| option                                | default value | description                                                                                                                                         |
-|---------------------------------------|:-------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `SYCL_LSH_TARGET_ARCH`                |               | Specify the SYCL target to compile for. Must follow the notation in aboves examples.                                                                | 
-| `SYCL_LSH_CPU_VECTORIZATION_TARGET`   |               | If the SYCL target is a CPU, this option **must** be equal to the target vectorization standard. Must be one of: `avx512`, `avx2`, `avx`, or `sse`. | 
-| `SYCL_LSH_IMPLEMENTATION`             |    `icpx`     | The used SYCL implementation. Must be one of: `acpp`, or `icpx`.                                                                                    | 
-| `SYCL_LSH_ENABLE_LTO`                 |     `OFF`     | Enable link time optimizations.                                                                                                                     | 
-| `SYCL_LSH_TIMER`                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NON_BLOCKING`, or `BLOCKING`.                                                    |
-| `SYCL_LSH_HARDWARE_SAMPLING_INTERVAL` |     `100`     | Specify the hardware sampling interval in ms.                                                                                                       |
-| `SYCL_LSH_ENABLE_ASSERTS`             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                                         |
-| `SYCL_LSH_RANDOM_NUMBERS_DEBUG`       |     `OFF`     | If `ON`, do not seed the random number generators to enable better reproducability (can be used for debugging).                                     |
-| `SYCL_LSH_USE_64BIT_TYPES`            |     `OFF`     | If `ON`, internally uses 64bit tyües instead of 32bit types.                                                                                        |
-| `SYCL_LSH_ENABLE_DOCUMENTATION`       |     `OFF`     | Enables the documentation target (requires doxygen).                                                                                                |
+| option                                                | default value | description                                                                                                                                         |
+|-------------------------------------------------------|:-------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SYCL_LSH_TARGET_ARCH`                                |               | Specify the SYCL target to compile for. Must follow the notation in aboves examples.                                                                | 
+| `SYCL_LSH_CPU_VECTORIZATION_TARGET`                   |               | If the SYCL target is a CPU, this option **must** be equal to the target vectorization standard. Must be one of: `avx512`, `avx2`, `avx`, or `sse`. | 
+| `SYCL_LSH_IMPLEMENTATION`                             |    `icpx`     | The used SYCL implementation. Must be one of: `acpp`, or `icpx`.                                                                                    | 
+| `SYCL_LSH_ENABLE_LTO`                                 |     `OFF`     | Enable link time optimizations.                                                                                                                     | 
+| `SYCL_LSH_TIMER`                                      |  `BLOCKING`   | Specify which timer functionality should be used. Must be one of: `NON_BLOCKING`, or `BLOCKING`.                                                    |
+| `SYCL_LSH_HARDWARE_SAMPLING_INTERVAL`                 |     `100`     | Specify the hardware sampling interval in ms.                                                                                                       |
+| `SYCL_LSH_ENABLE_ASSERTS`                             |     `OFF`     | Enables assertion macros for sanity checks.                                                                                                         |
+| `SYCL_LSH_RANDOM_NUMBERS_DEBUG`                       |     `OFF`     | If `ON`, do not seed the random number generators to enable better reproducability (can be used for debugging).                                     |
+| `SYCL_LSH_USE_64BIT_TYPES`                            |     `OFF`     | If `ON`, internally uses 64bit tyües instead of 32bit types.                                                                                        |
+| `SYCL_LSH_ENABLE_DOCUMENTATION`                       |     `OFF`     | Enables the documentation target (requires doxygen).                                                                                                |
+| `SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG`              |     `OFF`     | Enables the output of the hash value distribution in the LSH hash tables.                                                                           |
+| `SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG` |     `OFF`     | Enables the output of the number of nearest-neighbor searches performed in the kneighbors function.                                                 |
 
 ## Building the documentation
 
