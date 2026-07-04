@@ -16,7 +16,7 @@ def parse_metadata(filename, comments='#'):
 
 def plot_hash_value_distribution(row, file):
     metadata = parse_metadata(file)
-    fig.suptitle(f"hash function: {metadata['hash_function_type']} | num data points: {metadata['num_data_points']}")
+    fig.suptitle(f"hash function: {metadata['hash_functions_type']} | num data points: {metadata['num_data_points']}")
 
     ax1, ax2 = axes[row]
 
@@ -60,7 +60,7 @@ def plot_hash_value_distribution(row, file):
 
 def plot_nearest_neighbor_search_count_distribution(row, file):
     metadata = parse_metadata(args.nn_count_file)
-    fig.suptitle(f"hash function: {metadata['hash_function_type']} | num data points: {metadata['num_data_points']}")
+    fig.suptitle(f"hash function: {metadata['hash_functions_type']} | num data points: {metadata['num_data_points']}")
 
     ax1, ax2 = axes[row]
 
@@ -104,7 +104,7 @@ def plot_nearest_neighbor_search_count_distribution(row, file):
 
 def plot_total_nearest_neighbor_search_count_distribution(row, file):
     metadata = parse_metadata(args.nn_count_file)
-    fig.suptitle(f"hash function: {metadata['hash_function_type']} | num data points: {metadata['num_data_points']}")
+    fig.suptitle(f"hash function: {metadata['hash_functions_type']} | num data points: {metadata['num_data_points']}")
 
     ax1, ax2 = axes[row]
 
