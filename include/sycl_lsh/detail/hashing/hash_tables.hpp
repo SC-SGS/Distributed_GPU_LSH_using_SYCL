@@ -91,9 +91,10 @@ class hash_tables : public hash_tables_base {
      * @param[in] received_data_ptr the data to perform the nearest-neighbors search on
      * @param[in,out] knn_indices_ptr the (already partially) calculated nearest-neighbor indices
      * @param[in,out] knn_distances_ptr the (already partially) calculated nearest-neighbors distances
+     * @param[in, out] knn_calculation_count_ptr the (already partially) counted number of nearest-neighbor calculations
      * @return the kernel execution time in milliseconds (`[[nodiscard]]`)
      */
-    [[nodiscard]] std::chrono::milliseconds search_nearest_neighbors_round(int round, index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const;
+    [[nodiscard]] std::chrono::milliseconds search_nearest_neighbors_round(int round, index_type k, data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr, device_ptr<index_type> &knn_calculation_count_ptr) const;
     /**
      * @brief Calculate the number of data points assigned to each hash bucket in each hash table.
      * @param[in] attr the @ref sycl_lsh::data_set::attributes of the query @ref sycl_lsh::data_set
@@ -405,6 +406,15 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
     device_ptr<index_type> knn_ptr{ indices.shape(), queue_ };
     device_ptr<real_type> knn_dist_ptr{ distances.shape(), queue_ };
 
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+    aos_matrix<index_type> knn_search_count{ shape{ lsh_options_.num_hash_tables, query_data.get_attributes().rank_size } };
+    device_ptr<index_type> knn_search_count_ptr{ knn_search_count.shape(), queue_ };
+#else
+    // create an empty device_ptr
+    // only serves as dummy for the function call if SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG is not set
+    device_ptr<index_type> knn_search_count_ptr{};
+#endif
+
     for (int round = 0; round < comm_.size(); ++round) {
         const mpi::detail::timer mpi_round_timer{ comm_ };
 
@@ -421,17 +431,26 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         // set the knn data on the device
         knn_ptr.copy_to_device(indices);
         knn_dist_ptr.copy_to_device(distances);
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+        knn_search_count_ptr.copy_to_device(knn_search_count);
+#endif
 
         // calculate k-nearest-neighbors on current MPI rank
-        round_kernel_runtimes.push_back(this->search_nearest_neighbors_round(round, k, query_data.get_attributes(), query_data_ptr, knn_ptr, knn_dist_ptr));
+        round_kernel_runtimes.push_back(this->search_nearest_neighbors_round(round, k, query_data.get_attributes(), query_data_ptr, knn_ptr, knn_dist_ptr, knn_search_count_ptr));
 
         // copy the knn data back to the host
         knn_ptr.copy_to_host(indices);
         knn_dist_ptr.copy_to_host(distances);
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+        knn_search_count_ptr.copy_to_host(knn_search_count);
+#endif
 
         // send calculated k-nearest-neighbors and distances to next rank
         comm_.send_receive_round_robin(indices);
         comm_.send_receive_round_robin(distances);
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+        comm_.send_receive_round_robin(knn_search_count);
+#endif
         // wait until all MPI communication has been finished
         mpi_thread.join();
         comm_.barrier();
@@ -440,6 +459,40 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         mpi::detail::log(comm_, "finished in {}.\n", runtime);
         round_runtimes.push_back(runtime);
     }
+
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+    // NOTE: hacky, but works; a simple gather on the matrix data does not work due to the memory layout
+    // gather the string for each MPI rank
+    std::vector<std::vector<std::string>> hash_table_partial_output(knn_search_count.num_rows());
+    for (std::size_t hash_table = 0; hash_table < knn_search_count.num_rows(); ++hash_table) {
+        const std::string partial_string_for_rank = fmt::format("{}", fmt::join(knn_search_count.data() + hash_table * knn_search_count.num_cols(), knn_search_count.data() + (hash_table + 1) * knn_search_count.num_cols(), ","));
+        hash_table_partial_output[hash_table] = comm_.gather(partial_string_for_rank);
+    }
+
+    // on the MPI main rank, collect the strings and write them to the file
+    if (comm_.is_main_rank()) {
+        // output the nearest-neighbor calculation count to a simple .csv file only on the MPI main rank
+        std::ofstream out{ "nearest_neighbor_calculation_count.csv" };
+        if (!out.good()) {
+            throw exception{ "Couldn't create the nearest-neighbor calculation count .csv file!" };
+        }
+
+        // add metadata as comment
+        out << fmt::format("# hash_function_type: {}\n", lsh_options_.hash_function);
+        out << fmt::format("# hash_pool_size: {}\n", lsh_options_.hash_pool_size);
+        out << fmt::format("# num_hash_functions: {}\n", lsh_options_.num_hash_functions);
+        out << fmt::format("# num_hash_tables: {}\n", lsh_options_.num_hash_tables);
+        out << fmt::format("# hash_table_size: {}\n", lsh_options_.hash_table_size);
+        out << fmt::format("# num_cut_off_points: {}\n", lsh_options_.num_cut_off_points);
+        out << fmt::format("# num_data_points: {}\n", query_data.get_attributes().total_size);
+        out << fmt::format("# BLOCKING_SIZE: {}\n", BLOCKING_SIZE);
+
+        // add the search counts
+        for (std::size_t hash_table = 0; hash_table < hash_table_partial_output.size(); ++hash_table) {
+            out << fmt::format("{},{}", hash_table, fmt::join(hash_table_partial_output[hash_table].begin(), hash_table_partial_output[hash_table].end(), ",")) << std::endl;
+        }
+    }
+#endif
 
     // add event and entry if available
     if (profiler_ != nullptr) {
@@ -451,7 +504,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
 }
 
 template <typename HashFunction>
-std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_round(const int round, const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr) const {
+std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_round(const int round, const index_type k, const data_set::attributes attr, const device_ptr<real_type> &received_data_ptr, device_ptr<index_type> &knn_indices_ptr, device_ptr<real_type> &knn_distances_ptr, device_ptr<index_type> &knn_calculation_count_ptr) const {
     const mpi::detail::timer mpi_timer{ comm_ };
 
     // add event if available
@@ -470,6 +523,7 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
         const index_type *hash_tables = hash_tables_ptr_.get();
         index_type *knn = knn_indices_ptr.get();
         real_type *knn_dist = knn_distances_ptr.get();
+        index_type *knn_calculation_count = knn_calculation_count_ptr.get();
 
         // get additional information
         const locality_sensitive_hashing_options options = lsh_options_;
@@ -533,6 +587,11 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
                         knn_dist_blocked[block] = 0.0;
 
                         if (is_candidate(knn_blocked[block])) {
+#if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+                            // increment the counter
+                            ++knn_calculation_count[hash_table * attr.rank_size + global_idx];
+#endif
+
                             // calculate distances
                             for (index_type dim = 0; dim < attr.dims; ++dim) {
                                 const real_type x = data_received[dim * attr.rank_size + global_idx];

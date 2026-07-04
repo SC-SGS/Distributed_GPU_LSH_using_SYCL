@@ -349,6 +349,13 @@ if (SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
     target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG)
 endif ()
 
+# output the needed number of nearest-neighbor calculations to a file after a call to kneighbors
+option(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG "If enabled, outputs the necessary number of nearest-neighbor calculations." OFF)
+if (SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+    message(STATUS "The number of nearest-neighbor searches is output during the call to kneighbors.")
+    target_compile_definitions(${SYCL_LSH_LIBRARY_NAME} PUBLIC SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
+endif ()
+
 # use 64bit floating point and index types if requested
 option(SYCL_LSH_USE_64BIT_TYPES "Use 64bit types (real_type, index_type, hash_value_type) instead of their 32bit counterparts." OFF)
 if (SYCL_LSH_USE_64BIT_TYPES)
