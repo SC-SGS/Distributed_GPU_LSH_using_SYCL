@@ -127,6 +127,15 @@ class options {
 };
 
 /**
+ * @brief Print all LSH related options set in @p opt to the output stream @p out and add the @p prefix to each newline.
+ * @param[in,out] out the output stream
+ * @param[in] opt the @ref sycl_lsh::locality_sensitive_hashing_options
+ * @param[in] prefix the prefix to add to each newline
+ * @return the output stream
+ */
+std::ostream &output_with_prefix(std::ostream &out, const locality_sensitive_hashing_options &opt, const std::string_view &prefix = "");
+
+/**
  * @brief Print all LSH related options set in @p opt to the output stream @p out.
  * @param[in,out] out the output stream
  * @param[in] opt the @ref sycl_lsh::locality_sensitive_hashing_options

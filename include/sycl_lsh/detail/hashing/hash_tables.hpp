@@ -19,7 +19,7 @@
 #include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
 #include "sycl_lsh/mpi/detail/math.hpp"                      // sycl_lsh::mpi::detail::elementwise_sum_inplace_main
 #include "sycl_lsh/mpi/detail/timer.hpp"                     // sycl_lsh::mpi::detail::timer
-#include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::output_with_prefix
 #include "sycl_lsh/profiler.hpp"                             // sycl_lsh::profiler
 
 #include "sycl/sycl.hpp"  // sycl::queue
@@ -258,12 +258,7 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
         }
 
         // add metadata as comment
-        out << fmt::format("# hash_function_type: {}\n", lsh_options_.hash_function);
-        out << fmt::format("# hash_pool_size: {}\n", lsh_options_.hash_pool_size);
-        out << fmt::format("# num_hash_functions: {}\n", lsh_options_.num_hash_functions);
-        out << fmt::format("# num_hash_tables: {}\n", lsh_options_.num_hash_tables);
-        out << fmt::format("# hash_table_size: {}\n", lsh_options_.hash_table_size);
-        out << fmt::format("# num_cut_off_points: {}\n", lsh_options_.num_cut_off_points);
+        output_with_prefix(out, lsh_options_, "# ");
         out << fmt::format("# num_data_points: {}\n", attr.total_size);
 
         // add the distributions
@@ -478,12 +473,7 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
         }
 
         // add metadata as comment
-        out << fmt::format("# hash_function_type: {}\n", lsh_options_.hash_function);
-        out << fmt::format("# hash_pool_size: {}\n", lsh_options_.hash_pool_size);
-        out << fmt::format("# num_hash_functions: {}\n", lsh_options_.num_hash_functions);
-        out << fmt::format("# num_hash_tables: {}\n", lsh_options_.num_hash_tables);
-        out << fmt::format("# hash_table_size: {}\n", lsh_options_.hash_table_size);
-        out << fmt::format("# num_cut_off_points: {}\n", lsh_options_.num_cut_off_points);
+        output_with_prefix(out, lsh_options_, "# ");
         out << fmt::format("# num_data_points: {}\n", query_data.get_attributes().total_size);
         out << fmt::format("# BLOCKING_SIZE: {}\n", BLOCKING_SIZE);
 

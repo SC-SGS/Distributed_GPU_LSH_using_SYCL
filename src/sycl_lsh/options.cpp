@@ -160,12 +160,13 @@ options::options(const mpi::communicator &comm, int &argc, char **&argv) {
     detail::sanity_check_locality_sensitive_hashing_options(lsh_options);
 }
 
-std::ostream &operator<<(std::ostream &out, const locality_sensitive_hashing_options &opt) {
-    std::string str = fmt::format("hash_functions_type: \"{}\"\n"
-                                  "hash_pool_size: {}\n"
-                                  "num_hash_functions: {}\n"
-                                  "num_hash_tables: {}\n"
-                                  "hash_table_size: {}\n",
+std::ostream &output_with_prefix(std::ostream &out, const locality_sensitive_hashing_options &opt, const std::string_view &prefix) {
+    std::string str = fmt::format("{0}hash_functions_type: \"{1}\"\n"
+                                  "{0}hash_pool_size: {2}\n"
+                                  "{0}num_hash_functions: {3}\n"
+                                  "{0}num_hash_tables: {4}\n"
+                                  "{0}hash_table_size: {5}\n",
+                                  prefix,
                                   opt.hash_function,
                                   opt.hash_pool_size,
                                   opt.num_hash_functions,
@@ -173,12 +174,16 @@ std::ostream &operator<<(std::ostream &out, const locality_sensitive_hashing_opt
                                   opt.hash_table_size);
 
     if (opt.hash_function != hash_function_type::entropy_based) {
-        str += fmt::format("w: {}\n", opt.w);
+        str += fmt::format("{}w: {}\n", prefix, opt.w);
     }
     if (opt.hash_function != hash_function_type::random_projections) {
-        str += fmt::format("num_cut_off_points: {}\n", opt.num_cut_off_points);
+        str += fmt::format("{}num_cut_off_points: {}\n", prefix, opt.num_cut_off_points);
     }
     return out << str;
+}
+
+std::ostream &operator<<(std::ostream &out, const locality_sensitive_hashing_options &opt) {
+    return output_with_prefix(out, opt);
 }
 
 std::ostream &operator<<(std::ostream &out, const options &opt) {
