@@ -90,6 +90,7 @@ void profiler::add_entry(const options &opt) {
     if (opt.distances_ground_truth_file.has_value()) {
         this->add_entry("options", "distances_ground_truth_file", opt.distances_ground_truth_file.value());
     }
+    this->add_entry("options", "work_group_size", opt.work_group_size);
     this->add_entry(opt.lsh_options);
 }
 
