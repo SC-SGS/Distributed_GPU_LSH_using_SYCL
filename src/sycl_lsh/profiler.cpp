@@ -160,7 +160,7 @@ void profiler::dump(std::ostream &out) {
         if (hardware_sampler_ != nullptr) {
             for (const auto &sampler : hardware_sampler_->samplers()) {
                 out << sampler->device_identification() << ":\n";
-                out << indent_newlines(hardware_sampler_->as_yaml_string());
+                out << indent_newlines(sampler->as_yaml_string());
                 out << '\n';
             }
         }
