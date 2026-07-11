@@ -37,7 +37,7 @@ std::istream &operator>>(std::istream &in, profiling_types &profiling_type) {
 
     if (str == "0" || str == "none") {
         profiling_type = profiling_types::none;
-    } else if (str == "1" || str == "runtimes") {
+    } else if (str == "1" || str == "runtimes" || str == "runtime") {
         profiling_type = profiling_types::runtimes;
     } else if (str == "2" || str == "hws") {
         profiling_type = profiling_types::hws;
