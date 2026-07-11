@@ -9,6 +9,7 @@
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
 #include "sycl_lsh/data_set.hpp"                     // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
+#include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/options.hpp"                      // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
 #include "sycl_lsh/profiling_types.hpp"              // sycl_lsh::profiling_types
 
@@ -100,15 +101,15 @@ void profiler::add_event(const std::string &name) const {
     }
 }
 
-void profiler::dump(const std::string &filename) {
+void profiler::dump(const mpi::communicator &comm, const std::string &filename) {
     // if the profiling type is none, nothing to be done
     if (profiling_type_ != profiling_types::none) {
         std::ofstream out{ filename, std::ios::app };
-        this->dump(out);
+        this->dump(comm, out);
     }
 }
 
-void profiler::dump(std::ostream &out) {
+void profiler::dump(const mpi::communicator &comm, std::ostream &out) {
     // if the profiling type is none, nothing to be done
     if (profiling_type_ != profiling_types::none) {
         // stop the hardware sampling if possible
@@ -139,6 +140,7 @@ void profiler::dump(std::ostream &out) {
         this->add_entry_impl(entries, "metadata", "index_type", detail::arithmetic_type_name<index_type>());
         this->add_entry_impl(entries, "metadata", "hash_value_type", detail::arithmetic_type_name<hash_value_type>());
         this->add_entry_impl(entries, "metadata", "BLOCKING_SIZE", BLOCKING_SIZE);
+        this->add_entry_impl(entries, "metadata", "mpi_comm_size", comm.size());
 
         // backend related meta-data
         this->add_entry_impl(entries, "backend", "sycl_implementation", std::string_view{ SYCL_LSH_IMPLEMENTATION });
@@ -147,21 +149,32 @@ void profiler::dump(std::ostream &out) {
         this->add_entry_impl(entries, "backend", "cpu_vectorization_width", std::string_view{ SYCL_LSH_CPU_VECTORIZATION_TARGET });
 #endif
 
-        // output the data in a YAML format
-        out << "---\n";
-        for (const auto &[group, group_entries] : entries) {
-            out << group << ":\n";
-            for (const auto &[name, value] : group_entries) {
-                out << "  " << name << ": " << value << '\n';
+        // output the data in a YAML format -> only on the MPI main rank, other ranks may not have all information
+        if (comm.is_main_rank()) {
+            out << "---\n";
+            for (const auto &[group, group_entries] : entries) {
+                out << group << ":\n";
+                for (const auto &[name, value] : group_entries) {
+                    out << "  " << name << ": " << value << '\n';
+                }
+                out << '\n';
             }
-            out << '\n';
         }
+
         // if available, add the hardware samples at the end
         if (hardware_sampler_ != nullptr) {
+            // collect all YAML strings on the main MPI rank
+            std::string hardware_samples{};
             for (const auto &sampler : hardware_sampler_->samplers()) {
-                out << sampler->device_identification() << ":\n";
-                out << indent_newlines(sampler->as_yaml_string());
-                out << '\n';
+                hardware_samples += fmt::format("{}_mpi_rank_{}:\n", sampler->device_identification(), comm.rank());
+                hardware_samples += indent_newlines(sampler->as_yaml_string());
+                hardware_samples += '\n';
+            }
+            // send them to the MPI main rank
+            const std::vector<std::string> hardware_samples_all_ranks = comm.gather(hardware_samples);
+            // output the hardware samples only on the main rank
+            if (comm.is_main_rank()) {
+                out << fmt::format("{}", fmt::join(hardware_samples_all_ranks, "\n"));
             }
         }
         out << std::endl;

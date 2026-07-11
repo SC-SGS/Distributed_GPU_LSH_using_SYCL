@@ -10,9 +10,10 @@
 #define SYCL_LSH_PROFILER_HPP
 #pragma once
 
-#include "sycl_lsh/data_set.hpp"         // sycl_lsh::data_set::attributes
-#include "sycl_lsh/options.hpp"          // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
-#include "sycl_lsh/profiling_types.hpp"  // sycl_lsh::profiling_types
+#include "sycl_lsh/data_set.hpp"          // sycl_lsh::data_set::attributes
+#include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator
+#include "sycl_lsh/options.hpp"           // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
+#include "sycl_lsh/profiling_types.hpp"   // sycl_lsh::profiling_types
 
 #include "fmt/chrono.h"  // format std::chrono types
 #include "fmt/format.h"  // fmt::format
@@ -81,14 +82,16 @@ class profiler {
 
     /**
      * @brief Dump all gathered profiling entries to the @p filename in a YAML format.
+     * @param[in] comm the @ref sycl_lsh::mpi::communicator
      * @param[in] filename the output YAML file name
      */
-    void dump(const std::string &filename);
+    void dump(const mpi::communicator &comm, const std::string &filename);
     /**
      * @brief Dump all gathered profiling entries to the @p out stream in a YAML format.
+     * @param[in] comm the @ref sycl_lsh::mpi::communicator
      * @param[in] out the output stream
      */
-    void dump(std::ostream &out);
+    void dump(const mpi::communicator &comm, std::ostream &out);
 
     /**
      * @brief Remove all already gathered entries.

@@ -76,10 +76,10 @@ int custom_main(int &argc, char **&argv) {
 
         if (opt.profiling_file.has_value()) {
             // if a file was given, output the profiling results to it
-            profiler->dump(opt.profiling_file.value());
+            profiler->dump(comm, opt.profiling_file.value());
         } else if (comm.is_main_rank()) {
             // otherwise, dump it to std::clog if we are on the MPI main rank
-            profiler->dump(std::clog);
+            profiler->dump(comm, std::clog);
         }
     } catch (const sycl_lsh::cmd_parser_exit &e) {
         return e.exit_code();
