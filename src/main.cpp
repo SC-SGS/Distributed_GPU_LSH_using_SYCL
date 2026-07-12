@@ -8,6 +8,7 @@
 
 #include "sycl_lsh/core.hpp"
 #include "sycl_lsh/mpi/detail/logging.hpp"  // sycl_lsh::mpi::detail::log
+#include "sycl_lsh/mpi/detail/timer.hpp"    // sycl_lsh::mpi::detail::timer
 
 #include "sycl/sycl.hpp"  // sycl::queue, sycl::cpu_selector_v, sycl::gpu_selector_v
 
@@ -38,6 +39,9 @@ int custom_main(int &argc, char **&argv) {
         auto profiler = std::make_shared<sycl_lsh::profiler>(opt.profiling_type);
         profiler->add_entry(opt);
 
+        // start a timer tracking the total runtime
+        const sycl_lsh::mpi::detail::timer timer{ comm };
+
         // parse data and print data attributes
         sycl_lsh::data_set data{ comm, opt.data_file, sycl_lsh::perf_profiler = profiler };
 
@@ -49,6 +53,11 @@ int custom_main(int &argc, char **&argv) {
 
         // calculate the nearest-neighbors
         const sycl_lsh::nearest_neighbors_result result = nn.kneighbors(sycl_lsh::return_distance = true);
+
+        // get the total runtime, output it, and store it in the profiler if requested
+        const auto total_runtime = timer.elapsed();
+        sycl_lsh::mpi::detail::log(comm, "Total runtime to calculate the {}-nearest-neighbors (fit + kneighbors): {}\n\n", opt.n_neighbors, total_runtime);
+        profiler->add_entry("total_runtime", "total_runtime", total_runtime);
 
         // optionally save the calculated nearest-neighbor indices to a file
         if (opt.indices_save_file.has_value()) {
