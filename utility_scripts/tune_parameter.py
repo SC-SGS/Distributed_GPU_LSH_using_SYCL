@@ -68,6 +68,10 @@ def run_trial(trial, build_path, data_set, hash_function, num_nearest_neighbors,
             recall = float(line.split(":")[-1].split("%")[0].strip()) / 100.0
         if "error ratio" in line.lower():
             trial.set_user_attr("error_ratio", float(line.split(":")[-1].strip()))
+        if "fit the nearest-neighbors estimator" in line.lower():
+            trial.set_user_attr("fit_runtime", line.split(" ")[-1].strip()[:-1])
+        if "calculated" in line.lower():
+            trial.set_user_attr("search_runtime", line.split(" ")[-1].strip()[:-1])
         if "total runtime" in line.lower():
             trial.set_user_attr("total_runtime", line.split(":")[-1].strip())
 
@@ -161,6 +165,8 @@ if __name__ == "__main__":
             trial_results["hash_function"] = used_hash_function
             trial_results["accuracy"] = float_to_string(trial.value * 100, 2) + "%"
             trial_results["error_ratio"] = trial.user_attrs['error_ratio']
+            trial_results["fit_runtime"] = trial.user_attrs['fit_runtime']
+            trial_results["search_runtime"] = trial.user_attrs['search_runtime']
             trial_results["total_runtime"] = trial.user_attrs['total_runtime']
             for k, v in trial.params.items():
                 trial_results[k] = float_to_string(v, 1)
