@@ -23,6 +23,16 @@
 #include <type_traits>   // std::enable_if_t, std::is_arithmetic_v, std::is_same_v
 
 /**
+ * @brief Helper function for an extra round of macro expansion inside the  SYCL_LSH_IS_DEFINED macro.
+ */
+#define SYCL_LSH_IS_DEFINED_HELPER(x) #x
+/**
+ * @brief Evaluates to `true` if the preprocessor macro @p x is defined, otherwise `false`.
+ * @details Based on: https://stackoverflow.com/questions/18048039/c-constexpr-function-to-test-preprocessor-macros
+ */
+#define SYCL_LSH_IS_DEFINED(x) (std::string_view{ #x } != std::string_view{ SYCL_LSH_IS_DEFINED_HELPER(x) })
+
+/**
  * @brief Shorthand macro for an easier [std::enable_if_t](https://en.cppreference.com/w/cpp/types/enable_if).
  */
 #define SYCL_LSH_REQUIRES(...) std::enable_if_t<(__VA_ARGS__), bool> = true

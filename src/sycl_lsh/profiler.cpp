@@ -9,6 +9,7 @@
 #include "sycl_lsh/constants.hpp"                    // sycl_lsh::real_type, sycl_lsh::index_type, sycl_lsh::hash_value_type
 #include "sycl_lsh/data_set.hpp"                     // sycl_lsh::data_set::attributes
 #include "sycl_lsh/detail/arithmetic_type_name.hpp"  // sycl_lsh::detail::arithmetic_type_name
+#include "sycl_lsh/detail/utility.hpp"               // SYCL_LSH_IS_DEFINED
 #include "sycl_lsh/mpi/communicator.hpp"             // sycl_lsh::mpi::communicator
 #include "sycl_lsh/options.hpp"                      // sycl_lsh::options, sycl_lsh::locality_sensitive_hashing_options
 #include "sycl_lsh/profiling_types.hpp"              // sycl_lsh::profiling_types
@@ -125,17 +126,10 @@ void profiler::dump(const mpi::communicator &comm, std::ostream &out) {
         this->add_entry_impl(entries, "metadata", "build_type", std::string_view{ SYCL_LSH_BUILD_TYPE });
         this->add_entry_impl(entries, "metadata", "date", fmt::format("{:%Y-%m-%d %H:%M:%S}", fmt::gmtime(std::time(nullptr))));
         this->add_entry_impl(entries, "metadata", "timer", std::string_view{ SYCL_LSH_TIMER_NAME });
-#if defined(SYCL_LSH_ASSERTS_ENABLED)
-        this->add_entry_impl(entries, "metadata", "asserts", true);
-#else
-        this->add_entry_impl(entries, "metadata", "asserts", false);
-#endif
-#if defined(SYCL_LSH_RANDOM_NUMBERS_DEBUG)
-        this->add_entry_impl(entries, "metadata", "random_number_debug", true);
-#else
-        this->add_entry_impl(entries, "meta_data", "random_number_debug", false);
-#endif
-
+        this->add_entry_impl(entries, "metadata", "asserts", SYCL_LSH_IS_DEFINED(SYCL_LSH_ASSERTS_ENABLED));
+        this->add_entry_impl(entries, "metadata", "random_number_debug", SYCL_LSH_IS_DEFINED(SYCL_LSH_RANDOM_NUMBERS_DEBUG));
+        this->add_entry_impl(entries, "metadata", "hash_value_distribution_debug", SYCL_LSH_IS_DEFINED(SYCL_LSH_HASH_VALUE_DISTRIBUTION_DEBUG));
+        this->add_entry_impl(entries, "metadata", "nearest_neighbor_search_distribution_debug", SYCL_LSH_IS_DEFINED(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG));
         this->add_entry_impl(entries, "metadata", "real_type", detail::arithmetic_type_name<real_type>());
         this->add_entry_impl(entries, "metadata", "index_type", detail::arithmetic_type_name<index_type>());
         this->add_entry_impl(entries, "metadata", "hash_value_type", detail::arithmetic_type_name<hash_value_type>());
