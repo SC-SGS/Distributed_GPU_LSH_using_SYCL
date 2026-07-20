@@ -7,15 +7,26 @@
 #include "sycl_lsh/mpi/main.hpp"
 
 #include "sycl_lsh/mpi/communicator.hpp"  // sycl_lsh::mpi::communicator::main_rank
+#include "sycl_lsh/mpi/environment.hpp"   // sycl_lsh::mpi::is_finalized
 
 #include "fmt/format.h"  // fmt::format
 #include "mpi/mpi.h"     // MPI_THREAD_SERIALIZED, MPI_Init_thread, MPI_Comm_rank, MPI_Finalize
 
 #include <cstdlib>     // EXIT_SUCCESS, EXIT_FAILURE
+#include <exception>   // std::set_terminate
 #include <functional>  // std::invoke
 #include <iostream>    // std::cerr, std::endl
 
 int sycl_lsh::mpi::main(int &argc, char **&argv, custom_main_ptr func) {
+    // register a terminate handler -> gracefully tear down MPI in case of an unexpected program termination
+    std::set_terminate([]() {
+        // finalize the MPI environment if not already done
+        if (!is_finalized()) {
+            MPI_Finalize();
+        }
+        std::abort();
+    });
+
     int return_code = EXIT_SUCCESS;
 
     // initialize the MPI environment with thread support
