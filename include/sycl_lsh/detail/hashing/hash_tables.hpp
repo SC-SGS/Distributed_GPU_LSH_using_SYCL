@@ -17,7 +17,7 @@
 #include "sycl_lsh/detail/hashing/mixed_hash_functions.hpp"  // sycl_lsh::detail::hashing::mixed_hash_functions
 #include "sycl_lsh/detail/hashing/random_projections.hpp"    // sycl_lsh::detail::hashing::random_projections
 #include "sycl_lsh/mpi/detail/logging.hpp"                   // sycl_lsh::mpi::detail::{log, log_from_all}
-#include "sycl_lsh/mpi/detail/math.hpp"                      // sycl_lsh::mpi::detail::elementwise_sum_inplace_main
+#include "sycl_lsh/mpi/detail/math.hpp"                      // sycl_lsh::mpi::detail::{elementwise_sum_inplace_main, sum}
 #include "sycl_lsh/mpi/detail/timer.hpp"                     // sycl_lsh::mpi::detail::timer
 #include "sycl_lsh/options.hpp"                              // sycl_lsh::locality_sensitive_hashing_options, sycl_lsh::output_with_prefix
 #include "sycl_lsh/profiler.hpp"                             // sycl_lsh::profiler
@@ -458,10 +458,18 @@ void hash_tables<HashFunction>::search_nearest_neighbors(const index_type k, dat
 #if defined(SYCL_LSH_NEAREST_NEIGHBOR_SEARCH_DISTRIBUTION_DEBUG)
     // NOTE: hacky, but works; a simple gather on the matrix data does not work due to the memory layout
     // gather the string for each MPI rank
+    // also sum up the total number of distance calculations
     std::vector<std::vector<std::string>> hash_table_partial_output(knn_search_count.num_rows());
+    size_t total_num_distance_calculations{ 0 };
     for (std::size_t hash_table = 0; hash_table < knn_search_count.num_rows(); ++hash_table) {
         const std::string partial_string_for_rank = fmt::format("{}", fmt::join(knn_search_count.data() + hash_table * knn_search_count.num_cols(), knn_search_count.data() + (hash_table + 1) * knn_search_count.num_cols(), ","));
         hash_table_partial_output[hash_table] = comm_.gather(partial_string_for_rank);
+        total_num_distance_calculations += std::reduce(knn_search_count.data() + hash_table * knn_search_count.num_cols(), knn_search_count.data() + (hash_table + 1) * knn_search_count.num_cols(), std::size_t{ 0 }, std::plus<>{});
+    }
+    // sum up the total number of distance calculations and output it to the profiling YAML file
+    if (profiler_ != nullptr) {
+        total_num_distance_calculations = mpi::detail::sum(total_num_distance_calculations, comm_);
+        profiler_->add_entry("nearest_neighbors", "total_num_distance_calculations", total_num_distance_calculations);
     }
 
     // on the MPI main rank, collect the strings and write them to the file
