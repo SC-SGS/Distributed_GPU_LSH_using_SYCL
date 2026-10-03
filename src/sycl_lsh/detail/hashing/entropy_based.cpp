@@ -23,6 +23,8 @@
 
 namespace sycl_lsh::detail::hashing {
 
+class entropy_based_create;
+
 entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
     device_ptr_{ shape{ opt.num_hash_tables, opt.num_hash_functions, attributes.dims + opt.num_cut_off_points - 1 }, queue } {
     // create hash pool functions on the MPI main rank and distribute to all other ranks
@@ -72,7 +74,7 @@ entropy_based::entropy_based(const locality_sensitive_hashing_options &opt, cons
             const locality_sensitive_hashing_options options = opt;
             const data_set::attributes attr = attributes;
 
-            cgh.parallel_for(sycl::range<2>{ options.hash_pool_size, attr.rank_size }, [=](sycl::item<2> item) {
+            cgh.parallel_for<entropy_based_create>(sycl::range<2>{ options.hash_pool_size, attr.rank_size }, [=](sycl::item<2> item) {
                 const index_type hash_function = item.get_id(0);
                 const index_type idx = item.get_id(1);
 

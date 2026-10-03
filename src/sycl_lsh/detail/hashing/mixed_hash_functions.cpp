@@ -24,6 +24,8 @@
 
 namespace sycl_lsh::detail::hashing {
 
+class mixed_hash_functions_create;
+
 mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_options &opt, const device_ptr<real_type> &data, const data_set::attributes attributes, sycl::queue &queue, const mpi::communicator &comm) :
     device_ptr_{ opt.num_hash_tables * opt.num_hash_functions * (attributes.dims + 1) +            // random projections as hash functions
                      opt.num_hash_tables * (opt.num_hash_functions + opt.num_cut_off_points - 1),  // entropy-based as hash combine
@@ -126,7 +128,7 @@ mixed_hash_functions::mixed_hash_functions(const locality_sensitive_hashing_opti
             const locality_sensitive_hashing_options options = opt;
             const data_set::attributes attr = attributes;
 
-            cgh.parallel_for(sycl::range<2>{ opt.num_hash_tables, attributes.rank_size }, [=](sycl::item<2> item) {
+            cgh.parallel_for<mixed_hash_functions_create>(sycl::range<2>{ opt.num_hash_tables, attributes.rank_size }, [=](sycl::item<2> item) {
                 const index_type idx = item.get_id(1);
                 const index_type hash_table = item.get_id(0);
 
