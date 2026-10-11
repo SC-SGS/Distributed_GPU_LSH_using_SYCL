@@ -36,9 +36,13 @@
 
 namespace sycl_lsh::detail::hashing {
 
+template <typename HashFunction>
 class hash_tables_count_hash_values;
+template <typename HashFunction>
 class hash_tables_calculate_offsets;
+template <typename HashFunction>
 class hash_tables_fill;
+template <typename HashFunction>
 class hash_tables_knn;
 
 /**
@@ -236,7 +240,7 @@ void hash_tables<HashFunction>::count_hash_values(const data_set::attributes att
         // get hasher functor instantiation
         const lsh_hash<HashFunction> hasher{};
 
-        cgh.parallel_for<hash_tables_count_hash_values>(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
+        cgh.parallel_for<hash_tables_count_hash_values<HashFunction>>(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);
             const index_type idx = item.get_id(1);
 
@@ -298,7 +302,7 @@ void hash_tables<HashFunction>::calculate_offsets(const device_ptr<index_type> &
         // get additional information
         const locality_sensitive_hashing_options options = lsh_options_;
 
-        cgh.parallel_for<hash_tables_calculate_offsets>(sycl::range<1>{ options.num_hash_tables }, [=](sycl::item<1> item) {
+        cgh.parallel_for<hash_tables_calculate_offsets<HashFunction>>(sycl::range<1>{ options.num_hash_tables }, [=](sycl::item<1> item) {
             const index_type idx = item.get_linear_id();
 
             // calculate constant offsets
@@ -350,7 +354,7 @@ void hash_tables<HashFunction>::fill_hash_tables(const data_set::attributes attr
         // get hasher functor instantiation
         const lsh_hash<HashFunction> hasher{};
 
-        cgh.parallel_for<hash_tables_fill>(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
+        cgh.parallel_for<hash_tables_fill<HashFunction>>(sycl::range<2>{ options.num_hash_tables, attr.rank_size }, [=](sycl::item<2> item) {
             const index_type hash_table = item.get_id(0);
             const index_type idx = item.get_id(1);
 
@@ -544,7 +548,7 @@ std::chrono::milliseconds hash_tables<HashFunction>::search_nearest_neighbors_ro
 
         const sycl::nd_range<1> execution_range{ sycl::range<1>{ global_size }, sycl::range<1>{ work_group_size_ } };
 
-        cgh.parallel_for<hash_tables_knn>(execution_range, [=](sycl::nd_item<1> item) {
+        cgh.parallel_for<hash_tables_knn<HashFunction>>(execution_range, [=](sycl::nd_item<1> item) {
             const index_type global_idx = item.get_global_linear_id();
             const index_type local_idx = item.get_local_linear_id();
 
